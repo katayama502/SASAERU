@@ -327,29 +327,32 @@
   // 認証
   // ============================================================
   if (auth) {
-    auth.onAuthStateChanged(async user => {
-      if (user) {
-        // Custom Claims で管理者権限を確認
-        // 付与方法: Firebase Admin SDK で setCustomUserClaims(uid, { admin: true })
-        try {
-          const tokenResult = await user.getIdTokenResult();
-          if (tokenResult.claims.admin !== true) {
-            await auth.signOut();
-            showLogin();
-            document.getElementById('login-error').textContent =
-              '管理者権限がありません。管理者アカウントでログインしてください。';
-            return;
-          }
-        } catch(e) {
-          console.error('Token claims check failed:', e);
-          await auth.signOut();
+    // Promise ベース: ページ遷移直後の null 誤判定を防止
+    new Promise(resolve => {
+      const unsub = auth.onAuthStateChanged(user => { unsub(); resolve(user); });
+    }).then(async user => {
+      if (!user) {
+        showLogin();
+        return;
+      }
+      // Custom Claims で管理者権限を確認
+      // 付与方法: Firebase Admin SDK で setCustomUserClaims(uid, { admin: true })
+      try {
+        // キャッシュではなく最新トークンを強制取得
+        const tokenResult = await user.getIdTokenResult(true);
+        if (tokenResult.claims.admin !== true) {
+          // ※ signOut しない — ループを防ぐため。ログイン画面を表示してメッセージを出すだけ
           showLogin();
+          document.getElementById('login-error').textContent =
+            '管理者権限がありません。管理者アカウントでログインしてください。';
           return;
         }
-        showDashboard(user);
-      } else {
+      } catch(e) {
+        console.error('Token claims check failed:', e);
         showLogin();
+        return;
       }
+      showDashboard(user);
     });
   } else {
     // Firebase未設定: デモモードで管理画面表示

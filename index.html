@@ -693,42 +693,6 @@
   }
 
   // ===================================================
-  // サンプルデータ
-  // ===================================================
-  const SAMPLE_ORGS = [
-    {
-      id: 'sample-1',
-      name: '青空ジュニアサッカークラブ',
-      category: 'sports',
-      area: '島根県松江市',
-      tags: ['コーチ不足', '備品不足'],
-      activity_how: '創立20年の地域に根ざしたチームです。現在、指導者不足により新規入会を制限しています。用具や設備の整備も課題です。',
-      main_image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=600',
-      status: 'public'
-    },
-    {
-      id: 'sample-2',
-      name: 'ふるさと伝統芸能保存会',
-      category: 'culture',
-      area: '島根県出雲市',
-      tags: ['資金難', '後継者不足'],
-      activity_how: '地域の伝統を守るため、子どもたちへの継承活動を行っています。衣装の修繕費用が不足しています。',
-      main_image: 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?auto=format&fit=crop&q=80&w=600',
-      status: 'public'
-    },
-    {
-      id: 'sample-3',
-      name: 'わんぱく野球団',
-      category: 'sports',
-      area: '島根県浜田市',
-      tags: ['遠征費支援', '用具寄贈希望'],
-      activity_how: '県大会出場が決定しましたが、遠征費用の工面に苦慮しています。地域の星として頑張っています！',
-      main_image: 'https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&q=80&w=600',
-      status: 'public'
-    }
-  ];
-
-  // ===================================================
   // 状態
   // ===================================================
   let currentFilter = 'all';
@@ -770,7 +734,7 @@
   // 統計カウンター
   // ===================================================
   async function loadStats() {
-    let orgCount = SAMPLE_ORGS.length;
+    let orgCount = 0;
     let inqCount = 0;
 
     if (db) {
@@ -827,8 +791,8 @@
       }
     }
 
-    // Fallback: サンプルデータ
-    allOrgs = SAMPLE_ORGS;
+    // Fallback: Firebase未設定または取得失敗時は空リスト
+    allOrgs = [];
     renderOrgs();
   }
 

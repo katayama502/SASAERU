@@ -1,6 +1,6 @@
 # SASAERU システム仕様書
 
-**バージョン:** 1.2  
+**バージョン:** 1.3  
 **作成日:** 2026-04-16  
 **更新日:** 2026-04-16  
 **作成者:** G-Stack AI チーム / Spec Writer  
@@ -33,6 +33,18 @@
 | 5 | admin.html / mypage.html モバイル対応サイドバー仕様を追記 | 4章 |
 | 6 | mypage.html 公開ページリンクのバグ修正（`club.html?id=` に変更） | 4章 |
 | 7 | club.html モバイルメニュー認証状態対応を追記 | 4章 |
+
+## 変更サマリー（v1.2 → v1.3）
+
+| # | 変更内容 | 対象章 |
+|---|---------|-------|
+| 1 | mypage.html・admin.html の認証チェックを Promise ベース（one-shot）に変更し race condition を解消 | 4章 |
+| 2 | admin.html Custom Claims チェックから `auth.signOut()` を除去（ループ防止） | 4章 |
+| 3 | admin.html `getIdTokenResult(true)` で強制トークンリフレッシュに変更 | 4章 |
+| 4 | Firestore menus サブコレクションルールを `allow get` / `allow list` に分離 | 3章 |
+| 5 | index.html の `SAMPLE_ORGS`（仮クラブ3件）を削除し、空リストフォールバックに変更 | 4章 |
+| 6 | mypage.html の `DEMO_ORG`/`DEMO_MENUS`/`DEMO_POSTS` を削除 | 4章 |
+| 7 | Firebase未設定時の mypage.html フォールバックを no-org-screen 表示に変更 | 4章 |
 
 ---
 
@@ -249,7 +261,8 @@ pending（非公開化）
 | organizations | create（新規作成） | 認証済み + `owner_uid` == 自分のUID + `status == "pending"` |
 | organizations | update（更新） | `isAdmin()` または `isOwnerOf(orgId)`（v1.2変更） |
 | organizations | delete（削除） | `isAdmin()` のみ（v1.2変更） |
-| organizations/menus | read | `status == "public"` は誰でも可 / `isOwnerOf(orgId)` は全件可 |
+| organizations/menus | get（1件取得） | `status == "public"` は誰でも可 / `isOwnerOf(orgId)` は全件可 |
+| organizations/menus | list（一覧取得） | `isOwnerOf(orgId)` のみ（v1.3変更: list では resource が null のため status チェック不可） |
 | organizations/menus | create / update / delete | `isOwnerOf(orgId)` のみ |
 | posts | read | 誰でも可（全公開コンテンツ） |
 | posts | create | 認証済み + `owner_uid` == 自分のUID |
@@ -259,7 +272,7 @@ pending（非公開化）
 | contacts | create | 誰でも可 |
 | contacts | read / update / delete | `isAdmin()` のみ（v1.2変更・個人情報保護強化） |
 
-**ヘルパー関数定義（v1.2）:**
+**ヘルパー関数定義（v1.2/v1.3）:**
 ```javascript
 // 認証済みユーザー判定
 function isAuth() {

@@ -37,8 +37,10 @@ service cloud.firestore {
 
     // organizations/{orgId}/menus サブコレクション（支援メニュー）
     match /organizations/{orgId}/menus/{menuId} {
-      // 公開メニューは誰でも読める / オーナーは全件読める
-      allow read:                   if resource.data.status == "public" || isOwnerOf(orgId);
+      // 1件取得: 公開メニューは誰でも / オーナーは全て
+      allow get:    if resource.data.status == "public" || isOwnerOf(orgId);
+      // 一覧取得: list では resource が null のため status チェック不可 → オーナーのみ
+      allow list:   if isOwnerOf(orgId);
       // 作成・更新・削除: オーナーのみ
       allow create, update, delete: if isOwnerOf(orgId);
     }
