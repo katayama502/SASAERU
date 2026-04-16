@@ -749,11 +749,12 @@
       try {
         const snap = await db.collection('organizations')
           .where('status', '==', 'public')
-          .orderBy('created_at', 'desc')
           .limit(30)
           .get();
         if (!snap.empty) {
-          allOrgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          allOrgs = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a,b) => (b.created_at?.toMillis?.()??0)-(a.created_at?.toMillis?.()??0));
           renderOrgs();
           return;
         }

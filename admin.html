@@ -547,8 +547,7 @@
     const el = document.getElementById('pending-list');
     if (!db) { el.innerHTML = demoMsg(); return; }
     try {
-      const snap = await db.collection('organizations').where('status','==','pending')
-        .orderBy('created_at','desc').get();
+      const snap = await db.collection('organizations').where('status','==','pending').get();
       updateBadge('badge-pending', snap.size);
       if (snap.empty) {
         el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">審査待ちの団体はありません</div>';
@@ -568,8 +567,12 @@
     const el = document.getElementById('orgs-list');
     if (!db) { el.innerHTML = demoMsg(); return; }
     try {
-      const snap = await db.collection('organizations').orderBy('created_at','desc').get();
-      allOrgsData = snap.docs;
+      const snap = await db.collection('organizations').get();
+      allOrgsData = snap.docs.sort((a, b) => {
+        const ta = a.data().created_at?.toMillis?.() ?? 0;
+        const tb = b.data().created_at?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
       renderFilteredOrgs();
     } catch(e) {
       el.innerHTML = errMsg(e);
@@ -718,14 +721,15 @@
     const el = document.getElementById('inquiries-list');
     if (!db) { el.innerHTML = demoMsg(); return; }
     try {
-      const snap = await db.collection('inquiries').orderBy('created_at','desc').get();
-      const newCount = snap.docs.filter(d => d.data().status === 'new').length;
+      const snap = await db.collection('inquiries').get();
+      const sorted = snap.docs.sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
+      const newCount = sorted.filter(d => d.data().status === 'new').length;
       updateBadge('badge-inquiries', newCount);
       if (snap.empty) {
         el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援申請はありません</div>';
         return;
       }
-      el.innerHTML = snap.docs.map(d => {
+      el.innerHTML = sorted.map(d => {
         const q  = d.data();
         const id = d.id;
         return `
@@ -784,7 +788,8 @@
     const el = document.getElementById('contacts-list');
     if (!db) { el.innerHTML = demoMsg(); return; }
     try {
-      const snap = await db.collection('contacts').orderBy('created_at','desc').get();
+      const snap = await db.collection('contacts').get();
+      snap.docs.sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
       if (snap.empty) {
         el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">お問い合わせはありません</div>';
         return;
