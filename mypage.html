@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SASAERU マイページ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } }
+    }
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Firebase v10 compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+    body { font-family: 'Noto Sans JP', sans-serif; }
+    .badge-pending  { background:#fef3c7; color:#d97706; }
+    .badge-public   { background:#dcfce7; color:#16a34a; }
+    .badge-rejected { background:#fee2e2; color:#dc2626; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .fade-in { animation: fadeIn .25s ease forwards; }
+    @keyframes slideDown { from{opacity:0;max-height:0;transform:translateY(-8px)} to{opacity:1;max-height:2000px;transform:translateY(0)} }
+    .slide-down { animation: slideDown .3s ease forwards; }
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-thumb { background:#6366f1; border-radius:4px; }
+    .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900">
+
+  <!-- ===== ローディング ===== -->
+  <div id="loading-screen" class="min-h-screen flex items-center justify-center">
+    <div class="flex flex-col items-center gap-4">
+      <div class="w-12 h-12 bg-orange-400 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-400/30 animate-pulse">
+        <i data-lucide="heart" class="text-white fill-white" width="24" height="24"></i>
+      </div>
+      <p class="text-sm text-slate-400 font-bold">読み込み中...</p>
+    </div>
+  </div>
+
+  <!-- ===== 団体なし画面 ===== -->
+  <div id="no-org-screen" class="hidden min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
+      <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+        <i data-lucide="building-2" class="text-orange-400" width="32" height="32"></i>
+      </div>
+      <h1 class="text-xl font-black text-[#0f0e2e] mb-2">団体が見つかりません</h1>
+      <p class="text-sm text-slate-500 mb-6 leading-relaxed">
+        このアカウントに紐づいた団体情報が見つかりませんでした。<br>
+        まずは団体登録を行ってください。
+      </p>
+      <a href="index.html"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+        <i data-lucide="arrow-left" width="16" height="16"></i>
+        トップページへ
+      </a>
+    </div>
+  </div>
+
+  <!-- ===== ダッシュボード ===== -->
+  <div id="dashboard" class="hidden min-h-screen">
+    <div class="flex h-screen overflow-hidden">
+
+      <!-- サイドバー -->
+      <aside class="w-60 bg-[#0f0e2e] flex flex-col shrink-0">
+        <!-- ロゴ -->
+        <div class="px-5 py-5 border-b border-white/10">
+          <a href="index.html" class="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+            <div class="w-8 h-8 bg-orange-400 rounded-lg flex items-center justify-center shadow-md shadow-orange-400/30">
+              <i data-lucide="heart" class="text-white fill-white" width="16" height="16"></i>
+            </div>
+            <div>
+              <p class="text-sm font-black text-white leading-none">SASAERU</p>
+              <p class="text-[9px] text-white/40 mt-0.5">マイページ</p>
+            </div>
+          </a>
+        </div>
+
+        <!-- ナビ -->
+        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <button onclick="switchTab('profile')" data-tab="profile"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="user-circle" width="16" height="16"></i>
+            プロフィール
+          </button>
+          <button onclick="switchTab('menus')" data-tab="menus"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="list" width="16" height="16"></i>
+            支援メニュー
+          </button>
+          <button onclick="switchTab('diary')" data-tab="diary"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="notebook-pen" width="16" height="16"></i>
+            活動日記
+          </button>
+        </nav>
+
+        <!-- ユーザー情報 -->
+        <div class="px-4 py-4 border-t border-white/10">
+          <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
+              <i data-lucide="user" class="text-white/60" width="16" height="16"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p id="user-email" class="text-xs font-bold text-white truncate"></p>
+              <p class="text-[10px] text-white/40">オーナー</p>
+            </div>
+          </div>
+          <button onclick="doSignOut()"
+            class="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 text-xs font-bold transition-all">
+            <i data-lucide="log-out" width="13" height="13"></i>
+            ログアウト
+          </button>
+          <a id="public-page-link" href="#"
+            class="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 text-xs transition-all">
+            <i data-lucide="external-link" width="13" height="13"></i>
+            公開ページを見る
+          </a>
+        </div>
+      </aside>
+
+      <!-- メインコンテンツ -->
+      <main class="flex-1 overflow-y-auto">
+        <!-- ヘッダー -->
+        <header class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+          <div>
+            <h1 id="page-title" class="text-lg font-black text-[#0f0e2e]">プロフィール</h1>
+            <p id="page-subtitle" class="text-xs text-slate-400 mt-0.5">団体情報の編集</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span id="org-name-header" class="text-xs font-bold text-slate-500 hidden"></span>
+          </div>
+        </header>
+
+        <!-- コンテンツエリア -->
+        <div class="p-6 lg:p-8">
+
+          <!-- ===== プロフィールタブ ===== -->
+          <div id="tab-profile" class="hidden fade-in">
+            <!-- ステータスバッジ -->
+            <div id="status-banner" class="mb-6 hidden"></div>
+
+            <!-- フォーム -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+              <h2 class="text-base font-black text-[#0f0e2e] mb-5">団体情報の編集</h2>
+              <form id="profile-form" class="space-y-5">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <!-- 団体名 -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">
+                      団体名 <span class="text-red-400">*</span>
+                    </label>
+                    <input type="text" id="f-name" required
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      placeholder="例: 〇〇フットボールクラブ">
+                  </div>
+
+                  <!-- カテゴリ -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">カテゴリ</label>
+                    <select id="f-category"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
+                      <option value="">選択してください</option>
+                      <option value="sports">スポーツ</option>
+                      <option value="culture">文化・芸術</option>
+                      <option value="welfare">福祉</option>
+                      <option value="other">その他</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <!-- エリア -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">エリア</label>
+                    <input type="text" id="f-area"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      placeholder="例: 東京都渋谷区">
+                  </div>
+
+                  <!-- メイン画像URL -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">メイン画像URL</label>
+                    <input type="url" id="f-main-image"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      placeholder="https://example.com/image.jpg">
+                  </div>
+                </div>
+
+                <!-- 支援ニーズタグ -->
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ（カンマ区切り）</label>
+                  <input type="text" id="f-tags"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                    placeholder="例: 練習用具, ユニフォーム, 資金援助">
+                  <p class="text-[10px] text-slate-400 mt-1">複数タグはカンマ（,）で区切って入力してください</p>
+                </div>
+
+                <!-- 活動内容・現状 -->
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 mb-1.5">活動内容・現状</label>
+                  <textarea id="f-activity-how" rows="5"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none leading-relaxed"
+                    placeholder="団体の活動内容や現在の状況を詳しく説明してください..."></textarea>
+                </div>
+
+                <!-- 保存ボタン -->
+                <div class="flex items-center justify-end gap-3 pt-2">
+                  <button type="submit" id="save-profile-btn"
+                    class="flex items-center gap-2 px-6 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
+                    <i data-lucide="save" width="14" height="14"></i>
+                    変更を保存
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- ===== 支援メニュータブ ===== -->
+          <div id="tab-menus" class="hidden fade-in">
+            <!-- 追加ボタン -->
+            <div class="flex items-center justify-between mb-5">
+              <h2 class="text-sm font-black text-[#0f0e2e]">支援メニュー一覧</h2>
+              <button onclick="toggleMenuForm()"
+                class="flex items-center gap-2 px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
+                <i data-lucide="plus" width="14" height="14"></i>
+                新規メニューを追加
+              </button>
+            </div>
+
+            <!-- 追加フォーム（スライド） -->
+            <div id="menu-form-wrap" class="hidden mb-5">
+              <div class="bg-white rounded-2xl border border-orange-200 shadow-sm p-6 slide-down">
+                <h3 class="text-sm font-black text-[#0f0e2e] mb-4">
+                  <span id="menu-form-title">新規メニューを追加</span>
+                </h3>
+                <form id="menu-form" class="space-y-4">
+                  <input type="hidden" id="mf-id">
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- タイトル -->
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1.5">
+                        メニュータイトル <span class="text-red-400">*</span>
+                      </label>
+                      <input type="text" id="mf-title" required
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                        placeholder="例: ユニフォームスポンサー">
+                    </div>
+
+                    <!-- 支援タイプ -->
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1.5">支援タイプ</label>
+                      <select id="mf-support-type"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
+                        <option value="資金">資金</option>
+                        <option value="物品">物品</option>
+                        <option value="人材">人材</option>
+                        <option value="場所">場所</option>
+                        <option value="その他">その他</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 希望金額・数量 -->
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1.5">希望金額・数量</label>
+                      <input type="text" id="mf-target-amount"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                        placeholder="例: 50,000円 / ボール10個">
+                    </div>
+
+                    <!-- 公開設定 -->
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1.5">公開設定</label>
+                      <select id="mf-status"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
+                        <option value="public">公開</option>
+                        <option value="private">非公開</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- 詳細説明 -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">詳細説明</label>
+                    <textarea id="mf-description" rows="3"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none"
+                      placeholder="支援内容の詳細を記述してください..."></textarea>
+                  </div>
+
+                  <!-- リターン -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">支援してくれた方へのリターン</label>
+                    <textarea id="mf-return-merit" rows="3"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none"
+                      placeholder="例: ユニフォームへのロゴ掲載、SNS告知、試合招待など..."></textarea>
+                  </div>
+
+                  <div class="flex items-center justify-end gap-3 pt-2">
+                    <button type="button" onclick="cancelMenuForm()"
+                      class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">
+                      キャンセル
+                    </button>
+                    <button type="submit"
+                      class="flex items-center gap-2 px-5 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+                      <i data-lucide="save" width="14" height="14"></i>
+                      保存する
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- 一覧 -->
+            <div id="menus-list" class="space-y-4">
+              <div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>
+            </div>
+          </div>
+
+          <!-- ===== 活動日記タブ ===== -->
+          <div id="tab-diary" class="hidden fade-in">
+            <!-- 投稿ボタン -->
+            <div class="flex items-center justify-between mb-5">
+              <h2 class="text-sm font-black text-[#0f0e2e]">活動日記</h2>
+              <button onclick="toggleDiaryForm()"
+                class="flex items-center gap-2 px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
+                <i data-lucide="pen-line" width="14" height="14"></i>
+                新しい活動を投稿
+              </button>
+            </div>
+
+            <!-- 投稿フォーム（スライド） -->
+            <div id="diary-form-wrap" class="hidden mb-5">
+              <div class="bg-white rounded-2xl border border-orange-200 shadow-sm p-6 slide-down">
+                <h3 class="text-sm font-black text-[#0f0e2e] mb-4">
+                  <span id="diary-form-title">新しい活動を投稿</span>
+                </h3>
+                <form id="diary-form" class="space-y-4">
+                  <input type="hidden" id="df-id">
+
+                  <!-- タイトル -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">
+                      タイトル <span class="text-red-400">*</span>
+                    </label>
+                    <input type="text" id="df-title" required
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      placeholder="例: 秋季大会に参加しました！">
+                  </div>
+
+                  <!-- 本文 -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">
+                      本文 <span class="text-red-400">*</span>
+                    </label>
+                    <textarea id="df-content" rows="8" required
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none leading-relaxed"
+                      placeholder="活動の内容を詳しく記入してください..."></textarea>
+                  </div>
+
+                  <!-- 画像URL -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">画像URL（任意）</label>
+                    <input type="url" id="df-image-url"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      placeholder="https://example.com/photo.jpg">
+                  </div>
+
+                  <div class="flex items-center justify-end gap-3 pt-2">
+                    <button type="button" onclick="cancelDiaryForm()"
+                      class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">
+                      キャンセル
+                    </button>
+                    <button type="submit"
+                      class="flex items-center gap-2 px-5 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+                      <i data-lucide="send" width="14" height="14"></i>
+                      投稿する
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- 一覧 -->
+            <div id="diary-list" class="space-y-4">
+              <div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===== 確認ダイアログ ===== -->
+  <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
+      <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
+      <div class="flex gap-3">
+        <button onclick="closeConfirm()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
+        <button id="confirm-ok" class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-[200] hidden">
+    <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-bold shadow-xl"></div>
+  </div>
+
+  <script>
+  // ============================================================
+  // Firebase 設定
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyBJrCIaSKr7m4B-Lj-YGMt9GGoY9CxPjQk",
+    authDomain: "sasaeru-7f375.firebaseapp.com",
+    projectId: "sasaeru-7f375",
+    storageBucket: "sasaeru-7f375.firebasestorage.app",
+    messagingSenderId: "51698278682",
+    appId: "1:51698278682:web:7ebcac3c2d90fc04edcca3"
+  };
+
+  const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+
+  let db   = null;
+  let auth = null;
+
+  if (isConfigured) {
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db   = firebase.firestore();
+      auth = firebase.auth();
+    } catch(e) { console.warn("Firebase init error:", e); }
+  }
+
+  // ============================================================
+  // 状態
+  // ============================================================
+  let currentUser    = null;
+  let currentOrg     = null;
+  let currentTab     = 'profile';
+  let confirmCallback = null;
+  let editingMenuId  = null;
+  let editingDiaryId = null;
+
+  // ============================================================
+  // デモデータ
+  // ============================================================
+  const DEMO_ORG = {
+    id: 'demo-org-001',
+    name: 'デモスポーツクラブ',
+    category: 'sports',
+    area: '東京都渋谷区',
+    main_image: '',
+    tags: ['ユニフォーム', '練習場', '資金援助'],
+    activity_how: ' 地域の子どもたちにサッカーを通じた成長の機会を提供しています。毎週土日に練習を行い、年3回の大会に参加しています。現在は資金不足により用具の更新が困難な状況です。',
+    status: 'public',
+    owner_uid: 'demo-uid',
+  };
+
+  const DEMO_MENUS = [
+    {
+      id: 'demo-menu-001',
+      title: 'ユニフォームスポンサー',
+      support_type: '資金',
+      target_amount: '150,000円',
+      description: 'チーム全員分のユニフォーム制作費用を支援してください。',
+      return_merit: 'ユニフォームへのロゴ掲載、SNS告知（フォロワー2,000名）',
+      status: 'public',
+    },
+    {
+      id: 'demo-menu-002',
+      title: '練習ボールの提供',
+      support_type: '物品',
+      target_amount: 'サッカーボール10個',
+      description: '子どもたち全員が個別練習できるよう、ボールの数が不足しています。',
+      return_merit: '感謝状の贈呈、ホームページへの掲載',
+      status: 'public',
+    },
+  ];
+
+  const DEMO_POSTS = [
+    {
+      id: 'demo-post-001',
+      title: '秋季地区大会 準優勝！',
+      content: '先週末に開催された秋季地区大会で準優勝を果たしました。子どもたちの日頃の練習の成果が発揮された素晴らしい試合でした。決勝戦は惜しくも敗れてしまいましたが、全員が最後まで諦めずに戦い抜きました。',
+      image_url: '',
+      created_at: new Date('2024-10-15'),
+    },
+    {
+      id: 'demo-post-002',
+      title: '新入団員募集中！',
+      content: '来年度の新入団員を募集しています。サッカー未経験でも大歓迎！体験練習は毎週土曜日の午前10時から行っています。興味のある方はお気軽にお問い合わせください。',
+      image_url: '',
+      created_at: new Date('2024-10-08'),
+    },
+  ];
+
+  // ============================================================
+  // 認証
+  // ============================================================
+  if (auth) {
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      currentUser = user;
+      loadUserOrg(user.uid);
+    });
+  } else {
+    // Firebase未設定: デモモード
+    currentUser = { uid: 'demo-uid', email: 'demo@sasaeru.jp' };
+    currentOrg  = { ...DEMO_ORG };
+    initDashboard();
+  }
+
+  async function loadUserOrg(uid) {
+    try {
+      const snap = await db.collection('organizations').where('owner_uid', '==', uid).limit(1).get();
+      if (snap.empty) {
+        showNoOrg();
+        return;
+      }
+      currentOrg = { id: snap.docs[0].id, ...snap.docs[0].data() };
+      initDashboard();
+    } catch(e) {
+      console.error('loadUserOrg error:', e);
+      showNoOrg();
+    }
+  }
+
+  function showNoOrg() {
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('no-org-screen').classList.remove('hidden');
+    lucide.createIcons();
+  }
+
+  async function doSignOut() {
+    if (auth) await auth.signOut();
+    window.location.href = 'index.html';
+  }
+
+  // ============================================================
+  // ダッシュボード初期化
+  // ============================================================
+  function initDashboard() {
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    document.getElementById('user-email').textContent = currentUser.email || '';
+
+    // 公開ページリンク
+    const publicLink = document.getElementById('public-page-link');
+    publicLink.href = `index.html#club-${currentOrg.id}`;
+
+    // ナビ用に org-name 表示
+    const orgNameEl = document.getElementById('org-name-header');
+    if (orgNameEl) {
+      orgNameEl.textContent = currentOrg.name || '';
+      orgNameEl.classList.remove('hidden');
+    }
+
+    lucide.createIcons();
+    switchTab('profile');
+  }
+
+  // ============================================================
+  // タブ切り替え
+  // ============================================================
+  const TAB_TITLES = {
+    profile: { title: 'プロフィール',  subtitle: '団体情報の編集' },
+    menus:   { title: '支援メニュー',  subtitle: 'サポートメニューの管理' },
+    diary:   { title: '活動日記',      subtitle: '活動投稿の管理' },
+  };
+
+  function switchTab(name) {
+    currentTab = name;
+    ['profile', 'menus', 'diary'].forEach(t => {
+      document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
+    });
+    document.querySelectorAll('.side-btn').forEach(btn => {
+      const isActive = btn.dataset.tab === name;
+      btn.classList.toggle('bg-white/15', isActive);
+      btn.classList.toggle('text-white',   isActive);
+      btn.classList.toggle('text-white/60', !isActive);
+    });
+    const info = TAB_TITLES[name] || {};
+    document.getElementById('page-title').textContent    = info.title    || '';
+    document.getElementById('page-subtitle').textContent = info.subtitle || '';
+
+    if (name === 'profile') loadProfile();
+    if (name === 'menus')   loadMenus();
+    if (name === 'diary')   loadDiary();
+  }
+
+  // ============================================================
+  // プロフィールタブ
+  // ============================================================
+  function loadProfile() {
+    const org = currentOrg;
+
+    // ステータスバナー
+    const banner = document.getElementById('status-banner');
+    if (org.status === 'pending') {
+      banner.innerHTML = `
+        <div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-pending border border-yellow-200">
+          <i data-lucide="clock" width="16" height="16"></i>
+          <p class="text-sm font-bold">現在審査中です。承認後に公開されます。</p>
+        </div>`;
+      banner.classList.remove('hidden');
+    } else if (org.status === 'public') {
+      banner.innerHTML = `
+        <div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-public border border-green-200">
+          <i data-lucide="check-circle" width="16" height="16"></i>
+          <p class="text-sm font-bold">公開中</p>
+        </div>`;
+      banner.classList.remove('hidden');
+    } else if (org.status === 'rejected') {
+      banner.innerHTML = `
+        <div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-rejected border border-red-200">
+          <i data-lucide="x-circle" width="16" height="16"></i>
+          <p class="text-sm font-bold">却下されました。内容を修正して再申請してください。</p>
+        </div>`;
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
+
+    // フォームに現在値を設定
+    document.getElementById('f-name').value         = org.name         || '';
+    document.getElementById('f-category').value     = org.category     || '';
+    document.getElementById('f-area').value         = org.area         || '';
+    document.getElementById('f-main-image').value   = org.main_image   || '';
+    document.getElementById('f-tags').value         = (org.tags || []).join(', ');
+    document.getElementById('f-activity-how').value = org.activity_how || '';
+
+    lucide.createIcons();
+  }
+
+  document.getElementById('profile-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('save-profile-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full"></span> 保存中...';
+
+    const rawTags = document.getElementById('f-tags').value;
+    const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
+
+    const data = {
+      name:         document.getElementById('f-name').value.trim(),
+      category:     document.getElementById('f-category').value,
+      area:         document.getElementById('f-area').value.trim(),
+      main_image:   document.getElementById('f-main-image').value.trim(),
+      tags,
+      activity_how: document.getElementById('f-activity-how').value.trim(),
+      updated_at:   db ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+    };
+
+    if (!db) {
+      // デモモード: ローカル更新
+      Object.assign(currentOrg, data);
+      showToast('保存しました（デモモード）');
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="save" width="14" height="14"></i> 変更を保存';
+      lucide.createIcons();
+      return;
+    }
+
+    try {
+      await db.collection('organizations').doc(currentOrg.id).update(data);
+      Object.assign(currentOrg, data);
+      showToast('保存しました');
+    } catch(err) {
+      showToast('保存に失敗しました: ' + err.message, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="save" width="14" height="14"></i> 変更を保存';
+      lucide.createIcons();
+    }
+  });
+
+  // ============================================================
+  // 支援メニュータブ
+  // ============================================================
+  async function loadMenus() {
+    const el = document.getElementById('menus-list');
+
+    if (!db) {
+      renderMenuCards(DEMO_MENUS);
+      return;
+    }
+
+    el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>';
+    try {
+      const snap = await db.collection('organizations').doc(currentOrg.id).collection('menus').get();
+      if (snap.empty) {
+        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援メニューはまだありません</div>';
+        return;
+      }
+      const menus = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderMenuCards(menus);
+    } catch(err) {
+      el.innerHTML = `<div class="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">読み込みエラー: ${esc(err.message)}</div>`;
+    }
+  }
+
+  function renderMenuCards(menus) {
+    const el = document.getElementById('menus-list');
+    if (!menus.length) {
+      el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援メニューはまだありません</div>';
+      return;
+    }
+    el.innerHTML = menus.map(m => `
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden fade-in">
+        <div class="p-5">
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <h3 class="text-sm font-black text-[#0f0e2e]">${esc(m.title)}</h3>
+                <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${m.status === 'public' ? 'badge-public border border-green-200' : 'bg-slate-100 text-slate-500'}">
+                  ${m.status === 'public' ? '公開中' : '非公開'}
+                </span>
+              </div>
+              <div class="flex flex-wrap gap-3 text-xs text-slate-500">
+                <span class="flex items-center gap-1">
+                  <i data-lucide="tag" width="11" height="11"></i>${esc(m.support_type || '—')}
+                </span>
+                ${m.target_amount ? `<span class="flex items-center gap-1">
+                  <i data-lucide="circle-dollar-sign" width="11" height="11"></i>${esc(m.target_amount)}
+                </span>` : ''}
+              </div>
+            </div>
+          </div>
+          ${m.description ? `<p class="text-xs text-slate-600 leading-relaxed mb-2 line-clamp-2">${esc(m.description)}</p>` : ''}
+          ${m.return_merit ? `
+            <div class="bg-orange-50 rounded-xl px-3 py-2 mt-2">
+              <p class="text-[10px] font-bold text-orange-600 mb-0.5">リターン</p>
+              <p class="text-xs text-orange-700 leading-relaxed line-clamp-2">${esc(m.return_merit)}</p>
+            </div>` : ''}
+        </div>
+        <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+          <button onclick="editMenu(${JSON.stringify(m).replace(/"/g, '&quot;')})"
+            class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
+            <i data-lucide="pencil" width="12" height="12"></i>編集
+          </button>
+          <button onclick="toggleMenuStatus('${m.id}', '${m.status}')"
+            class="flex items-center gap-1 px-3 py-1.5 ${m.status === 'public' ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-green-50 hover:bg-green-100 text-green-700'} text-xs font-bold rounded-lg transition-all">
+            <i data-lucide="${m.status === 'public' ? 'eye-off' : 'eye'}" width="12" height="12"></i>
+            ${m.status === 'public' ? '非公開にする' : '公開する'}
+          </button>
+          <button onclick="deleteMenu('${m.id}', '${esc(m.title).replace(/'/g, "\\'")}')"
+            class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
+            <i data-lucide="trash-2" width="12" height="12"></i>削除
+          </button>
+        </div>
+      </div>`).join('');
+    lucide.createIcons();
+  }
+
+  function toggleMenuForm() {
+    editingMenuId = null;
+    document.getElementById('menu-form-title').textContent = '新規メニューを追加';
+    document.getElementById('menu-form').reset();
+    document.getElementById('mf-id').value = '';
+    const wrap = document.getElementById('menu-form-wrap');
+    wrap.classList.toggle('hidden');
+    if (!wrap.classList.contains('hidden')) {
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    lucide.createIcons();
+  }
+
+  function cancelMenuForm() {
+    document.getElementById('menu-form-wrap').classList.add('hidden');
+    editingMenuId = null;
+  }
+
+  function editMenu(menuData) {
+    editingMenuId = menuData.id;
+    document.getElementById('menu-form-title').textContent = 'メニューを編集';
+    document.getElementById('mf-id').value            = menuData.id;
+    document.getElementById('mf-title').value         = menuData.title         || '';
+    document.getElementById('mf-support-type').value  = menuData.support_type  || '資金';
+    document.getElementById('mf-target-amount').value = menuData.target_amount || '';
+    document.getElementById('mf-description').value   = menuData.description   || '';
+    document.getElementById('mf-return-merit').value  = menuData.return_merit  || '';
+    document.getElementById('mf-status').value        = menuData.status        || 'public';
+
+    const wrap = document.getElementById('menu-form-wrap');
+    wrap.classList.remove('hidden');
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    lucide.createIcons();
+  }
+
+  document.getElementById('menu-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const data = {
+      title:         document.getElementById('mf-title').value.trim(),
+      support_type:  document.getElementById('mf-support-type').value,
+      target_amount: document.getElementById('mf-target-amount').value.trim(),
+      description:   document.getElementById('mf-description').value.trim(),
+      return_merit:  document.getElementById('mf-return-merit').value.trim(),
+      status:        document.getElementById('mf-status').value,
+      updated_at:    db ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+    };
+
+    if (!db) {
+      // デモモード
+      if (editingMenuId) {
+        const idx = DEMO_MENUS.findIndex(m => m.id === editingMenuId);
+        if (idx !== -1) Object.assign(DEMO_MENUS[idx], data);
+      } else {
+        DEMO_MENUS.push({ id: 'demo-menu-' + Date.now(), ...data });
+      }
+      cancelMenuForm();
+      renderMenuCards(DEMO_MENUS);
+      showToast(editingMenuId ? 'メニューを更新しました（デモ）' : 'メニューを追加しました（デモ）');
+      return;
+    }
+
+    try {
+      const menusRef = db.collection('organizations').doc(currentOrg.id).collection('menus');
+      if (editingMenuId) {
+        await menusRef.doc(editingMenuId).update(data);
+        showToast('メニューを更新しました');
+      } else {
+        data.created_at = firebase.firestore.FieldValue.serverTimestamp();
+        await menusRef.add(data);
+        showToast('メニューを追加しました');
+      }
+      cancelMenuForm();
+      loadMenus();
+    } catch(err) {
+      showToast('エラー: ' + err.message, false);
+    }
+  });
+
+  async function toggleMenuStatus(menuId, currentStatus) {
+    const newStatus = currentStatus === 'public' ? 'private' : 'public';
+
+    if (!db) {
+      const m = DEMO_MENUS.find(m => m.id === menuId);
+      if (m) m.status = newStatus;
+      renderMenuCards(DEMO_MENUS);
+      showToast(newStatus === 'public' ? '公開しました（デモ）' : '非公開にしました（デモ）');
+      return;
+    }
+
+    try {
+      await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).update({ status: newStatus });
+      showToast(newStatus === 'public' ? '公開しました' : '非公開にしました');
+      loadMenus();
+    } catch(err) {
+      showToast('エラー: ' + err.message, false);
+    }
+  }
+
+  function deleteMenu(menuId, title) {
+    showConfirm(
+      `「${title}」を削除しますか？`,
+      'この操作は取り消せません。',
+      '削除する', 'bg-red-500 hover:bg-red-600',
+      async () => {
+        if (!db) {
+          const idx = DEMO_MENUS.findIndex(m => m.id === menuId);
+          if (idx !== -1) DEMO_MENUS.splice(idx, 1);
+          renderMenuCards(DEMO_MENUS);
+          showToast('削除しました（デモ）');
+          return;
+        }
+        try {
+          await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).delete();
+          showToast('削除しました');
+          loadMenus();
+        } catch(err) {
+          showToast('エラー: ' + err.message, false);
+        }
+      }
+    );
+  }
+
+  // ============================================================
+  // 活動日記タブ
+  // ============================================================
+  async function loadDiary() {
+    const el = document.getElementById('diary-list');
+
+    if (!db) {
+      renderDiaryCards(DEMO_POSTS);
+      return;
+    }
+
+    el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>';
+    try {
+      const snap = await db.collection('posts')
+        .where('org_id', '==', currentOrg.id)
+        .orderBy('created_at', 'desc')
+        .get();
+
+      if (snap.empty) {
+        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">まだ投稿はありません</div>';
+        return;
+      }
+      const posts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderDiaryCards(posts);
+    } catch(err) {
+      el.innerHTML = `<div class="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">読み込みエラー: ${esc(err.message)}</div>`;
+    }
+  }
+
+  function renderDiaryCards(posts) {
+    const el = document.getElementById('diary-list');
+    if (!posts.length) {
+      el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">まだ投稿はありません</div>';
+      return;
+    }
+    el.innerHTML = posts.map(p => `
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden fade-in">
+        ${p.image_url ? `<img src="${esc(p.image_url)}" alt="" class="w-full h-40 object-cover bg-slate-100">` : ''}
+        <div class="p-5">
+          <p class="text-[10px] text-slate-400 font-bold mb-1.5">${fmtDate(p.created_at)}</p>
+          <h3 class="text-sm font-black text-[#0f0e2e] mb-2">${esc(p.title)}</h3>
+          <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${esc(p.content)}</p>
+        </div>
+        <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
+          <button onclick="editDiary(${JSON.stringify(p).replace(/"/g, '&quot;')})"
+            class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
+            <i data-lucide="pencil" width="12" height="12"></i>編集
+          </button>
+          <button onclick="deleteDiary('${p.id}', '${esc(p.title).replace(/'/g, "\\'")}')"
+            class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
+            <i data-lucide="trash-2" width="12" height="12"></i>削除
+          </button>
+        </div>
+      </div>`).join('');
+    lucide.createIcons();
+  }
+
+  function toggleDiaryForm() {
+    editingDiaryId = null;
+    document.getElementById('diary-form-title').textContent = '新しい活動を投稿';
+    document.getElementById('diary-form').reset();
+    document.getElementById('df-id').value = '';
+    const wrap = document.getElementById('diary-form-wrap');
+    wrap.classList.toggle('hidden');
+    if (!wrap.classList.contains('hidden')) {
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    lucide.createIcons();
+  }
+
+  function cancelDiaryForm() {
+    document.getElementById('diary-form-wrap').classList.add('hidden');
+    editingDiaryId = null;
+  }
+
+  function editDiary(postData) {
+    editingDiaryId = postData.id;
+    document.getElementById('diary-form-title').textContent = '投稿を編集';
+    document.getElementById('df-id').value        = postData.id;
+    document.getElementById('df-title').value     = postData.title     || '';
+    document.getElementById('df-content').value   = postData.content   || '';
+    document.getElementById('df-image-url').value = postData.image_url || '';
+
+    const wrap = document.getElementById('diary-form-wrap');
+    wrap.classList.remove('hidden');
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    lucide.createIcons();
+  }
+
+  document.getElementById('diary-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const data = {
+      title:     document.getElementById('df-title').value.trim(),
+      content:   document.getElementById('df-content').value.trim(),
+      image_url: document.getElementById('df-image-url').value.trim(),
+    };
+
+    if (!db) {
+      // デモモード
+      if (editingDiaryId) {
+        const idx = DEMO_POSTS.findIndex(p => p.id === editingDiaryId);
+        if (idx !== -1) Object.assign(DEMO_POSTS[idx], data);
+      } else {
+        DEMO_POSTS.unshift({ id: 'demo-post-' + Date.now(), ...data, created_at: new Date() });
+      }
+      cancelDiaryForm();
+      renderDiaryCards(DEMO_POSTS);
+      showToast(editingDiaryId ? '投稿を更新しました（デモ）' : '投稿しました（デモ）');
+      return;
+    }
+
+    try {
+      if (editingDiaryId) {
+        data.updated_at = firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection('posts').doc(editingDiaryId).update(data);
+        showToast('投稿を更新しました');
+      } else {
+        data.org_id     = currentOrg.id;
+        data.owner_uid  = currentUser.uid;
+        data.created_at = firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection('posts').add(data);
+        showToast('投稿しました');
+      }
+      cancelDiaryForm();
+      loadDiary();
+    } catch(err) {
+      showToast('エラー: ' + err.message, false);
+    }
+  });
+
+  function deleteDiary(postId, title) {
+    showConfirm(
+      `「${title}」を削除しますか？`,
+      'この操作は取り消せません。',
+      '削除する', 'bg-red-500 hover:bg-red-600',
+      async () => {
+        if (!db) {
+          const idx = DEMO_POSTS.findIndex(p => p.id === postId);
+          if (idx !== -1) DEMO_POSTS.splice(idx, 1);
+          renderDiaryCards(DEMO_POSTS);
+          showToast('削除しました（デモ）');
+          return;
+        }
+        try {
+          await db.collection('posts').doc(postId).delete();
+          showToast('削除しました');
+          loadDiary();
+        } catch(err) {
+          showToast('エラー: ' + err.message, false);
+        }
+      }
+    );
+  }
+
+  // ============================================================
+  // ユーティリティ
+  // ============================================================
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
+    );
+  }
+
+  function showToast(msg, ok = true) {
+    const t  = document.getElementById('toast');
+    const ti = document.getElementById('toast-inner');
+    ti.textContent = msg;
+    ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3000);
+  }
+
+  function fmtDate(val) {
+    if (!val) return '—';
+    const d = val.toDate ? val.toDate() : new Date(val);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+
+  // ============================================================
+  // 確認ダイアログ
+  // ============================================================
+  function showConfirm(title, body, btnLabel, btnColor, callback) {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-body').textContent  = body;
+    const okBtn = document.getElementById('confirm-ok');
+    okBtn.textContent = btnLabel;
+    okBtn.className   = `flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white ${btnColor}`;
+    confirmCallback   = callback;
+    const d = document.getElementById('confirm-dialog');
+    d.classList.remove('hidden');
+    d.classList.add('flex');
+  }
+
+  function closeConfirm() {
+    const d = document.getElementById('confirm-dialog');
+    d.classList.add('hidden');
+    d.classList.remove('flex');
+    confirmCallback = null;
+  }
+
+  document.getElementById('confirm-ok').addEventListener('click', async () => {
+    if (confirmCallback) await confirmCallback();
+    closeConfirm();
+  });
+
+  // ============================================================
+  // 初期化
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+  });
+  </script>
+</body>
+</html>
