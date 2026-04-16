@@ -30,6 +30,8 @@
     .fade-in { animation: fadeIn .25s ease forwards; }
     ::-webkit-scrollbar { width:5px; height:5px; }
     ::-webkit-scrollbar-thumb { background:#6366f1; border-radius:4px; }
+    #sidebar { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+    #sidebar-overlay { transition: opacity 0.3s ease; }
   </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
@@ -74,11 +76,14 @@
   <!-- ===== ダッシュボード ===== -->
   <div id="dashboard" class="hidden min-h-screen">
 
+    <!-- モバイル用サイドバーオーバーレイ -->
+    <div id="sidebar-overlay" class="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm hidden" onclick="closeSidebar()"></div>
+
     <!-- サイドバー + メインの2カラム -->
     <div class="flex h-screen overflow-hidden">
 
       <!-- サイドバー -->
-      <aside class="w-60 bg-[#0f0e2e] flex flex-col shrink-0">
+      <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-[#0f0e2e] flex flex-col shrink-0 -translate-x-full md:translate-x-0">
         <!-- ロゴ -->
         <div class="px-5 py-5 border-b border-white/10">
           <div class="flex items-center gap-2.5">
@@ -150,20 +155,27 @@
       <!-- メインコンテンツ -->
       <main class="flex-1 overflow-y-auto">
         <!-- ヘッダー -->
-        <header class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
-          <div>
-            <h1 id="page-title" class="text-lg font-black text-[#0f0e2e]">概要</h1>
-            <p id="page-subtitle" class="text-xs text-slate-400 mt-0.5">ダッシュボード</p>
+        <header class="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+          <div class="flex items-center gap-3">
+            <!-- モバイルハンバーガー -->
+            <button onclick="toggleSidebar()"
+              class="md:hidden w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
+              <i data-lucide="menu" width="18" height="18"></i>
+            </button>
+            <div>
+              <h1 id="page-title" class="text-base sm:text-lg font-black text-[#0f0e2e]">概要</h1>
+              <p id="page-subtitle" class="text-xs text-slate-400 mt-0.5 hidden sm:block">ダッシュボード</p>
+            </div>
           </div>
           <button onclick="refreshCurrent()"
             class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all">
             <i data-lucide="refresh-cw" width="13" height="13"></i>
-            更新
+            <span class="hidden sm:inline">更新</span>
           </button>
         </header>
 
         <!-- コンテンツエリア -->
-        <div class="p-8">
+        <div class="p-4 sm:p-8">
 
           <!-- ===== 概要タブ ===== -->
           <div id="tab-overview" class="fade-in">
@@ -315,8 +327,25 @@
   // 認証
   // ============================================================
   if (auth) {
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async user => {
       if (user) {
+        // Custom Claims で管理者権限を確認
+        // 付与方法: Firebase Admin SDK で setCustomUserClaims(uid, { admin: true })
+        try {
+          const tokenResult = await user.getIdTokenResult();
+          if (tokenResult.claims.admin !== true) {
+            await auth.signOut();
+            showLogin();
+            document.getElementById('login-error').textContent =
+              '管理者権限がありません。管理者アカウントでログインしてください。';
+            return;
+          }
+        } catch(e) {
+          console.error('Token claims check failed:', e);
+          await auth.signOut();
+          showLogin();
+          return;
+        }
         showDashboard(user);
       } else {
         showLogin();
@@ -381,8 +410,25 @@
     contacts:  { title: 'お問い合わせ', subtitle: 'お問い合わせ一覧' },
   };
 
+  // ============================================================
+  // モバイルサイドバー開閉
+  // ============================================================
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    sb.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+  }
+  function openSidebar() {
+    document.getElementById('sidebar').classList.remove('-translate-x-full');
+    document.getElementById('sidebar-overlay').classList.remove('hidden');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.add('-translate-x-full');
+    document.getElementById('sidebar-overlay').classList.add('hidden');
+  }
+
   function switchTab(name) {
     currentTab = name;
+    closeSidebar(); // モバイルでタブ切替時にサイドバーを閉じる
     // コンテンツ切り替え
     ['overview','pending','orgs','inquiries','contacts'].forEach(t => {
       document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);

@@ -2,12 +2,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 認証済みユーザー（管理者 or オーナー）
+    // 認証済みユーザー
     function isAuth() {
       return request.auth != null;
     }
 
-    // 自分がオーナーかチェック（owner_uidと照合）
+    // Custom Claims による管理者チェック
+    // Firebase Admin SDK で setCustomUserClaims(uid, { admin: true }) を実行して付与
+    function isAdmin() {
+      return isAuth() && request.auth.token.admin == true;
+    }
+
+    // 自分がオーナーかチェック（owner_uid と照合）
     function isOwnerOf(orgId) {
       return isAuth() &&
         get(/databases/$(database)/documents/organizations/$(orgId)).data.owner_uid == request.auth.uid;
@@ -15,23 +21,24 @@ service cloud.firestore {
 
     // organizations
     match /organizations/{orgId} {
-      // 公開中は誰でも1件取得可 / 認証済みなら全件取得可（管理者・オーナー）
-      allow get:  if resource.data.status == "public" || isAuth();
-      allow list: if isAuth();
+      // 公開中は誰でも1件取得可 / 認証済みなら取得可
+      allow get:    if resource.data.status == "public" || isAuth();
+      // リスト: 認証済み（マイページのowner_uid照合クエリ + 管理者の全件取得に必要）
+      allow list:   if isAuth();
       // 作成: 認証済みユーザーが自分のowner_uidで、かつstatus=pendingのみ
       allow create: if isAuth()
                     && request.resource.data.owner_uid == request.auth.uid
                     && request.resource.data.status == "pending";
-      // 更新: 自分のオーナー or 認証済み（管理者）
-      allow update: if isAuth();
-      // 削除: 認証済み（管理者のみ想定）
-      allow delete: if isAuth();
+      // 更新: 管理者 or 自分のオーナー
+      allow update: if isAdmin() || isOwnerOf(orgId);
+      // 削除: 管理者のみ
+      allow delete: if isAdmin();
     }
 
     // organizations/{orgId}/menus サブコレクション（支援メニュー）
     match /organizations/{orgId}/menus/{menuId} {
       // 公開メニューは誰でも読める / オーナーは全件読める
-      allow read: if resource.data.status == "public" || isOwnerOf(orgId);
+      allow read:                   if resource.data.status == "public" || isOwnerOf(orgId);
       // 作成・更新・削除: オーナーのみ
       allow create, update, delete: if isOwnerOf(orgId);
     }
@@ -39,25 +46,25 @@ service cloud.firestore {
     // posts（活動日記）
     match /posts/{postId} {
       // 誰でも読める（公開コンテンツ）
-      allow read: if true;
+      allow read:         if true;
       // 作成: 認証済みユーザーが自分のowner_uidで作成
-      allow create: if isAuth()
-                    && request.resource.data.owner_uid == request.auth.uid;
+      allow create:       if isAuth()
+                          && request.resource.data.owner_uid == request.auth.uid;
       // 更新・削除: 自分の投稿のみ
       allow update, delete: if isAuth()
-                             && resource.data.owner_uid == request.auth.uid;
+                            && resource.data.owner_uid == request.auth.uid;
     }
 
-    // inquiries（支援申請）
+    // inquiries（支援申請）— 管理者のみ閲覧・操作可
     match /inquiries/{inquiryId} {
-      allow create: if true;
-      allow read, update, delete: if isAuth();
+      allow create:               if true;
+      allow read, update, delete: if isAdmin();
     }
 
-    // contacts（お問い合わせ）
+    // contacts（お問い合わせ）— 管理者のみ閲覧・操作可
     match /contacts/{contactId} {
-      allow create: if true;
-      allow read, update, delete: if isAuth();
+      allow create:               if true;
+      allow read, update, delete: if isAdmin();
     }
   }
 }
