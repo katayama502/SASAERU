@@ -1,0 +1,3 @@
+# Firebase サービスアカウントキー（機密情報 - 絶対にコミットしない）
+*firebase-adminsdk*.json
+serviceAccountKey.json
