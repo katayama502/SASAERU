@@ -1,9 +1,38 @@
 # SASAERU システム仕様書
 
-**バージョン:** 1.0  
+**バージョン:** 1.2  
 **作成日:** 2026-04-16  
+**更新日:** 2026-04-16  
 **作成者:** G-Stack AI チーム / Spec Writer  
 **ステータス:** 確定版
+
+---
+
+## 変更サマリー（v1.0 → v1.1）
+
+| # | 変更内容 | 対象章 |
+|---|---------|-------|
+| 1 | `club.html`・`mypage.html` をファイル構成に追加 | 2章 |
+| 2 | `organizations` コレクションに `owner_uid` フィールドを追加 | 3章 |
+| 3 | `organizations/{orgId}/menus` サブコレクション（支援メニュー）の設計を追加 | 3章 |
+| 4 | `posts` コレクション（活動日記）の設計を追加 | 3章 |
+| 5 | クラブ詳細ページ（club.html）の画面仕様を追加 | 4章 |
+| 6 | マイページ（mypage.html）の画面仕様を追加 | 4章 |
+| 7 | index.html の認証機能（ログイン・登録フロー）を追記 | 4章 |
+| 8 | 認証フロー・クラブ詳細表示フロー・マイページ操作フローを追加 | 5章 |
+| 9 | Firestoreセキュリティルールをオーナー制御対応版に更新 | 6章 |
+
+## 変更サマリー（v1.1 → v1.2）
+
+| # | 変更内容 | 対象章 |
+|---|---------|-------|
+| 1 | `isAdmin()` を Custom Claims (`request.auth.token.admin == true`) ベースに変更 | 3章 |
+| 2 | `organizations` の update/delete ルールを管理者・オーナー限定に強化 | 3章 |
+| 3 | `inquiries`/`contacts` の read/update/delete を isAdmin() のみに変更 | 3章 |
+| 4 | admin.html のクライアント側 Custom Claims 検証フロー追記 | 4章 |
+| 5 | admin.html / mypage.html モバイル対応サイドバー仕様を追記 | 4章 |
+| 6 | mypage.html 公開ページリンクのバグ修正（`club.html?id=` に変更） | 4章 |
+| 7 | club.html モバイルメニュー認証状態対応を追記 | 4章 |
 
 ---
 
@@ -95,7 +124,7 @@
 | アイコン | Lucide Icons | unpkg.com/lucide@latest |
 | フォント | Noto Sans JP | Google Fonts（400/500/700/900） |
 | データベース | Firebase Firestore | v10.12.2 compat SDK |
-| 認証 | Firebase Auth | v10.12.2 compat SDK（管理画面のみ） |
+| 認証 | Firebase Auth | v10.12.2 compat SDK（管理者・クラブオーナー共通）、Custom Claims でロール管理 |
 | ホスティング | Netlify | 静的サイト配信 |
 | バックエンド | なし（フルサーバーレス） | - |
 
@@ -105,6 +134,8 @@
 SASAERU/
 ├── index.html          # 公開サイト（メインページ）
 ├── admin.html          # 管理ダッシュボード
+├── club.html           # クラブ詳細ページ（公開）
+├── mypage.html         # クラブオーナー マイページ
 ├── firestore.rules     # Firestore セキュリティルール
 ├── netlify.toml        # Netlify 設定（リダイレクト・ヘッダー）
 └── .gstack/
@@ -137,6 +168,7 @@ SASAERU/
 | `activity_how` | string | 必須 | クラブ紹介・現状・課題説明 |
 | `main_image` | string | 任意 | メイン画像URL（null可） |
 | `tags` | array(string) | 任意 | 支援ニーズタグ（例：「コーチ不足」「備品不足」） |
+| `owner_uid` | string | 必須 | Firebase Auth UID（登録者のユーザーID） |
 | `status` | string | 必須 | `pending`（審査中） / `public`（公開中） / `rejected`（却下済み） |
 | `created_at` | timestamp | 必須 | Firestore ServerTimestamp（登録日時） |
 
@@ -177,29 +209,87 @@ pending（非公開化）
 | `message` | string | 必須 | お問い合わせ内容 |
 | `created_at` | timestamp | 必須 | Firestore ServerTimestamp（送信日時） |
 
-### 3.4 セキュリティルール説明
+### 3.5 organizations/{orgId}/menus サブコレクション
+
+**説明:** 各クラブが設定する支援メニュー。公開設定により表示を制御する。
+
+| フィールド名 | 型 | 必須 | 備考 |
+|-----------|-----|------|-----|
+| `title` | string | 必須 | メニュータイトル（例：ユニフォームスポンサー） |
+| `support_type` | string | 必須 | `資金` / `物品` / `人材` / `場所` / `その他` |
+| `target_amount` | string | 任意 | 希望金額・数量（例：50,000円 / ボール10個） |
+| `description` | string | 必須 | 支援内容の詳細説明 |
+| `return_merit` | string | 任意 | 支援者へのリターン・特典内容 |
+| `status` | string | 必須 | `public`（公開） / `private`（非公開） |
+| `created_at` | timestamp | 任意 | 作成日時（新規追加時のみ付与） |
+| `updated_at` | timestamp | 任意 | 更新日時 |
+
+### 3.6 posts コレクション（活動日記）
+
+**説明:** クラブオーナーが投稿する活動日記。全公開コンテンツ。
+
+| フィールド名 | 型 | 必須 | 備考 |
+|-----------|-----|------|-----|
+| `org_id` | string | 必須 | 所属 organizations ドキュメントID |
+| `owner_uid` | string | 必須 | Firebase Auth UID（投稿者） |
+| `title` | string | 必須 | 投稿タイトル |
+| `content` | string | 必須 | 本文（改行あり） |
+| `image_url` | string | 任意 | サムネイル画像URL（null可） |
+| `created_at` | timestamp | 必須 | Firestore ServerTimestamp（投稿日時） |
+| `updated_at` | timestamp | 任意 | 更新日時 |
+
+### 3.7 セキュリティルール説明（更新版）
 
 ファイル: `firestore.rules`
 
 | コレクション | 操作 | 許可条件 |
 |------------|------|---------|
-| organizations | get（1件取得） | `status == "public"` の場合は誰でも可。管理者（認証済み）は全ステータス可 |
-| organizations | list（一覧取得） | 管理者のみ |
-| organizations | create（新規作成） | `status == "pending"` でのみ誰でも作成可（公開直接投稿を防止） |
-| organizations | update（更新） | 管理者のみ |
-| organizations | delete（削除） | 管理者のみ |
+| organizations | get（1件取得） | `status == "public"` の場合は誰でも可。認証済みユーザーは全ステータス可 |
+| organizations | list（一覧取得） | 認証済みユーザーのみ（マイページの owner_uid クエリ + 管理者の全件取得に必要） |
+| organizations | create（新規作成） | 認証済み + `owner_uid` == 自分のUID + `status == "pending"` |
+| organizations | update（更新） | `isAdmin()` または `isOwnerOf(orgId)`（v1.2変更） |
+| organizations | delete（削除） | `isAdmin()` のみ（v1.2変更） |
+| organizations/menus | read | `status == "public"` は誰でも可 / `isOwnerOf(orgId)` は全件可 |
+| organizations/menus | create / update / delete | `isOwnerOf(orgId)` のみ |
+| posts | read | 誰でも可（全公開コンテンツ） |
+| posts | create | 認証済み + `owner_uid` == 自分のUID |
+| posts | update / delete | 認証済み + `owner_uid` == 自分のUID（自分の投稿のみ） |
 | inquiries | create | 誰でも可（企業・匿名ユーザーが支援申請できる） |
-| inquiries | read / update / delete | 管理者のみ |
+| inquiries | read / update / delete | `isAdmin()` のみ（v1.2変更・個人情報保護強化） |
 | contacts | create | 誰でも可 |
-| contacts | read / update / delete | 管理者のみ |
+| contacts | read / update / delete | `isAdmin()` のみ（v1.2変更・個人情報保護強化） |
 
-**`isAdmin()` 関数定義:**
+**ヘルパー関数定義（v1.2）:**
 ```javascript
-function isAdmin() {
+// 認証済みユーザー判定
+function isAuth() {
   return request.auth != null;
 }
+
+// Custom Claims による管理者判定（v1.2追加）
+// 付与方法: Firebase Admin SDK で setCustomUserClaims(uid, { admin: true })
+function isAdmin() {
+  return isAuth() && request.auth.token.admin == true;
+}
+
+// 対象組織のオーナー判定
+function isOwnerOf(orgId) {
+  return isAuth() &&
+    get(/databases/$(database)/documents/organizations/$(orgId)).data.owner_uid == request.auth.uid;
+}
 ```
-Firebase Auth でサインイン済みのユーザーを管理者と判定する。
+
+**管理者 Custom Claims 付与手順:**
+```javascript
+// Node.js / Firebase Admin SDK（サーバーサイドまたは Cloud Functions）
+const admin = require('firebase-admin');
+admin.initializeApp();
+
+// 管理者として認定するユーザーの UID を指定
+await admin.auth().setCustomUserClaims('TARGET_USER_UID', { admin: true });
+// ※ 変更後、クライアントはトークン更新（最大1時間）まで反映待ち
+// ※ 即時反映: user.getIdToken(true) で強制リフレッシュ
+```
 
 ---
 
@@ -211,9 +301,61 @@ Firebase Auth でサインイン済みのユーザーを管理者と判定する
 
 - ロゴ（SASAERUロゴ + ハートアイコン）
 - デスクトップナビリンク: SASAERUとは / クラブを探す / 企業の方へ / お問い合わせ
-- 「クラブ登録（無料）」ボタン → クラブ登録モーダルを開く
-- モバイル: ハンバーガーメニュー（トグル開閉、ESCキーにも非対応・×ボタンで閉じる）
+- 認証状態によりヘッダー右側を切り替え:
+  - **未ログイン時（`header-guest`）**: 「ログイン」ボタン（→ ログインモーダル） + 「団体登録（無料）」ボタン（→ 登録モーダル）
+  - **ログイン済み時（`header-user`）**: ログイン中メールアドレス表示 + 「マイページ」ボタン（→ mypage.html）
+- モバイル: ハンバーガーメニュー（トグル開閉、認証状態で表示切り替え）
 - 背景色: `#0f0e2e`（深紺）、sticky固定 z-index: 50
+
+#### ログインモーダル（login-modal）
+
+トリガー: `openLoginModal()` 関数  
+閉じる: ×ボタン / モーダル背景クリック / ESCキー
+
+**ログインフォーム（login-form-view）:**
+
+| フィールド | 入力タイプ | 必須 | 説明 |
+|----------|----------|------|-----|
+| メールアドレス | email | 必須 | Firebase Auth 用メールアドレス |
+| パスワード | password | 必須 | Firebase Auth パスワード |
+
+- 送信: `auth.signInWithEmailAndPassword` → 成功時 mypage.html へ遷移
+- エラーメッセージ対応:
+  - `auth/user-not-found`: メールアドレスが見つかりません
+  - `auth/wrong-password`: パスワードが正しくありません
+  - `auth/invalid-email`: メールアドレスの形式が正しくありません
+  - `auth/too-many-requests`: しばらく時間をおいて再試行してください
+
+**パスワードリセットフォーム（forgot-form-view）:**
+
+- 「パスワードをお忘れの方」リンクで表示切り替え
+- `auth.sendPasswordResetEmail(email)` → リセットメールを送信
+
+#### 団体登録モーダル（登録フロー更新版）
+
+**フォーム項目（v1.1追加: パスワード設定）:**
+
+| フィールド | 入力タイプ | 必須 | 説明 |
+|----------|----------|------|-----|
+| クラブ名 | text | 必須 | `name` |
+| カテゴリ | select | 必須 | `category` |
+| 地域 | text | 必須 | `area` |
+| 担当メールアドレス | email | 必須 | `contact_email`（Auth のメールアドレスにも使用） |
+| パスワード設定 | password | 必須 | 6文字以上（Firebase Auth 用） |
+| メイン画像URL | url | 任意 | `main_image` |
+| 支援を求めている内容 | text | 任意 | `tags`（カンマ区切り） |
+| クラブ紹介・現状 | textarea | 必須 | `activity_how` |
+
+**送信処理（v1.1更新）:**
+1. `auth.createUserWithEmailAndPassword(email, password)` → Firebase Auth ユーザー作成
+2. `db.collection('organizations').add({ ...payload, owner_uid: cred.user.uid, status: 'pending' })`
+3. 成功時: 「登録申請を受け付けました」を表示し2秒後に mypage.html へ遷移
+4. エラーハンドリング:
+   - `auth/email-already-in-use`: このメールアドレスは既に登録されています
+   - `auth/weak-password`: パスワードは6文字以上にしてください
+
+**クラブカード「詳細を見る」ボタン:**  
+v1.0の「詳細・支援申請」ボタンを変更。`club.html?id=ORG_ID` へのリンクに変更。
 
 #### ヒーローセクション
 
@@ -391,6 +533,83 @@ ID: `inquiry-modal`
 
 ---
 
+### 4.3 クラブ詳細ページ（club.html）
+
+**URL形式:** `club.html?id=ORG_ID`
+
+**表示フロー:**
+1. URLパラメータ `id` からORG_IDを取得
+2. `organizations/{id}` を Firestore から取得
+3. `status !== 'public'` または存在しない場合はエラー表示
+4. `organizations/{id}/menus` サブコレクション（`status == 'public'` のみ）を取得
+5. `posts` コレクション（`org_id == id`）を `created_at` 降順・limit 20 で取得
+6. ページを描画
+
+**ページセクション構成:**
+
+| セクション | 要素 |
+|----------|------|
+| ナビゲーション | ロゴ・ナビリンク・認証状態切り替えヘッダー（index.htmlと同様） |
+| ヒーロー | メイン画像（または深紺グラデーション背景）・クラブ名・カテゴリバッジ・エリア・ニーズタグ・「このクラブを応援する」ボタン（→ #support-menus へスクロール） |
+| クラブ紹介 | `activity_how` の本文（改行・段落対応） |
+| 支援メニュー（#support-menus） | menusカード一覧（support_type アイコン・title・target_amount・description・return_merit・「支援・問い合わせ」ボタン）。メニューなし時は「準備中」メッセージ |
+| 活動日記 | postsカード一覧（画像・日付・title・content 3行クランプ）。投稿なし時は「準備中」メッセージ |
+| CTAバナー | 支援申請モーダルを開くボタン（深紺背景） |
+| フッター | 団体一覧リンク・ロゴ・コピーライト |
+
+**エラー表示:**
+- URLに `id` パラメータなし: 「URLにクラブIDが指定されていません」
+- ドキュメント未存在: 「指定されたクラブは存在しません」
+- `status !== 'public'`: 「このページは非公開です」
+
+---
+
+### 4.4 マイページ（mypage.html）
+
+**認証制御:** `onAuthStateChanged` で未ログイン時は自動的に `index.html` へリダイレクト。
+
+**レイアウト構成:**
+- 左サイドバー（固定幅 `w-60`、背景 `#0f0e2e`）: ロゴ・3タブナビ・ユーザーメール・ログアウトボタン・公開ページリンク
+- 右メインエリア: ヘッダー（ページタイトル・サブタイトル）+ コンテンツ
+
+**3タブ構成:**
+
+| タブ | ID | 内容 |
+|-----|-----|-----|
+| プロフィール | `tab-profile` | 団体情報編集フォーム・ステータスバナー表示 |
+| 支援メニュー | `tab-menus` | menus サブコレクション CRUD |
+| 活動日記 | `tab-diary` | posts コレクション CRUD |
+
+**プロフィールタブ:**
+- ステータスバナー: `pending`（審査中・黄）/ `public`（公開中・緑）/ `rejected`（却下・赤）
+- 編集フィールド: 団体名 / カテゴリ / エリア / メイン画像URL / 支援ニーズタグ（カンマ区切り）/ 活動内容
+- 保存: `db.collection('organizations').doc(id).update(data)`
+
+**支援メニュータブ:**
+- 一覧表示: title・support_type・target_amount・description・return_merit・公開状態バッジ
+- 操作ボタン: 編集（フォームをスライド展開）/ 公開切り替え（toggle）/ 削除（確認ダイアログ）
+- 追加/編集フォーム: `slide-down` アニメーションで表示
+- Firestore操作: `organizations/{id}/menus` サブコレクション
+
+**活動日記タブ:**
+- 一覧表示: サムネイル画像・日時・title・content 2行クランプ
+- 操作ボタン: 編集 / 削除（確認ダイアログ）
+- 投稿フォーム: title・content（8行）・image_url
+- Firestore操作: `posts` コレクション（org_id・owner_uid を自動付与）
+
+**データ取得（初期化時）:**
+```javascript
+// owner_uid で自団体を検索
+db.collection('organizations').where('owner_uid', '==', uid).limit(1).get()
+```
+自団体が存在しない場合は「団体が見つかりません」画面を表示。
+
+**デモモード（Firebase未設定時）:**
+- DEMO_ORG / DEMO_MENUS / DEMO_POSTS のサンプルデータを使用
+- 保存・削除操作はローカル更新のみ
+
+---
+
 ## 5. 機能仕様
 
 ### 5.1 団体登録フロー（申請→審査→公開）
@@ -454,42 +673,130 @@ ID: `inquiry-modal`
 2. ふるさと伝統芸能保存会（文化・芸術 / 島根県出雲市）
 3. わんぱく野球団（スポーツ / 島根県浜田市）
 
+### 5.5 認証フロー
+
+```
+【新規登録】
+フォーム入力（メール・パスワード・クラブ情報）
+  ↓
+Auth.createUserWithEmailAndPassword(email, password)
+  ↓
+Firestore organizations コレクションに保存（owner_uid: cred.user.uid, status: 'pending'）
+  ↓
+mypage.html へ遷移
+
+【ログイン】
+フォーム入力（メール・パスワード）
+  ↓
+Auth.signInWithEmailAndPassword(email, password)
+  ↓
+onAuthStateChanged → ヘッダーUI更新（guest非表示 / user表示）
+  ↓
+mypage.html へ遷移
+
+【パスワードリセット】
+メールアドレス入力
+  ↓
+Auth.sendPasswordResetEmail(email)
+  ↓
+メール受信 → リセットリンクをクリック → パスワード再設定
+
+【ログアウト】
+auth.signOut()
+  ↓
+index.html へ遷移（mypage.html は onAuthStateChanged でリダイレクト）
+```
+
+### 5.6 クラブ詳細ページ表示フロー
+
+```
+index.html クラブカード「詳細を見る」
+  ↓
+club.html?id=ORG_ID へ遷移
+  ↓
+URLパラメータ id を取得
+  ↓
+Firestore organizations/{id} を取得
+  ├─ 存在しない / status != 'public' → エラー画面表示
+  └─ status == 'public' → 以下を並列取得（Promise.all）
+       ├─ organizations/{id}/menus（where status == 'public'）
+       └─ posts（where org_id == id, orderBy created_at desc, limit 20）
+  ↓
+ページ全体を描画（hero / about / menus / posts / CTA / footer）
+```
+
+### 5.7 マイページ操作フロー
+
+```
+mypage.html アクセス
+  ↓
+onAuthStateChanged
+  ├─ 未ログイン → index.html へリダイレクト
+  └─ ログイン済み → uid で organizations 検索（where owner_uid == uid）
+       ├─ 団体なし → 「団体が見つかりません」画面
+       └─ 団体あり → ダッシュボード初期化（プロフィールタブ表示）
+
+【プロフィール編集】
+フォーム編集 → 「変更を保存」送信
+  ↓
+db.collection('organizations').doc(currentOrg.id).update(data)
+
+【支援メニュー管理】
+「新規メニューを追加」→ フォーム展開 → 保存
+  ↓ 新規: menusRef.add(data) / 編集: menusRef.doc(id).update(data)
+「公開切り替え」→ menusRef.doc(id).update({ status: newStatus })
+「削除」→ 確認ダイアログ → menusRef.doc(id).delete()
+
+【活動日記管理】
+「新しい活動を投稿」→ フォーム展開 → 投稿
+  ↓ 新規: db.collection('posts').add({ org_id, owner_uid, ...data })
+  ↓ 編集: db.collection('posts').doc(id).update(data)
+「削除」→ 確認ダイアログ → db.collection('posts').doc(id).delete()
+```
+
 ---
 
 ## 6. セキュリティ設計
 
-### 6.1 Firestoreルール（役割ベースアクセス制御）
+### 6.1 Firestoreルール（更新版：オーナー制御対応）
 
 **設計方針:**
 - 最小権限の原則を適用
-- 一般ユーザーは読み取り可能なデータを `status=public` の団体情報のみに限定
-- inquiriesとcontactsは書き込みのみ許可（送信後の閲覧不可）
-- 管理者（Firebase Auth認証済み）のみ全データへのアクセスを許可
+- 一般ユーザーは `status=public` の団体情報・支援メニュー・投稿のみ読み取り可
+- クラブオーナーは自分の団体データ・menus・postsを自由に操作可能
+- inquiries・contacts は書き込みのみ許可（認証済みユーザーは読み取り可）
+- `isOwnerOf(orgId)` 関数で Firestore 上のオーナー確認を実施
 
-**ルール概要:**
-```
-organizations:
-  - get: status="public" は誰でも可 / 管理者は全件可
-  - list: 管理者のみ
-  - create: status="pending" のみ誰でも可（直接公開の防止）
-  - update/delete: 管理者のみ
+**アクセス制御マトリクス:**
 
-inquiries / contacts:
-  - create: 誰でも可（匿名送信を許可）
-  - read/update/delete: 管理者のみ
-```
+| コレクション | 操作 | 許可条件 |
+|------------|------|---------|
+| organizations | get | `status == "public"` は全員 / 認証済みは全ステータス |
+| organizations | list | 認証済みのみ |
+| organizations | create | 認証済み + `owner_uid` == 自分 + `status == "pending"` |
+| organizations | update / delete | 認証済み |
+| organizations/menus | read | `status == "public"` は全員 / `isOwnerOf(orgId)` は全件 |
+| organizations/menus | write | `isOwnerOf(orgId)` のみ |
+| posts | read | 誰でも可（全公開） |
+| posts | create | 認証済み + `owner_uid` == 自分 |
+| posts | update / delete | 認証済み + `owner_uid` == 自分（自分の投稿のみ） |
+| inquiries | create | 誰でも可 |
+| inquiries | read / update / delete | 認証済みのみ |
+| contacts | create | 誰でも可 |
+| contacts | read / update / delete | 認証済みのみ |
 
 ### 6.2 認証設計（Firebase Auth）
 
 - 認証方式: メール/パスワード認証
-- 対象: 管理ダッシュボード（admin.html）のみ
-- 公開サイト（index.html）は認証不要
-- `onAuthStateChanged` によるセッション管理
+- 対象: 管理ダッシュボード（admin.html）+ クラブオーナー（index.html / mypage.html）
+- 公開サイト（index.html）のクラブ閲覧・支援申請・お問い合わせは認証不要
+- `onAuthStateChanged` によるセッション管理（全ページ）
 - ログアウト: `auth.signOut()`
+- mypage.html は未ログイン時に index.html へ自動リダイレクト
 
 ### 6.3 XSS対策（esc()関数）
 
-両ファイル（index.html / admin.html）に共通の `esc()` 関数を実装。  
+全ファイル（index.html / admin.html / club.html / mypage.html）に共通の `esc()` 関数を実装。  
 Firestoreから取得したデータを動的にHTMLへ埋め込む際、すべて `esc()` を通してエスケープ処理を行う。
 
 **対象文字と変換:**
