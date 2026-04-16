@@ -385,8 +385,12 @@
   });
 
   async function doSignOut() {
-    if (auth) await auth.signOut();
-    else showLogin();
+    if (auth) {
+      await auth.signOut();
+      showLogin();
+    } else {
+      showLogin();
+    }
   }
 
   function showLogin() {
