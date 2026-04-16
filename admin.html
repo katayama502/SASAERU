@@ -324,41 +324,42 @@
   let confirmCallback = null;
 
   // ============================================================
-  // 認証
+  // 認証ヘルパー: admin: true の Claims を確認してダッシュボードへ
+  // ============================================================
+  async function verifyAdminAndShow(user, errEl) {
+    try {
+      const tokenResult = await user.getIdTokenResult(true);
+      if (tokenResult.claims.admin === true) {
+        showDashboard(user);
+        return;
+      }
+    } catch(e) {
+      console.error('Claims check error:', e);
+    }
+    // 管理者権限なし: サインアウトしてログイン画面へ
+    // （Promise ベースなので onAuthStateChanged の再発火ループは起きない）
+    if (auth) await auth.signOut();
+    showLogin();
+    if (errEl) errEl.textContent = '管理者権限がありません。管理者アカウントでログインしてください。';
+  }
+
+  // ============================================================
+  // ページロード時: 既存セッションの確認（一発確定）
   // ============================================================
   if (auth) {
-    // Promise ベース: ページ遷移直後の null 誤判定を防止
     new Promise(resolve => {
       const unsub = auth.onAuthStateChanged(user => { unsub(); resolve(user); });
-    }).then(async user => {
-      if (!user) {
-        showLogin();
-        return;
-      }
-      // Custom Claims で管理者権限を確認
-      // 付与方法: Firebase Admin SDK で setCustomUserClaims(uid, { admin: true })
-      try {
-        // キャッシュではなく最新トークンを強制取得
-        const tokenResult = await user.getIdTokenResult(true);
-        if (tokenResult.claims.admin !== true) {
-          // ※ signOut しない — ループを防ぐため。ログイン画面を表示してメッセージを出すだけ
-          showLogin();
-          document.getElementById('login-error').textContent =
-            '管理者権限がありません。管理者アカウントでログインしてください。';
-          return;
-        }
-      } catch(e) {
-        console.error('Token claims check failed:', e);
-        showLogin();
-        return;
-      }
-      showDashboard(user);
+    }).then(user => {
+      if (!user) { showLogin(); return; }
+      verifyAdminAndShow(user, null);
     });
   } else {
-    // Firebase未設定: デモモードで管理画面表示
     showDashboard({ email: 'demo@sasaeru.jp' });
   }
 
+  // ============================================================
+  // ログインフォーム
+  // ============================================================
   document.getElementById('login-form').addEventListener('submit', async e => {
     e.preventDefault();
     const email    = document.getElementById('login-email').value;
@@ -366,39 +367,28 @@
     const errEl    = document.getElementById('login-error');
     errEl.textContent = '';
 
-    if (!auth) {
-      showDashboard({ email });
-      return;
-    }
+    if (!auth) { showDashboard({ email }); return; }
 
     try {
       const cred = await auth.signInWithEmailAndPassword(email, password);
-      // Custom Claims で管理者権限を確認
-      const tokenResult = await cred.user.getIdTokenResult(true);
-      if (tokenResult.claims.admin !== true) {
-        await auth.signOut();
-        errEl.textContent = '管理者権限がありません。管理者アカウントでログインしてください。';
-        return;
-      }
-      showDashboard(cred.user);
+      await verifyAdminAndShow(cred.user, errEl);
     } catch(err) {
       const msgs = {
-        'auth/user-not-found':  'メールアドレスが見つかりません',
-        'auth/wrong-password':  'パスワードが正しくありません',
-        'auth/invalid-email':   'メールアドレスの形式が正しくありません',
+        'auth/user-not-found':    'メールアドレスが見つかりません',
+        'auth/wrong-password':    'パスワードが正しくありません',
+        'auth/invalid-email':     'メールアドレスの形式が正しくありません',
         'auth/too-many-requests': 'ログイン試行が多すぎます。しばらく待ってください',
       };
       errEl.textContent = msgs[err.code] || 'ログインに失敗しました: ' + err.message;
     }
   });
 
+  // ============================================================
+  // ログアウト
+  // ============================================================
   async function doSignOut() {
-    if (auth) {
-      await auth.signOut();
-      showLogin();
-    } else {
-      showLogin();
-    }
+    if (auth) await auth.signOut();
+    showLogin();
   }
 
   function showLogin() {
