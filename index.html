@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SASAERU - 地域循環型マッチングプラットフォーム</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            indigo: { 950: '#0f0e2e' }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Firebase v10 compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+    body { font-family: 'Noto Sans JP', sans-serif; }
+    .card-hover {
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(15, 14, 46, 0.18);
+    }
+    .hero-grid {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    .radial-glow {
+      background: radial-gradient(ellipse 70% 60% at 60% 40%, rgba(251,146,60,0.12) 0%, transparent 70%);
+    }
+    .stat-counter { font-variant-numeric: tabular-nums; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
+    .modal-inner { animation: slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(24px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    /* line-clamp fallback for older browsers */
+    .line-clamp-3 {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .tab-pill {
+      transition: background 0.18s, color 0.18s;
+    }
+    .nav-link {
+      position: relative;
+    }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -2px; left: 0; right: 0;
+      height: 2px;
+      background: #fb923c;
+      transform: scaleX(0);
+      transition: transform 0.2s;
+    }
+    .nav-link:hover::after { transform: scaleX(1); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+
+  <!-- ===== NAVIGATION ===== -->
+  <nav class="sticky top-0 z-50 bg-[#0f0e2e]/95 backdrop-blur-md border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16 items-center">
+
+        <!-- Logo -->
+        <a href="#" class="flex items-center gap-2.5">
+          <div class="w-9 h-9 bg-orange-400 rounded-lg flex items-center justify-center shadow-lg shadow-orange-400/30">
+            <i data-lucide="heart" class="text-white fill-white" width="20" height="20"></i>
+          </div>
+          <div>
+            <span class="text-xl font-black tracking-tighter text-white">SASAERU</span>
+            <p class="text-[9px] text-slate-400 font-medium leading-none mt-0.5">地域クラブ活動支援プラットフォーム</p>
+          </div>
+        </a>
+
+        <!-- Desktop Links -->
+        <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+          <a href="#about" class="nav-link hover:text-white transition-colors">SASAERUとは</a>
+          <a href="#clubs" class="nav-link hover:text-white transition-colors">クラブを探す</a>
+          <a href="#for-company" class="nav-link hover:text-white transition-colors">企業の方へ</a>
+          <a href="#contact" class="nav-link hover:text-white transition-colors">お問い合わせ</a>
+          <button onclick="openRegisterModal()"
+            class="bg-orange-400 hover:bg-orange-500 text-white font-bold px-5 py-2 rounded-full text-xs shadow-lg shadow-orange-400/30 transition-all flex items-center gap-1.5">
+            <i data-lucide="user-plus" width="14" height="14"></i>
+            クラブ登録(無料)
+          </button>
+        </div>
+
+        <!-- Mobile hamburger -->
+        <button id="mobile-menu-btn" onclick="toggleMobileMenu()"
+          aria-expanded="false" aria-controls="mobile-menu" aria-label="メニューを開く"
+          class="md:hidden w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+          <i data-lucide="menu" width="20" height="20" id="menu-icon"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden md:hidden bg-[#0f0e2e] border-t border-white/10 pb-4">
+      <div class="px-4 pt-3 space-y-1 text-sm font-medium text-slate-300">
+        <a href="#about" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">SASAERUとは</a>
+        <a href="#clubs" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">クラブを探す</a>
+        <a href="#for-company" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">企業の方へ</a>
+        <a href="#contact" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">お問い合わせ</a>
+        <button onclick="openRegisterModal(); closeMobileMenu();"
+          class="w-full mt-2 bg-orange-400 hover:bg-orange-500 text-white font-bold px-5 py-3 rounded-xl text-sm shadow-lg transition-all flex items-center justify-center gap-2">
+          <i data-lucide="user-plus" width="16" height="16"></i>
+          クラブを無料登録する
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <section class="relative min-h-[640px] flex flex-col justify-center overflow-hidden bg-[#0f0e2e]">
+    <!-- Background layers -->
+    <div class="absolute inset-0 hero-grid"></div>
+    <div class="absolute inset-0 radial-glow"></div>
+    <div class="absolute inset-0">
+      <img src="https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=1600"
+        alt="Children smiling"
+        class="w-full h-full object-cover opacity-20">
+      <div class="absolute inset-0 bg-gradient-to-r from-[#0f0e2e] via-[#0f0e2e]/80 to-[#0f0e2e]/20"></div>
+    </div>
+
+    <!-- Hero Content -->
+    <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <div class="max-w-2xl">
+        <div class="inline-flex items-center gap-2 bg-orange-400/10 border border-orange-400/30 text-orange-300 text-xs font-bold px-4 py-1.5 rounded-full mb-6">
+          <i data-lucide="zap" width="12" height="12"></i>
+          島根県発・地域支援マッチングプラットフォーム
+        </div>
+        <h1 class="text-4xl md:text-6xl font-black text-white leading-[1.1] mb-6 tracking-tight">
+          地域の未来を、<br>
+          企業の力で<span class="text-orange-400">支える。</span>
+        </h1>
+        <p class="text-base md:text-lg text-slate-300 mb-10 leading-relaxed">
+          資金やコーチ不足に悩む地域クラブと、<br class="hidden sm:block">
+          社会貢献を志す企業をつなぐマッチングプラットフォーム。
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a href="#clubs"
+            class="bg-white text-[#0f0e2e] px-8 py-4 rounded-xl font-black text-base hover:bg-orange-400 hover:text-white transition-all flex items-center justify-center gap-2 shadow-xl">
+            支援したいクラブを探す
+            <i data-lucide="arrow-right" width="18" height="18"></i>
+          </a>
+          <button onclick="openRegisterModal()"
+            class="bg-white/10 border border-white/20 text-white px-8 py-4 rounded-xl font-bold text-base hover:bg-white/20 transition-all flex items-center justify-center gap-2 backdrop-blur-sm">
+            <i data-lucide="plus-circle" width="18" height="18"></i>
+            活動内容を掲載する
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="relative z-10 bg-white/5 border-t border-white/10 backdrop-blur-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
+          <div class="py-5 px-6 text-center">
+            <p class="text-2xl font-black text-orange-400 stat-counter" id="stat-orgs">--</p>
+            <p class="text-xs text-slate-400 mt-0.5">登録クラブ数</p>
+          </div>
+          <div class="py-5 px-6 text-center">
+            <p class="text-2xl font-black text-orange-400 stat-counter" id="stat-inquiries">--</p>
+            <p class="text-xs text-slate-400 mt-0.5">支援申請数</p>
+          </div>
+          <div class="py-5 px-6 text-center">
+            <p class="text-2xl font-black text-orange-400">3</p>
+            <p class="text-xs text-slate-400 mt-0.5">対応カテゴリ</p>
+          </div>
+          <div class="py-5 px-6 text-center">
+            <p class="text-2xl font-black text-orange-400">無料</p>
+            <p class="text-xs text-slate-400 mt-0.5">掲載費用</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 三方良し ===== -->
+  <section id="about" class="py-24 bg-white">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="text-center mb-16">
+        <span class="text-xs font-bold text-orange-400 tracking-widest uppercase">Why SASAERU</span>
+        <h2 class="text-3xl md:text-4xl font-black text-[#0f0e2e] mt-2 mb-4">なぜ「SASAERU」なのか</h2>
+        <p class="text-slate-500 max-w-md mx-auto">地域・企業・子どもたちの「三方良し」を実現します</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <!-- Card 1 -->
+        <div class="card-hover p-8 rounded-2xl bg-slate-50 border border-slate-100">
+          <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-6">
+            <i data-lucide="users" class="text-[#0f0e2e]" width="24" height="24"></i>
+          </div>
+          <h3 class="text-lg font-black mb-4 text-[#0f0e2e]">地域クラブ</h3>
+          <ul class="space-y-3 text-sm text-slate-600">
+            <li class="flex gap-2 items-start">
+              <i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>
+              資金難・コーチ不足の解消
+            </li>
+            <li class="flex gap-2 items-start">
+              <i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>
+              安定した運営基盤の構築
+            </li>
+            <li class="flex gap-2 items-start">
+              <i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>
+              広報活動の負担軽減
+            </li>
+          </ul>
+        </div>
+
+        <!-- Card 2 (Highlighted) -->
+        <div class="card-hover p-8 rounded-2xl bg-[#0f0e2e] text-white shadow-2xl shadow-[#0f0e2e]/30 scale-105 border border-indigo-800">
+          <div class="w-12 h-12 bg-orange-400/20 rounded-xl flex items-center justify-center mb-6">
+            <i data-lucide="building-2" class="text-orange-400" width="24" height="24"></i>
+          </div>
+          <h3 class="text-lg font-black mb-4">企業・法人</h3>
+          <ul class="space-y-3 text-sm text-indigo-200">
+            <li class="flex gap-2 items-start">
+              <i data-lucide="check-circle-2" class="text-orange-400 shrink-0 mt-0.5" width="16" height="16"></i>
+              効果的なSCR・CSR活動
+            </li>
+            <li class="flex gap-2 items-start">
+              <i data-lucide="check-circle-2" class="text-orange-400 shrink-0 mt-0.5" width="16" height="16"></i>
+              内部留保の有効活用
+            </li>
+            <li class="flex gap-2 items-start">
+              <i data-lucide="check-circle-2" class="text-orange-400 shrink-0 mt-0.5" width="16" height="16"></i>
+              地域の認知度・ブランド向上
+            </li>
+          </ul>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="card-hover p-8 rounded-2xl bg-slate-50 border border-slate-100">
+          <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-6">
+            <i data-lucide="school" class="text-[#0f0e2e]" width="24" height="24"></i>
+          </div>
+          <h3 class="text-lg font-black mb-4 text-[#0f0e2e]">学校・子ども</h3>
+          <ul class="space-y-3 text-sm text-slate-600">
+            <li class="flex gap-2 items-start">
+              <i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>
+              部活動の地域移行を加速
+            </li>
+            <li class="flex gap-2 items-start">
+              <i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>
+              多様な体験機会の確保
+            </li>
+            <li class="flex gap-2 items-start">
+              <i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>
+              地域社会との繋がり
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 団体一覧 ===== -->
+  <section id="clubs" class="py-24 bg-[#0f0e2e]/[0.03]">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
+        <div>
+          <span class="text-xs font-bold text-orange-400 tracking-widest uppercase">Find Clubs</span>
+          <h2 class="text-3xl font-black text-[#0f0e2e] mt-2 mb-2">支援を待っているクラブ</h2>
+          <p class="text-slate-500 text-sm">あなたの企業の力が、子どもたちの夢を支えます。</p>
+        </div>
+        <!-- Tab Filter -->
+        <div class="flex bg-white p-1 rounded-full shadow-sm border border-slate-200 flex-wrap gap-1" id="tab-container">
+          <button data-tab="all"
+            class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all bg-[#0f0e2e] text-white">
+            すべて
+          </button>
+          <button data-tab="sports"
+            class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">
+            スポーツ
+          </button>
+          <button data-tab="culture"
+            class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">
+            文化・芸術
+          </button>
+          <button data-tab="welfare"
+            class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">
+            福祉
+          </button>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-7" id="clubs-container">
+        <div class="col-span-3 text-center py-20 text-slate-400">
+          <i data-lucide="loader-2" width="32" height="32" class="mx-auto mb-3 animate-spin text-indigo-400"></i>
+          <p class="text-sm">読み込み中...</p>
+        </div>
+      </div>
+
+      <div class="mt-16 text-center">
+        <button onclick="openRegisterModal()"
+          class="inline-flex items-center gap-2 text-[#0f0e2e] font-bold border border-[#0f0e2e]/20 hover:border-[#0f0e2e] px-8 py-3 rounded-full text-sm transition-all hover:bg-[#0f0e2e] hover:text-white">
+          クラブを登録する
+          <i data-lucide="plus" width="16" height="16"></i>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 登録CTA ===== -->
+  <section class="py-20 bg-gradient-to-br from-orange-400 via-orange-500 to-amber-500">
+    <div class="max-w-4xl mx-auto px-4 text-center">
+      <div class="inline-block bg-white/20 text-white text-xs font-bold px-4 py-1.5 rounded-full mb-5">
+        無料 / 簡単3ステップ
+      </div>
+      <h2 class="text-3xl md:text-4xl font-black text-white mb-4">あなたのクラブを登録しませんか？</h2>
+      <p class="text-orange-50 mb-10 leading-relaxed max-w-xl mx-auto text-sm">
+        SASAERUへの掲載は完全無料。地域企業との出会いが、子どもたちの未来を変える一歩になります。
+        登録後、運営事務局による確認を経て公開されます。
+      </p>
+      <button onclick="openRegisterModal()"
+        class="bg-white text-orange-500 font-black text-base px-10 py-4 rounded-2xl shadow-2xl shadow-orange-600/30 hover:shadow-xl transition-all inline-flex items-center gap-3 hover:-translate-y-0.5">
+        <i data-lucide="user-plus" width="20" height="20"></i>
+        クラブを無料登録する
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== 企業向けセクション ===== -->
+  <section id="for-company" class="py-24 bg-[#0f0e2e] text-white overflow-hidden relative">
+    <!-- Decorative bg -->
+    <div class="absolute inset-0 hero-grid opacity-50"></div>
+    <div class="absolute right-0 top-0 w-96 h-96 rounded-full bg-orange-400/5 blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-7xl mx-auto px-4 relative z-10">
+      <div class="grid md:grid-cols-2 gap-16 items-center">
+        <!-- Left -->
+        <div>
+          <span class="text-xs font-bold text-orange-400 tracking-widest uppercase">For Companies</span>
+          <h2 class="text-3xl md:text-4xl font-black mt-2 mb-8 leading-tight">
+            企業の内部留保を、<br>
+            地域の<span class="text-orange-400">「笑顔」</span>へ投資しませんか？
+          </h2>
+          <div class="space-y-6">
+            <div class="flex gap-4">
+              <div class="w-11 h-11 shrink-0 bg-orange-400/10 border border-orange-400/20 rounded-xl flex items-center justify-center text-orange-400">
+                <i data-lucide="coins" width="20" height="20"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-base mb-1 text-orange-300">利益の有効活用</h4>
+                <p class="text-slate-400 text-sm leading-relaxed">余剰利益を地域活動へ支援することで、効果的な節税対策と社会貢献を両立できます。</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="w-11 h-11 shrink-0 bg-orange-400/10 border border-orange-400/20 rounded-xl flex items-center justify-center text-orange-400">
+                <i data-lucide="megaphone" width="20" height="20"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-base mb-1 text-orange-300">企業PRの場として</h4>
+                <p class="text-slate-400 text-sm leading-relaxed">支援先クラブのウェアや看板に企業ロゴを掲載。地域住民への好感度を向上させます。</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="w-11 h-11 shrink-0 bg-orange-400/10 border border-orange-400/20 rounded-xl flex items-center justify-center text-orange-400">
+                <i data-lucide="heart-handshake" width="20" height="20"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-base mb-1 text-orange-300">地域への貢献</h4>
+                <p class="text-slate-400 text-sm leading-relaxed">部活動の地域移行を支えることで、地域社会の持続的な発展に貢献できます。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right - Steps -->
+        <div class="bg-white/5 backdrop-blur-md p-10 rounded-3xl border border-white/10">
+          <h3 class="text-xl font-black mb-8 text-white">支援開始までのステップ</h3>
+          <div class="space-y-8">
+            <div class="flex gap-5 items-start">
+              <div class="w-10 h-10 shrink-0 rounded-xl bg-orange-400/20 flex items-center justify-center">
+                <span class="text-orange-400 font-black text-sm">01</span>
+              </div>
+              <div>
+                <h4 class="font-bold text-base mb-1">クラブを探す</h4>
+                <p class="text-slate-400 text-sm">支援を必要としているクラブを検索・選択。カテゴリや地域で絞り込めます。</p>
+              </div>
+            </div>
+            <div class="w-px h-6 bg-white/10 ml-5"></div>
+            <div class="flex gap-5 items-start">
+              <div class="w-10 h-10 shrink-0 rounded-xl bg-orange-400/20 flex items-center justify-center">
+                <span class="text-orange-400 font-black text-sm">02</span>
+              </div>
+              <div>
+                <h4 class="font-bold text-base mb-1">申請・問い合わせ</h4>
+                <p class="text-slate-400 text-sm">興味のあるクラブへ支援の意思を送信。フォームから簡単に申し込めます。</p>
+              </div>
+            </div>
+            <div class="w-px h-6 bg-white/10 ml-5"></div>
+            <div class="flex gap-5 items-start">
+              <div class="w-10 h-10 shrink-0 rounded-xl bg-orange-400/20 flex items-center justify-center">
+                <span class="text-orange-400 font-black text-sm">03</span>
+              </div>
+              <div>
+                <h4 class="font-bold text-base mb-1">マッチング・支援開始</h4>
+                <p class="text-slate-400 text-sm">事務局が仲介し、具体的な支援内容を決定。安心してスタートできます。</p>
+              </div>
+            </div>
+          </div>
+          <a href="#clubs"
+            class="mt-8 flex items-center justify-center gap-2 bg-orange-400 hover:bg-orange-500 text-white font-bold py-3.5 px-6 rounded-xl text-sm transition-all shadow-lg shadow-orange-400/20">
+            クラブを探してみる
+            <i data-lucide="arrow-right" width="16" height="16"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== フッター ===== -->
+  <footer id="contact" class="bg-white border-t border-slate-100 pt-20 pb-10">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="grid md:grid-cols-2 gap-16 mb-16">
+        <!-- Left -->
+        <div>
+          <a href="#" class="flex items-center gap-2.5 mb-6">
+            <div class="w-9 h-9 bg-[#0f0e2e] rounded-lg flex items-center justify-center">
+              <i data-lucide="heart" class="text-orange-400 fill-orange-400" width="20" height="20"></i>
+            </div>
+            <span class="text-xl font-black tracking-tighter text-[#0f0e2e]">SASAERU</span>
+          </a>
+          <p class="text-slate-500 text-sm leading-relaxed mb-6 max-w-xs">
+            地域の子どもたちが夢を追いかけられる環境を、地域の企業と共に創り上げます。掲載料は無料です。まずはお気軽にご登録ください。
+          </p>
+          <div class="space-y-2 text-sm text-slate-500">
+            <p class="flex items-center gap-2">
+              <i data-lucide="map-pin" width="14" height="14" class="text-orange-400"></i>
+              島根県松江市
+            </p>
+            <p class="flex items-center gap-2">
+              <i data-lucide="mail" width="14" height="14" class="text-orange-400"></i>
+              info@sasaeru.jp
+            </p>
+          </div>
+        </div>
+
+        <!-- Contact Form -->
+        <div class="bg-slate-50 p-8 rounded-2xl border border-slate-200">
+          <h3 class="text-lg font-black mb-6 flex items-center gap-2 text-[#0f0e2e]">
+            <i data-lucide="mail" class="text-orange-400" width="18" height="18"></i>
+            お問い合わせ・ご相談
+          </h3>
+          <form id="contact-form" class="space-y-3">
+            <input type="text" name="name" required placeholder="お名前・会社名"
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none transition-all text-sm">
+            <input type="email" name="email" required placeholder="メールアドレス"
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none transition-all text-sm">
+            <textarea name="message" required placeholder="お問い合わせ内容" rows="4"
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none transition-all text-sm resize-none"></textarea>
+            <button type="submit"
+              class="w-full bg-[#0f0e2e] text-white font-bold py-3.5 rounded-xl hover:bg-indigo-900 transition-all text-sm shadow-lg shadow-[#0f0e2e]/10">
+              送信する
+            </button>
+            <p id="contact-result" class="text-xs text-center min-h-[1rem]"></p>
+          </form>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-400">
+        <p>&copy; 2025 SASAERU Project All Rights Reserved.</p>
+        <div class="flex gap-6">
+          <a href="#" class="hover:text-[#0f0e2e] transition-colors">利用規約</a>
+          <a href="#" class="hover:text-[#0f0e2e] transition-colors">プライバシーポリシー</a>
+          <a href="#" class="hover:text-[#0f0e2e] transition-colors">運営団体について</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===== クラブ登録モーダル ===== -->
+  <div id="register-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-[#0f0e2e]/80 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="register-modal-title">
+    <div class="modal-inner bg-white rounded-2xl max-w-2xl w-full p-8 relative max-h-[90vh] overflow-y-auto shadow-2xl">
+      <button onclick="closeRegisterModal()" aria-label="モーダルを閉じる"
+        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+        <i data-lucide="x" width="16" height="16"></i>
+      </button>
+      <h3 id="register-modal-title" class="text-2xl font-black text-[#0f0e2e] mb-1">クラブを登録する</h3>
+      <p class="text-xs text-slate-500 mb-6">必須項目を入力してください。運営事務局による確認後、公開されます。</p>
+      <form id="register-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">クラブ名 <span class="text-red-500">*</span></label>
+          <input type="text" name="name" required
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm">
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1.5">カテゴリ <span class="text-red-500">*</span></label>
+            <select name="category" required
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm bg-white">
+              <option value="">選択してください</option>
+              <option value="sports">スポーツ</option>
+              <option value="culture">文化・芸術</option>
+              <option value="welfare">福祉</option>
+              <option value="other">その他</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1.5">地域 <span class="text-red-500">*</span></label>
+            <input type="text" name="area" required placeholder="例：島根県松江市"
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">担当メールアドレス <span class="text-red-500">*</span></label>
+          <input type="email" name="contact_email" required
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">メイン画像URL（任意）</label>
+          <input type="url" name="main_image" placeholder="https://..."
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">支援を求めている内容（カンマ区切り）</label>
+          <input type="text" name="tags" placeholder="コーチ不足,備品不足,遠征費支援"
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介・現状 <span class="text-red-500">*</span></label>
+          <textarea name="activity_how" rows="4" required
+            placeholder="クラブの活動内容、現在直面している課題、必要な支援内容などをご記入ください。"
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm resize-none"></textarea>
+        </div>
+        <button type="submit"
+          class="w-full bg-orange-400 hover:bg-orange-500 text-white font-black py-4 rounded-xl shadow-lg shadow-orange-400/20 transition-all text-sm">
+          登録申請する
+        </button>
+        <p id="register-result" class="text-xs text-center min-h-[1rem]"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== 問い合わせ（支援申請）モーダル ===== -->
+  <div id="inquiry-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-[#0f0e2e]/80 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="inquiry-modal-title">
+    <div class="modal-inner bg-white rounded-2xl max-w-lg w-full p-8 relative max-h-[90vh] overflow-y-auto shadow-2xl">
+      <button onclick="closeInquiryModal()" aria-label="モーダルを閉じる"
+        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+        <i data-lucide="x" width="16" height="16"></i>
+      </button>
+      <h3 id="inquiry-modal-title" class="text-2xl font-black text-[#0f0e2e] mb-1">支援申請・問い合わせ</h3>
+      <p id="inquiry-target" class="text-xs text-slate-500 mb-6"></p>
+      <form id="inquiry-form" class="space-y-4">
+        <input type="hidden" id="inquiry-org-id">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">企業名・団体名 <span class="text-red-500">*</span></label>
+          <input type="text" name="company_name" required
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">ご担当者名 <span class="text-red-500">*</span></label>
+          <input type="text" name="pic_name" required
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス <span class="text-red-500">*</span></label>
+          <input type="email" name="sender_email" required
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">電話番号</label>
+          <input type="tel" name="phone" placeholder="090-0000-0000"
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">支援内容・メッセージ <span class="text-red-500">*</span></label>
+          <textarea name="message" rows="4" required placeholder="支援の内容や規模についてご相談ください"
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm resize-none"></textarea>
+        </div>
+        <button type="submit"
+          class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-black py-4 rounded-xl shadow-lg transition-all text-sm">
+          申請する
+        </button>
+        <p id="inquiry-result" class="text-xs text-center min-h-[1rem]"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== Toast ===== -->
+  <div id="toast" class="fixed bottom-6 right-6 z-[200] hidden">
+    <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-bold shadow-xl"></div>
+  </div>
+
+  <script>
+  // ===================================================
+  // Firebase 設定（プレースホルダー）
+  // ===================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyBJrCIaSKr7m4B-Lj-YGMt9GGoY9CxPjQk",
+    authDomain: "sasaeru-7f375.firebaseapp.com",
+    projectId: "sasaeru-7f375",
+    storageBucket: "sasaeru-7f375.firebasestorage.app",
+    messagingSenderId: "51698278682",
+    appId: "1:51698278682:web:7ebcac3c2d90fc04edcca3"
+  };
+  const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+
+  let db = null;
+  if (isConfigured) {
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+    } catch(e) {
+      console.warn("Firebase init error:", e);
+    }
+  }
+
+  // ===================================================
+  // サンプルデータ
+  // ===================================================
+  const SAMPLE_ORGS = [
+    {
+      id: 'sample-1',
+      name: '青空ジュニアサッカークラブ',
+      category: 'sports',
+      area: '島根県松江市',
+      tags: ['コーチ不足', '備品不足'],
+      activity_how: '創立20年の地域に根ざしたチームです。現在、指導者不足により新規入会を制限しています。用具や設備の整備も課題です。',
+      main_image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=600',
+      status: 'public'
+    },
+    {
+      id: 'sample-2',
+      name: 'ふるさと伝統芸能保存会',
+      category: 'culture',
+      area: '島根県出雲市',
+      tags: ['資金難', '後継者不足'],
+      activity_how: '地域の伝統を守るため、子どもたちへの継承活動を行っています。衣装の修繕費用が不足しています。',
+      main_image: 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?auto=format&fit=crop&q=80&w=600',
+      status: 'public'
+    },
+    {
+      id: 'sample-3',
+      name: 'わんぱく野球団',
+      category: 'sports',
+      area: '島根県浜田市',
+      tags: ['遠征費支援', '用具寄贈希望'],
+      activity_how: '県大会出場が決定しましたが、遠征費用の工面に苦慮しています。地域の星として頑張っています！',
+      main_image: 'https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&q=80&w=600',
+      status: 'public'
+    }
+  ];
+
+  // ===================================================
+  // 状態
+  // ===================================================
+  let currentFilter = 'all';
+  let allOrgs = [];
+
+  // ===================================================
+  // ユーティリティ
+  // ===================================================
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m =>
+      ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])
+    );
+  }
+
+  function showToast(msg, ok = true) {
+    const t = document.getElementById('toast');
+    const ti = document.getElementById('toast-inner');
+    ti.textContent = msg;
+    ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3500);
+  }
+
+  const CATEGORY_LABEL = {
+    sports: 'スポーツ',
+    culture: '文化・芸術',
+    welfare: '福祉',
+    other: 'その他'
+  };
+
+  const CATEGORY_COLOR = {
+    sports: 'bg-blue-50 text-blue-700 border-blue-100',
+    culture: 'bg-purple-50 text-purple-700 border-purple-100',
+    welfare: 'bg-green-50 text-green-700 border-green-100',
+    other: 'bg-slate-50 text-slate-700 border-slate-100'
+  };
+
+  // ===================================================
+  // 統計カウンター
+  // ===================================================
+  async function loadStats() {
+    let orgCount = SAMPLE_ORGS.length;
+    let inqCount = 0;
+
+    if (db) {
+      try {
+        const orgSnap = await db.collection('organizations')
+          .where('status', '==', 'public').get();
+        orgCount = orgSnap.size;
+        // inquiries は Rules で read=false のため取得不可。stat-inquiries は非表示とする
+      } catch(e) {
+        console.warn('Stats fetch failed:', e);
+      }
+    }
+
+    animateCount('stat-orgs', orgCount);
+    // inquiries のread権限がないため支援申請数は表示しない
+    const inqEl = document.getElementById('stat-inquiries');
+    if (inqEl) inqEl.textContent = '--';
+  }
+
+  function animateCount(id, target) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (target === 0) { el.textContent = 0; return; }
+    let start = 0;
+    const step = Math.max(1, Math.ceil(target / 30));
+    const timer = setInterval(() => {
+      start = Math.min(start + step, target);
+      el.textContent = start;
+      if (start >= target) clearInterval(timer);
+    }, 40);
+  }
+
+  // ===================================================
+  // 団体一覧
+  // ===================================================
+  async function loadOrgs() {
+    const container = document.getElementById('clubs-container');
+
+    if (db) {
+      try {
+        const snap = await db.collection('organizations')
+          .where('status', '==', 'public')
+          .orderBy('created_at', 'desc')
+          .limit(30)
+          .get();
+        if (!snap.empty) {
+          allOrgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          renderOrgs();
+          return;
+        }
+      } catch(e) {
+        console.warn('Firestore fetch failed, using sample data:', e);
+      }
+    }
+
+    // Fallback: サンプルデータ
+    allOrgs = SAMPLE_ORGS;
+    renderOrgs();
+  }
+
+  function renderOrgs() {
+    const container = document.getElementById('clubs-container');
+    const list = currentFilter === 'all'
+      ? allOrgs
+      : allOrgs.filter(o => o.category === currentFilter);
+
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div class="col-span-3 text-center py-20 text-slate-400">
+          <i data-lucide="search-x" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
+          <p class="text-sm">該当するクラブはありません</p>
+        </div>`;
+      lucide.createIcons();
+      return;
+    }
+
+    container.innerHTML = list.map(o => {
+      const catLabel = CATEGORY_LABEL[o.category] || o.category || 'その他';
+      const catColor = CATEGORY_COLOR[o.category] || CATEGORY_COLOR.other;
+      const tags = Array.isArray(o.tags)
+        ? o.tags
+        : (typeof o.tags === 'string' ? o.tags.split(',').map(t => t.trim()).filter(Boolean) : []);
+      const img = o.main_image || `https://placehold.co/600x400/0f0e2e/ffffff?text=${encodeURIComponent(o.name)}`;
+      const desc = o.activity_how || '';
+      const orgId = esc(o.id);
+      const orgName = esc(o.name);
+
+      return `
+        <div class="card-hover bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 flex flex-col">
+          <div class="h-48 relative overflow-hidden">
+            <img src="${esc(img)}" alt="${orgName}"
+              class="w-full h-full object-cover transition-transform hover:scale-105 duration-500">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+            <div class="absolute top-3 left-3">
+              <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border ${catColor}">
+                ${esc(catLabel)}
+              </span>
+            </div>
+            ${o.area ? `
+            <div class="absolute bottom-3 left-3 flex items-center gap-1 text-white text-[10px]">
+              <i data-lucide="map-pin" width="10" height="10"></i>
+              ${esc(o.area)}
+            </div>` : ''}
+          </div>
+          <div class="p-5 flex-grow">
+            <h3 class="text-base font-black text-[#0f0e2e] mb-3">${orgName}</h3>
+            ${tags.length ? `
+            <div class="flex flex-wrap gap-1.5 mb-3">
+              ${tags.map(t => `
+                <span class="text-[10px] font-bold bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-100">
+                  ${esc(t)}
+                </span>`).join('')}
+            </div>` : ''}
+            <p class="text-xs text-slate-500 leading-relaxed line-clamp-3">${esc(desc)}</p>
+          </div>
+          <div class="px-5 pb-5 mt-auto">
+            <button
+              data-org-id="${orgId}" data-org-name="${orgName}"
+              onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName)"
+              class="w-full bg-slate-50 hover:bg-[#0f0e2e] hover:text-white border border-slate-200 hover:border-[#0f0e2e] text-[#0f0e2e] font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
+              詳細・支援申請
+              <i data-lucide="arrow-right" width="14" height="14"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    lucide.createIcons();
+  }
+
+  // ===================================================
+  // モーダル: クラブ登録
+  // ===================================================
+  function openRegisterModal() {
+    document.getElementById('register-result').textContent = '';
+    document.getElementById('register-form').reset();
+    const m = document.getElementById('register-modal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeRegisterModal() {
+    const m = document.getElementById('register-modal');
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+  document.getElementById('register-modal').addEventListener('click', e => {
+    if (e.target.id === 'register-modal') closeRegisterModal();
+  });
+
+  document.getElementById('register-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    const result = document.getElementById('register-result');
+    result.textContent = '送信中...';
+    result.className = 'text-xs text-center text-slate-400';
+
+    const tags = (data.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+    const payload = {
+      name: data.name,
+      category: data.category,
+      area: data.area,
+      contact_email: data.contact_email,
+      main_image: data.main_image || null,
+      tags: tags,
+      activity_how: data.activity_how,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    };
+
+    if (db) {
+      try {
+        await db.collection('organizations').add({
+          ...payload,
+          created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        result.textContent = '登録申請を受け付けました。確認後、公開されます。';
+        result.className = 'text-xs text-center text-green-600 font-bold';
+        e.target.reset();
+        setTimeout(closeRegisterModal, 3000);
+        showToast('登録申請を受け付けました');
+        return;
+      } catch(err) {
+        console.error(err);
+      }
+    }
+
+    // Fallback: local only
+    result.textContent = '※ Firebase未設定のため保存できません（デモモード）';
+    result.className = 'text-xs text-center text-amber-600 font-bold';
+    setTimeout(() => {
+      e.target.reset();
+      closeRegisterModal();
+    }, 2500);
+  });
+
+  // ===================================================
+  // モーダル: 支援申請（inquiries）
+  // ===================================================
+  function openInquiryModal(orgId, orgName) {
+    document.getElementById('inquiry-target').textContent = `支援先: ${orgName}`;
+    document.getElementById('inquiry-result').textContent = '';
+    document.getElementById('inquiry-form').reset();
+    document.getElementById('inquiry-org-id').value = orgId; // reset()後に再セット
+    const m = document.getElementById('inquiry-modal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeInquiryModal() {
+    const m = document.getElementById('inquiry-modal');
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+  document.getElementById('inquiry-modal').addEventListener('click', e => {
+    if (e.target.id === 'inquiry-modal') closeInquiryModal();
+  });
+
+  document.getElementById('inquiry-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    const orgId = document.getElementById('inquiry-org-id').value;
+    const result = document.getElementById('inquiry-result');
+    result.textContent = '送信中...';
+    result.className = 'text-xs text-center text-slate-400';
+
+    const payload = {
+      org_id: orgId,
+      company_name: data.company_name,
+      pic_name: data.pic_name,
+      sender_email: data.sender_email,
+      phone: data.phone || null,
+      message: data.message,
+      status: 'new',
+      created_at: new Date().toISOString()
+    };
+
+    if (db) {
+      try {
+        await db.collection('inquiries').add({
+          ...payload,
+          created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
+        result.className = 'text-xs text-center text-green-600 font-bold';
+        e.target.reset();
+        setTimeout(closeInquiryModal, 2500);
+        showToast('支援申請を受け付けました');
+        return;
+      } catch(err) {
+        console.error(err);
+      }
+    }
+
+    result.textContent = '※ Firebase未設定のため保存できません（デモモード）';
+    result.className = 'text-xs text-center text-amber-600 font-bold';
+    setTimeout(() => {
+      e.target.reset();
+      closeInquiryModal();
+    }, 2500);
+  });
+
+  // ===================================================
+  // お問い合わせフォーム（contacts）
+  // ===================================================
+  document.getElementById('contact-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    const result = document.getElementById('contact-result');
+    result.textContent = '送信中...';
+    result.className = 'text-xs text-center text-slate-400';
+
+    const payload = {
+      name: data.name,
+      email: data.email,
+      message: data.message,
+      created_at: new Date().toISOString()
+    };
+
+    if (db) {
+      try {
+        await db.collection('contacts').add({
+          ...payload,
+          created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        result.textContent = 'お問い合わせを受け付けました。';
+        result.className = 'text-xs text-center text-green-600 font-bold';
+        e.target.reset();
+        showToast('お問い合わせを受け付けました');
+        return;
+      } catch(err) {
+        console.error(err);
+      }
+    }
+
+    result.textContent = '※ Firebase未設定のため保存できません（デモモード）';
+    result.className = 'text-xs text-center text-amber-600 font-bold';
+  });
+
+  // ===================================================
+  // タブフィルター
+  // ===================================================
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('bg-[#0f0e2e]', 'text-white');
+        b.classList.add('text-slate-500', 'hover:bg-slate-100');
+      });
+      btn.classList.remove('text-slate-500', 'hover:bg-slate-100');
+      btn.classList.add('bg-[#0f0e2e]', 'text-white');
+      currentFilter = btn.getAttribute('data-tab');
+      renderOrgs();
+    });
+  });
+
+  // ===================================================
+  // ハンバーガーメニュー
+  // ===================================================
+  const SVG_MENU = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`;
+  const SVG_X    = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+  function toggleMobileMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const btn  = document.getElementById('mobile-menu-btn');
+    menu.classList.toggle('hidden');
+    btn.innerHTML = menu.classList.contains('hidden') ? SVG_MENU : SVG_X;
+  }
+  function closeMobileMenu() {
+    document.getElementById('mobile-menu').classList.add('hidden');
+    document.getElementById('mobile-menu-btn').innerHTML = SVG_MENU;
+  }
+
+  // ===================================================
+  // ESC キーでモーダルを閉じる
+  // ===================================================
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeRegisterModal();
+      closeInquiryModal();
+    }
+  });
+
+  // ===================================================
+  // 初期化
+  // ===================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+    loadOrgs();
+    loadStats();
+  });
+  </script>
+</body>
+</html>

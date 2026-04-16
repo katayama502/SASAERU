@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SASAERU 管理ダッシュボード</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } }
+    }
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Firebase v10 compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+    body { font-family: 'Noto Sans JP', sans-serif; }
+    .tab-active { background: #0f0e2e; color: #fff; }
+    .tab-inactive { color: #64748b; }
+    .tab-inactive:hover { background: #f1f5f9; }
+    .badge-pending  { background:#fef3c7; color:#d97706; }
+    .badge-public   { background:#dcfce7; color:#16a34a; }
+    .badge-rejected { background:#fee2e2; color:#dc2626; }
+    .badge-new      { background:#eff6ff; color:#2563eb; }
+    .badge-done     { background:#f0fdf4; color:#16a34a; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .fade-in { animation: fadeIn .25s ease forwards; }
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-thumb { background:#6366f1; border-radius:4px; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900">
+
+  <!-- ===== ログイン画面 ===== -->
+  <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
+      <div class="flex items-center gap-2.5 mb-8">
+        <div class="w-10 h-10 bg-orange-400 rounded-xl flex items-center justify-center shadow-md shadow-orange-400/30">
+          <i data-lucide="heart" class="text-white fill-white" width="22" height="22"></i>
+        </div>
+        <div>
+          <p class="text-lg font-black text-[#0f0e2e] leading-none">SASAERU</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">管理ダッシュボード</p>
+        </div>
+      </div>
+      <h1 class="text-xl font-black text-[#0f0e2e] mb-1">ログイン</h1>
+      <p class="text-xs text-slate-400 mb-6">管理者アカウントでサインインしてください</p>
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス</label>
+          <input type="email" id="login-email" required autocomplete="email"
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">パスワード</label>
+          <input type="password" id="login-password" required autocomplete="current-password"
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
+        </div>
+        <button type="submit"
+          class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl transition-all text-sm shadow-md mt-2">
+          サインイン
+        </button>
+        <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]"></p>
+      </form>
+      <p class="text-center text-xs text-slate-400 mt-6">
+        <a href="index.html" class="hover:text-indigo-700 underline underline-offset-2">← 公開サイトへ戻る</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== ダッシュボード ===== -->
+  <div id="dashboard" class="hidden min-h-screen">
+
+    <!-- サイドバー + メインの2カラム -->
+    <div class="flex h-screen overflow-hidden">
+
+      <!-- サイドバー -->
+      <aside class="w-60 bg-[#0f0e2e] flex flex-col shrink-0">
+        <!-- ロゴ -->
+        <div class="px-5 py-5 border-b border-white/10">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 bg-orange-400 rounded-lg flex items-center justify-center shadow-md shadow-orange-400/30">
+              <i data-lucide="heart" class="text-white fill-white" width="16" height="16"></i>
+            </div>
+            <div>
+              <p class="text-sm font-black text-white leading-none">SASAERU</p>
+              <p class="text-[9px] text-white/40 mt-0.5">Admin</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ナビ -->
+        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <button onclick="switchTab('overview')" data-tab="overview"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="layout-dashboard" width="16" height="16"></i>
+            概要
+          </button>
+          <button onclick="switchTab('pending')" data-tab="pending"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="clock" width="16" height="16"></i>
+            審査待ち
+            <span id="badge-pending" class="ml-auto bg-orange-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
+          </button>
+          <button onclick="switchTab('orgs')" data-tab="orgs"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="building-2" width="16" height="16"></i>
+            団体管理
+          </button>
+          <button onclick="switchTab('inquiries')" data-tab="inquiries"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="mail" width="16" height="16"></i>
+            支援申請
+            <span id="badge-inquiries" class="ml-auto bg-blue-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
+          </button>
+          <button onclick="switchTab('contacts')" data-tab="contacts"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="message-square" width="16" height="16"></i>
+            お問い合わせ
+          </button>
+        </nav>
+
+        <!-- ユーザー情報 -->
+        <div class="px-4 py-4 border-t border-white/10">
+          <div class="flex items-center gap-2.5 mb-3">
+            <div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
+              <i data-lucide="user" class="text-white/60" width="16" height="16"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p id="admin-email" class="text-xs font-bold text-white truncate"></p>
+              <p class="text-[10px] text-white/40">管理者</p>
+            </div>
+          </div>
+          <button onclick="doSignOut()"
+            class="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 text-xs font-bold transition-all">
+            <i data-lucide="log-out" width="13" height="13"></i>
+            ログアウト
+          </button>
+          <a href="index.html"
+            class="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 text-xs transition-all">
+            <i data-lucide="external-link" width="13" height="13"></i>
+            公開サイト
+          </a>
+        </div>
+      </aside>
+
+      <!-- メインコンテンツ -->
+      <main class="flex-1 overflow-y-auto">
+        <!-- ヘッダー -->
+        <header class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+          <div>
+            <h1 id="page-title" class="text-lg font-black text-[#0f0e2e]">概要</h1>
+            <p id="page-subtitle" class="text-xs text-slate-400 mt-0.5">ダッシュボード</p>
+          </div>
+          <button onclick="refreshCurrent()"
+            class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all">
+            <i data-lucide="refresh-cw" width="13" height="13"></i>
+            更新
+          </button>
+        </header>
+
+        <!-- コンテンツエリア -->
+        <div class="p-8">
+
+          <!-- ===== 概要タブ ===== -->
+          <div id="tab-overview" class="fade-in">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs font-bold text-slate-500">審査待ち団体</p>
+                  <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
+                    <i data-lucide="clock" class="text-orange-500" width="16" height="16"></i>
+                  </div>
+                </div>
+                <p id="ov-pending" class="text-3xl font-black text-[#0f0e2e]">—</p>
+              </div>
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs font-bold text-slate-500">公開中の団体</p>
+                  <div class="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
+                    <i data-lucide="building-2" class="text-green-600" width="16" height="16"></i>
+                  </div>
+                </div>
+                <p id="ov-public" class="text-3xl font-black text-[#0f0e2e]">—</p>
+              </div>
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs font-bold text-slate-500">新規支援申請</p>
+                  <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <i data-lucide="mail" class="text-blue-600" width="16" height="16"></i>
+                  </div>
+                </div>
+                <p id="ov-inquiries" class="text-3xl font-black text-[#0f0e2e]">—</p>
+              </div>
+              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-xs font-bold text-slate-500">お問い合わせ</p>
+                  <div class="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
+                    <i data-lucide="message-square" class="text-purple-600" width="16" height="16"></i>
+                  </div>
+                </div>
+                <p id="ov-contacts" class="text-3xl font-black text-[#0f0e2e]">—</p>
+              </div>
+            </div>
+            <!-- 最近の申請 -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h2 class="text-sm font-black text-[#0f0e2e]">最近の審査待ち団体</h2>
+                <button onclick="switchTab('pending')" class="text-xs text-indigo-600 font-bold hover:underline">すべて見る</button>
+              </div>
+              <div id="ov-recent-list" class="divide-y divide-slate-50">
+                <div class="px-6 py-4 text-xs text-slate-400 text-center">読み込み中...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== 審査待ちタブ ===== -->
+          <div id="tab-pending" class="hidden fade-in">
+            <div id="pending-list" class="space-y-4">
+              <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
+          <!-- ===== 団体管理タブ ===== -->
+          <div id="tab-orgs" class="hidden fade-in">
+            <!-- フィルター -->
+            <div class="flex gap-2 mb-5">
+              <button onclick="filterOrgs('all')" data-filter="all"
+                class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-[#0f0e2e] text-white">すべて</button>
+              <button onclick="filterOrgs('public')" data-filter="public"
+                class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">公開中</button>
+              <button onclick="filterOrgs('pending')" data-filter="pending"
+                class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">審査中</button>
+              <button onclick="filterOrgs('rejected')" data-filter="rejected"
+                class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">却下済み</button>
+            </div>
+            <div id="orgs-list" class="space-y-3">
+              <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
+          <!-- ===== 支援申請タブ ===== -->
+          <div id="tab-inquiries" class="hidden fade-in">
+            <div id="inquiries-list" class="space-y-3">
+              <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
+          <!-- ===== お問い合わせタブ ===== -->
+          <div id="tab-contacts" class="hidden fade-in">
+            <div id="contacts-list" class="space-y-3">
+              <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===== 確認ダイアログ ===== -->
+  <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
+      <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
+      <div class="flex gap-3">
+        <button onclick="closeConfirm()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
+        <button id="confirm-ok" class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-[200] hidden">
+    <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-bold shadow-xl"></div>
+  </div>
+
+  <script>
+  // ============================================================
+  // Firebase 設定（index.html と同じ値を入力してください）
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyBJrCIaSKr7m4B-Lj-YGMt9GGoY9CxPjQk",
+    authDomain: "sasaeru-7f375.firebaseapp.com",
+    projectId: "sasaeru-7f375",
+    storageBucket: "sasaeru-7f375.firebasestorage.app",
+    messagingSenderId: "51698278682",
+    appId: "1:51698278682:web:7ebcac3c2d90fc04edcca3"
+  };
+  const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+
+  let db   = null;
+  let auth = null;
+
+  if (isConfigured) {
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db   = firebase.firestore();
+      auth = firebase.auth();
+    } catch(e) { console.warn("Firebase init error:", e); }
+  }
+
+  // ============================================================
+  // 状態
+  // ============================================================
+  let currentTab     = 'overview';
+  let allOrgsData    = [];
+  let orgFilter      = 'all';
+  let confirmCallback = null;
+
+  // ============================================================
+  // 認証
+  // ============================================================
+  if (auth) {
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        showDashboard(user);
+      } else {
+        showLogin();
+      }
+    });
+  } else {
+    // Firebase未設定: デモモードで管理画面表示
+    showDashboard({ email: 'demo@sasaeru.jp' });
+  }
+
+  document.getElementById('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email    = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const errEl    = document.getElementById('login-error');
+    errEl.textContent = '';
+
+    if (!auth) {
+      showDashboard({ email });
+      return;
+    }
+
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+    } catch(err) {
+      const msgs = {
+        'auth/user-not-found':  'メールアドレスが見つかりません',
+        'auth/wrong-password':  'パスワードが正しくありません',
+        'auth/invalid-email':   'メールアドレスの形式が正しくありません',
+        'auth/too-many-requests': 'ログイン試行が多すぎます。しばらく待ってください',
+      };
+      errEl.textContent = msgs[err.code] || 'ログインに失敗しました: ' + err.message;
+    }
+  });
+
+  async function doSignOut() {
+    if (auth) await auth.signOut();
+    else showLogin();
+  }
+
+  function showLogin() {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('dashboard').classList.add('hidden');
+  }
+
+  function showDashboard(user) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    document.getElementById('admin-email').textContent = user.email || '';
+    lucide.createIcons();
+    switchTab('overview');
+  }
+
+  // ============================================================
+  // タブ切り替え
+  // ============================================================
+  const TAB_TITLES = {
+    overview:  { title: '概要',       subtitle: 'ダッシュボード' },
+    pending:   { title: '審査待ち',    subtitle: '登録申請を審査・承認' },
+    orgs:      { title: '団体管理',    subtitle: '全団体の管理・編集' },
+    inquiries: { title: '支援申請一覧', subtitle: '企業からの問い合わせ' },
+    contacts:  { title: 'お問い合わせ', subtitle: 'お問い合わせ一覧' },
+  };
+
+  function switchTab(name) {
+    currentTab = name;
+    // コンテンツ切り替え
+    ['overview','pending','orgs','inquiries','contacts'].forEach(t => {
+      document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
+    });
+    // サイドバーハイライト
+    document.querySelectorAll('.side-btn').forEach(btn => {
+      const isActive = btn.dataset.tab === name;
+      btn.classList.toggle('bg-white/15', isActive);
+      btn.classList.toggle('text-white',  isActive);
+      btn.classList.toggle('text-white/60', !isActive);
+    });
+    // タイトル更新
+    const info = TAB_TITLES[name] || {};
+    document.getElementById('page-title').textContent    = info.title    || '';
+    document.getElementById('page-subtitle').textContent = info.subtitle || '';
+    // データ読み込み
+    loadTab(name);
+  }
+
+  function refreshCurrent() { loadTab(currentTab); }
+
+  function loadTab(name) {
+    if (name === 'overview')   loadOverview();
+    if (name === 'pending')    loadPending();
+    if (name === 'orgs')       loadOrgs();
+    if (name === 'inquiries')  loadInquiries();
+    if (name === 'contacts')   loadContacts();
+  }
+
+  // ============================================================
+  // ユーティリティ
+  // ============================================================
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
+    );
+  }
+
+  function showToast(msg, ok = true) {
+    const t  = document.getElementById('toast');
+    const ti = document.getElementById('toast-inner');
+    ti.textContent = msg;
+    ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3000);
+  }
+
+  function fmtDate(val) {
+    if (!val) return '—';
+    const d = val.toDate ? val.toDate() : new Date(val);
+    return d.toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+
+  function statusBadge(status) {
+    const map = {
+      pending:  ['badge-pending',  '審査中'],
+      public:   ['badge-public',   '公開中'],
+      rejected: ['badge-rejected', '却下'],
+      new:      ['badge-new',      '未対応'],
+      done:     ['badge-done',     '対応済み'],
+    };
+    const [cls, label] = map[status] || ['bg-slate-100 text-slate-500', status];
+    return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full ${cls}">${label}</span>`;
+  }
+
+  const CAT = { sports:'スポーツ', culture:'文化・芸術', welfare:'福祉', other:'その他' };
+
+  // ============================================================
+  // 確認ダイアログ
+  // ============================================================
+  function showConfirm(title, body, btnLabel, btnColor, callback) {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-body').textContent  = body;
+    const okBtn = document.getElementById('confirm-ok');
+    okBtn.textContent  = btnLabel;
+    okBtn.className    = `flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white ${btnColor}`;
+    confirmCallback    = callback;
+    const d = document.getElementById('confirm-dialog');
+    d.classList.remove('hidden');
+    d.classList.add('flex');
+  }
+  function closeConfirm() {
+    const d = document.getElementById('confirm-dialog');
+    d.classList.add('hidden');
+    d.classList.remove('flex');
+    confirmCallback = null;
+  }
+  document.getElementById('confirm-ok').addEventListener('click', async () => {
+    if (confirmCallback) await confirmCallback();
+    closeConfirm();
+  });
+
+  // ============================================================
+  // 概要（Overview）
+  // ============================================================
+  async function loadOverview() {
+    if (!db) { renderOverviewDemo(); return; }
+    try {
+      const [pendSnap, pubSnap, inqSnap, conSnap] = await Promise.all([
+        db.collection('organizations').where('status','==','pending').get(),
+        db.collection('organizations').where('status','==','public').get(),
+        db.collection('inquiries').get(),
+        db.collection('contacts').get(),
+      ]);
+      document.getElementById('ov-pending').textContent   = pendSnap.size;
+      document.getElementById('ov-public').textContent    = pubSnap.size;
+      document.getElementById('ov-inquiries').textContent = inqSnap.size;
+      document.getElementById('ov-contacts').textContent  = conSnap.size;
+      // バッジ更新
+      updateBadge('badge-pending',   pendSnap.size);
+      updateBadge('badge-inquiries', inqSnap.docs.filter(d => d.data().status === 'new').length);
+      // 最近の審査待ち
+      renderRecentPending(pendSnap.docs.slice(0, 5));
+    } catch(e) {
+      console.error(e);
+      renderOverviewDemo();
+    }
+  }
+
+  function updateBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) { el.textContent = count; el.classList.remove('hidden'); }
+    else           { el.classList.add('hidden'); }
+  }
+
+  function renderOverviewDemo() {
+    ['ov-pending','ov-public','ov-inquiries','ov-contacts'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    document.getElementById('ov-recent-list').innerHTML =
+      '<div class="px-6 py-4 text-xs text-slate-400 text-center">Firebase未設定（デモモード）</div>';
+  }
+
+  function renderRecentPending(docs) {
+    const el = document.getElementById('ov-recent-list');
+    if (docs.length === 0) {
+      el.innerHTML = '<div class="px-6 py-5 text-xs text-slate-400 text-center">審査待ちの団体はありません</div>';
+      return;
+    }
+    el.innerHTML = docs.map(d => {
+      const o = d.data();
+      return `
+        <div class="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-[#0f0e2e] truncate">${esc(o.name)}</p>
+            <p class="text-xs text-slate-400 mt-0.5">${esc(CAT[o.category]||o.category||'—')} · ${esc(o.area||'—')}</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            ${statusBadge('pending')}
+            <button onclick="approveOrg('${d.id}')" class="text-[10px] font-bold px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-full transition-all">承認</button>
+            <button onclick="rejectOrg('${d.id}', '${esc(o.name).replace(/'/g,"\\'")}')" class="text-[10px] font-bold px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-all">却下</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ============================================================
+  // 審査待ち（Pending）
+  // ============================================================
+  async function loadPending() {
+    const el = document.getElementById('pending-list');
+    if (!db) { el.innerHTML = demoMsg(); return; }
+    try {
+      const snap = await db.collection('organizations').where('status','==','pending')
+        .orderBy('created_at','desc').get();
+      updateBadge('badge-pending', snap.size);
+      if (snap.empty) {
+        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">審査待ちの団体はありません</div>';
+        return;
+      }
+      el.innerHTML = snap.docs.map(d => renderOrgCard(d, true)).join('');
+      lucide.createIcons();
+    } catch(e) {
+      el.innerHTML = errMsg(e);
+    }
+  }
+
+  // ============================================================
+  // 団体管理（Orgs）
+  // ============================================================
+  async function loadOrgs() {
+    const el = document.getElementById('orgs-list');
+    if (!db) { el.innerHTML = demoMsg(); return; }
+    try {
+      const snap = await db.collection('organizations').orderBy('created_at','desc').get();
+      allOrgsData = snap.docs;
+      renderFilteredOrgs();
+    } catch(e) {
+      el.innerHTML = errMsg(e);
+    }
+  }
+
+  function filterOrgs(f) {
+    orgFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      const active = btn.dataset.filter === f;
+      btn.classList.toggle('bg-[#0f0e2e]', active);
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('bg-white', !active);
+      btn.classList.toggle('text-slate-500', !active);
+    });
+    renderFilteredOrgs();
+  }
+
+  function renderFilteredOrgs() {
+    const el   = document.getElementById('orgs-list');
+    const list = orgFilter === 'all'
+      ? allOrgsData
+      : allOrgsData.filter(d => d.data().status === orgFilter);
+    if (list.length === 0) {
+      el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">該当する団体はありません</div>';
+      return;
+    }
+    el.innerHTML = list.map(d => renderOrgCard(d, false)).join('');
+    lucide.createIcons();
+  }
+
+  function renderOrgCard(d, showApproveActions) {
+    const o  = d.data();
+    const id = d.id;
+    return `
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="p-5">
+          <div class="flex items-start gap-4">
+            ${o.main_image ? `<img src="${esc(o.main_image)}" alt="" class="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100">` :
+              `<div class="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                <i data-lucide="image" class="text-slate-300" width="24" height="24"></i>
+              </div>`}
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <h3 class="text-sm font-black text-[#0f0e2e]">${esc(o.name)}</h3>
+                ${statusBadge(o.status)}
+              </div>
+              <div class="flex flex-wrap gap-3 text-xs text-slate-400 mb-2">
+                <span class="flex items-center gap-1"><i data-lucide="tag" width="11" height="11"></i>${esc(CAT[o.category]||o.category||'—')}</span>
+                <span class="flex items-center gap-1"><i data-lucide="map-pin" width="11" height="11"></i>${esc(o.area||'—')}</span>
+                <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(o.contact_email||'—')}</span>
+                <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(o.created_at)}</span>
+              </div>
+              ${(o.tags||[]).length ? `<div class="flex flex-wrap gap-1 mb-2">
+                ${o.tags.map(t => `<span class="text-[10px] bg-orange-50 text-orange-500 border border-orange-100 px-2 py-0.5 rounded-full">${esc(t)}</span>`).join('')}
+              </div>` : ''}
+              <p class="text-xs text-slate-500 leading-relaxed line-clamp-2">${esc(o.activity_how||'')}</p>
+            </div>
+          </div>
+        </div>
+        <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+          ${showApproveActions || o.status === 'pending' ? `
+            <button onclick="approveOrg('${id}')"
+              class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
+              <i data-lucide="check" width="12" height="12"></i>承認・公開
+            </button>
+            <button onclick="rejectOrg('${id}', '${esc(o.name).replace(/'/g,"\\'")}')"
+              class="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-all">
+              <i data-lucide="x" width="12" height="12"></i>却下
+            </button>` : ''}
+          ${o.status === 'public' ? `
+            <button onclick="changeOrgStatus('${id}','pending','非公開にしますか？','このクラブを一時非公開（審査中）に戻します')"
+              class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
+              <i data-lucide="eye-off" width="12" height="12"></i>非公開
+            </button>` : ''}
+          <button onclick="deleteOrg('${id}', '${esc(o.name).replace(/'/g,"\\'")}')"
+            class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
+            <i data-lucide="trash-2" width="12" height="12"></i>削除
+          </button>
+        </div>
+      </div>`;
+  }
+
+  // ============================================================
+  // 団体ステータス変更
+  // ============================================================
+  async function approveOrg(id) {
+    if (!db) { showToast('Firebase未設定です', false); return; }
+    try {
+      await db.collection('organizations').doc(id).update({ status: 'public' });
+      showToast('承認・公開しました');
+      loadTab(currentTab);
+      loadOverview();
+    } catch(e) { showToast('エラー: ' + e.message, false); }
+  }
+
+  function rejectOrg(id, name) {
+    showConfirm(
+      `「${name}」を却下しますか？`,
+      'ステータスを「却下」に変更します。後から変更することもできます。',
+      '却下する', 'bg-red-500 hover:bg-red-600',
+      async () => {
+        if (!db) { showToast('Firebase未設定です', false); return; }
+        try {
+          await db.collection('organizations').doc(id).update({ status: 'rejected' });
+          showToast('却下しました');
+          loadTab(currentTab);
+          loadOverview();
+        } catch(e) { showToast('エラー: ' + e.message, false); }
+      }
+    );
+  }
+
+  function changeOrgStatus(id, status, title, body) {
+    showConfirm(title, body, '実行する', 'bg-slate-700 hover:bg-slate-800', async () => {
+      if (!db) { showToast('Firebase未設定です', false); return; }
+      try {
+        await db.collection('organizations').doc(id).update({ status });
+        showToast('ステータスを変更しました');
+        loadTab(currentTab);
+      } catch(e) { showToast('エラー: ' + e.message, false); }
+    });
+  }
+
+  function deleteOrg(id, name) {
+    showConfirm(
+      `「${name}」を削除しますか？`,
+      'この操作は取り消せません。団体情報がすべて削除されます。',
+      '削除する', 'bg-red-500 hover:bg-red-600',
+      async () => {
+        if (!db) { showToast('Firebase未設定です', false); return; }
+        try {
+          await db.collection('organizations').doc(id).delete();
+          showToast('削除しました');
+          loadTab(currentTab);
+          loadOverview();
+        } catch(e) { showToast('エラー: ' + e.message, false); }
+      }
+    );
+  }
+
+  // ============================================================
+  // 支援申請（Inquiries）
+  // ============================================================
+  async function loadInquiries() {
+    const el = document.getElementById('inquiries-list');
+    if (!db) { el.innerHTML = demoMsg(); return; }
+    try {
+      const snap = await db.collection('inquiries').orderBy('created_at','desc').get();
+      const newCount = snap.docs.filter(d => d.data().status === 'new').length;
+      updateBadge('badge-inquiries', newCount);
+      if (snap.empty) {
+        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援申請はありません</div>';
+        return;
+      }
+      el.innerHTML = snap.docs.map(d => {
+        const q  = d.data();
+        const id = d.id;
+        return `
+          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div class="flex items-start justify-between gap-4 mb-3">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <p class="text-sm font-black text-[#0f0e2e]">${esc(q.company_name||'—')}</p>
+                  ${statusBadge(q.status||'new')}
+                </div>
+                <div class="flex flex-wrap gap-3 text-xs text-slate-400">
+                  <span>${esc(q.pic_name||'—')} 様</span>
+                  <span>${esc(q.sender_email||'—')}</span>
+                  ${q.phone ? `<span>${esc(q.phone)}</span>` : ''}
+                  <span>${fmtDate(q.created_at)}</span>
+                </div>
+              </div>
+            </div>
+            ${q.message ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 mb-3 leading-relaxed">${esc(q.message)}</p>` : ''}
+            <div class="flex gap-2">
+              ${q.status !== 'done' ? `
+                <button onclick="updateInquiryStatus('${id}','done')"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
+                  <i data-lucide="check" width="12" height="12"></i>対応済みにする
+                </button>` : `
+                <button onclick="updateInquiryStatus('${id}','new')"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
+                  <i data-lucide="undo-2" width="12" height="12"></i>未対応に戻す
+                </button>`}
+              <a href="mailto:${esc(q.sender_email)}"
+                class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
+                <i data-lucide="mail" width="12" height="12"></i>返信する
+              </a>
+            </div>
+          </div>`;
+      }).join('');
+      lucide.createIcons();
+    } catch(e) {
+      el.innerHTML = errMsg(e);
+    }
+  }
+
+  async function updateInquiryStatus(id, status) {
+    if (!db) return;
+    try {
+      await db.collection('inquiries').doc(id).update({ status });
+      showToast(status === 'done' ? '対応済みにしました' : '未対応に戻しました');
+      loadInquiries();
+    } catch(e) { showToast('エラー: ' + e.message, false); }
+  }
+
+  // ============================================================
+  // お問い合わせ（Contacts）
+  // ============================================================
+  async function loadContacts() {
+    const el = document.getElementById('contacts-list');
+    if (!db) { el.innerHTML = demoMsg(); return; }
+    try {
+      const snap = await db.collection('contacts').orderBy('created_at','desc').get();
+      if (snap.empty) {
+        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">お問い合わせはありません</div>';
+        return;
+      }
+      el.innerHTML = snap.docs.map(d => {
+        const c = d.data();
+        return `
+          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div class="flex items-start justify-between gap-4 mb-2">
+              <div>
+                <p class="text-sm font-black text-[#0f0e2e] mb-1">${esc(c.name||'—')}</p>
+                <div class="flex flex-wrap gap-3 text-xs text-slate-400">
+                  <span>${esc(c.email||'—')}</span>
+                  <span>${fmtDate(c.created_at)}</span>
+                </div>
+              </div>
+              <a href="mailto:${esc(c.email)}"
+                class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all shrink-0">
+                <i data-lucide="mail" width="12" height="12"></i>返信
+              </a>
+            </div>
+            ${c.message ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 leading-relaxed">${esc(c.message)}</p>` : ''}
+          </div>`;
+      }).join('');
+      lucide.createIcons();
+    } catch(e) {
+      el.innerHTML = errMsg(e);
+    }
+  }
+
+  // ============================================================
+  // ヘルパー
+  // ============================================================
+  function demoMsg() {
+    return '<div class="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">Firebase未設定のため表示できません（admin.html内のfirebaseConfigを設定してください）</div>';
+  }
+  function errMsg(e) {
+    return `<div class="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">読み込みエラー: ${esc(e.message)}</div>`;
+  }
+
+  // ============================================================
+  // 初期化
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+  });
+  </script>
+</body>
+</html>

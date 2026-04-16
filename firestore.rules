@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 認証済みユーザー（管理者）かチェック
+    function isAdmin() {
+      return request.auth != null;
+    }
+
+    // === organizations ===
+    // 公開中: 誰でも読める / 管理者: 全ステータスを読み・更新・削除
+    // 一般ユーザー: 新規登録（pending）のみ作成可
+    match /organizations/{orgId} {
+      allow get:    if resource.data.status == "public" || isAdmin();
+      allow list:   if isAdmin();
+      allow create: if request.resource.data.status == "pending";
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // === inquiries（支援申請） ===
+    // 誰でも作成可。管理者のみ読み取り・更新・削除
+    match /inquiries/{inquiryId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // === contacts（お問い合わせ） ===
+    // 誰でも作成可。管理者のみ読み取り・更新・削除
+    match /contacts/{contactId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+  }
+}

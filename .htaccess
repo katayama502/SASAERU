@@ -1,0 +1,32 @@
+# SASAERU root .htaccess (XServer compatible)
+
+# PHPバージョン指定が必要な場合は XServer のサーバーパネル → PHP Ver.切替 で 8.x を選択
+# Apache mod_rewrite が有効な場合: index.html を優先表示
+
+DirectoryIndex index.html index.php
+
+# 文字コード
+AddDefaultCharset UTF-8
+
+# 機密ファイルへのアクセス禁止
+<FilesMatch "(^\.|composer\.|README|db_config\.php|\.sqlite$|\.log$)">
+    Require all denied
+</FilesMatch>
+
+# data/ ディレクトリへの直接アクセス禁止
+RewriteEngine On
+RewriteRule ^data/ - [F,L]
+
+# キャッシュ
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+</IfModule>
+
+# gzip
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
