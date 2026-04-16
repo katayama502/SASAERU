@@ -1,9 +1,9 @@
 # SASAERU 総合テスト結果レポート
 
-**バージョン:** v1.3  
+**バージョン:** v1.4  
 **最終更新:** 2026-04-16  
-**テスト方法:** コードレビューベース静的テスト  
-**対象コミット:** `c563c6c`
+**テスト方法:** コードレビューベース静的テスト + Firebase デプロイ確認  
+**対象コミット:** `a58e8e3`
 
 ---
 
@@ -15,7 +15,9 @@
 | `club.html` | クラブ詳細ページ |
 | `mypage.html` | 団体オーナー用マイページ |
 | `admin.html` | 管理ダッシュボード |
-| `firestore.rules` | Firestoreセキュリティルール |
+| `firestore.rules` | Firestoreセキュリティルール（Firebase デプロイ済み） |
+| `firestore.indexes.json` | Firestore複合インデックス（Firebase デプロイ済み） |
+| `firebase.json` / `.firebaserc` | Firebase CLI設定 |
 | `netlify.toml` | Netlifyデプロイ設定 |
 
 ---
@@ -84,10 +86,10 @@
 
 | ID | テスト項目 | 結果 |
 |----|-----------|------|
-| A-01 | ログイン（Promise ベース認証・エラーコード日本語化） | ✅ PASS |
-| A-02 | Custom Claims チェック（`admin: true` 未付与時はログイン拒否・ループなし） | ✅ PASS |
-| A-03 | 管理者権限付き: ダッシュボード表示 | ✅ PASS |
-| A-04 | ログアウト → ログイン画面表示 | ✅ PASS |
+| A-01 | ログイン: `signInWithEmailAndPassword` → `verifyAdminAndShow()` → ダッシュボード表示 | ✅ PASS |
+| A-02 | Custom Claims チェック: `admin: true` 付与済みなら表示、未付与なら拒否・ループなし | ✅ PASS |
+| A-03 | ページリロード時: 既存セッションがあれば自動でダッシュボード表示 | ✅ PASS |
+| A-04 | ログアウト: `signOut()` + 明示的 `showLogin()` で確実に遷移 | ✅ PASS |
 | A-05 | 5タブ切り替え（overview/pending/orgs/inquiries/contacts） | ✅ PASS |
 | A-06 | 概要タブ（4統計カード・最近の審査待ちリスト） | ✅ PASS |
 | A-07 | 審査待ちタブ（承認・却下・バッジ更新） | ✅ PASS |
@@ -160,6 +162,19 @@
 
 ---
 
+## 8. Firebase デプロイテスト（v1.4）
+
+| ID | テスト項目 | 結果 |
+|----|-----------|------|
+| FB-01 | `firestore.rules` を Firebase CLI でデプロイ済み（`firebase deploy --only firestore:rules`） | ✅ PASS |
+| FB-02 | `posts` コレクションの複合インデックス（org_id ASC + created_at DESC）をデプロイ済み | ✅ PASS |
+| FB-03 | `firebase.json` / `.firebaserc` が正しくプロジェクト `sasaeru-7f375` を指している | ✅ PASS |
+| FB-04 | `.gitignore` でサービスアカウントキーをコミット対象外に設定済み | ✅ PASS |
+
+**合計: 4/4 PASS**
+
+---
+
 ## 累計テスト結果
 
 | カテゴリ | PASS | WARN | FAIL | 合計 |
@@ -172,7 +187,8 @@
 | セキュリティテスト | 5 | 0 | 0 | 5 |
 | UI/UXテスト | 5 | 1 | 0 | 6 |
 | インフラテスト | 3 | 0 | 0 | 3 |
-| **合計** | **65** | **1** | **0** | **66** |
+| Firebase デプロイテスト | 4 | 0 | 0 | 4 |
+| **合計** | **69** | **1** | **0** | **70** |
 
 ---
 
@@ -184,8 +200,9 @@
 
 **強み:**
 - FAIL（致命的バグ）ゼロ
-- Firebase Auth race condition・管理者ログインループ・Firestore list ルールの3バグを修正済み
+- Firebase Auth race condition・管理者ログイン/ログアウト・Firestore list ルールの各バグを修正済み
 - Custom Claims による管理者ロール制限（Firestore + クライアント二重防御）が実装済み
+- Firestoreルール・インデックスを Firebase に正式デプロイ済み
 - XSS対策（`esc()`）が全ページの innerHTML 挿入箇所に漏れなく適用
 - 仮データ（SAMPLE_ORGS / DEMO_ORG 等）を完全削除し本番クリーンな状態
 
@@ -194,4 +211,4 @@
 
 ---
 
-*テストレポート: G-Stack AI Testerエージェント / 2026-04-16 / v1.3*
+*テストレポート: G-Stack AI Testerエージェント / 2026-04-16 / v1.4*

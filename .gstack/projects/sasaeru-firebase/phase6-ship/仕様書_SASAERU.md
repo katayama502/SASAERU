@@ -1,6 +1,6 @@
 # SASAERU システム仕様書
 
-**バージョン:** 1.3  
+**バージョン:** 1.4  
 **作成日:** 2026-04-16  
 **更新日:** 2026-04-16  
 **作成者:** G-Stack AI チーム / Spec Writer  
@@ -45,6 +45,18 @@
 | 5 | index.html の `SAMPLE_ORGS`（仮クラブ3件）を削除し、空リストフォールバックに変更 | 4章 |
 | 6 | mypage.html の `DEMO_ORG`/`DEMO_MENUS`/`DEMO_POSTS` を削除 | 4章 |
 | 7 | Firebase未設定時の mypage.html フォールバックを no-org-screen 表示に変更 | 4章 |
+
+## 変更サマリー（v1.3 → v1.4）
+
+| # | 変更内容 | 対象章 |
+|---|---------|-------|
+| 1 | `firebase.json` / `.firebaserc` を追加し Firebase CLI デプロイ環境を整備 | 7章 |
+| 2 | `firestore.rules` を Firebase へ初回デプロイ（未デプロイによる権限エラーを解消） | 3章・7章 |
+| 3 | `firestore.indexes.json` を追加・デプロイ（posts の `org_id + created_at` 複合インデックス） | 3章・7章 |
+| 4 | admin.html 認証ロジックを `verifyAdminAndShow()` ヘルパーに一本化 | 4章 |
+| 5 | admin.html ログアウト: `signOut()` 後に `showLogin()` を明示呼び出し（Promise ベースで listener 不在のため） | 4章 |
+| 6 | 仕様書 5.4 のデモモード説明を現状に合わせ修正（サンプルデータ削除済みを反映） | 5章 |
+| 7 | 仕様書 8.1 の管理者アカウント管理を Custom Claims 必須に更新 | 8章 |
 
 ---
 
@@ -144,12 +156,16 @@
 
 ```
 SASAERU/
-├── index.html          # 公開サイト（メインページ）
-├── admin.html          # 管理ダッシュボード
-├── club.html           # クラブ詳細ページ（公開）
-├── mypage.html         # クラブオーナー マイページ
-├── firestore.rules     # Firestore セキュリティルール
-├── netlify.toml        # Netlify 設定（リダイレクト・ヘッダー）
+├── index.html              # 公開サイト（メインページ）
+├── admin.html              # 管理ダッシュボード
+├── club.html               # クラブ詳細ページ（公開）
+├── mypage.html             # クラブオーナー マイページ
+├── firestore.rules         # Firestore セキュリティルール（Firebase にデプロイ済み）
+├── firestore.indexes.json  # Firestore 複合インデックス定義（デプロイ済み）
+├── firebase.json           # Firebase CLI 設定
+├── .firebaserc             # Firebase プロジェクト紐付け（sasaeru-7f375）
+├── .gitignore              # Firebase サービスアカウントキー等を除外
+├── netlify.toml            # Netlify 設定（リダイレクト・ヘッダー）
 └── .gstack/
     └── projects/
         └── sasaeru-firebase/
@@ -478,15 +494,29 @@ ID: `inquiry-modal`
 
 ### 4.2 管理ダッシュボード（admin.html）
 
-#### ログイン画面
+#### ログイン画面・認証フロー（v1.4更新）
 
-- Firebase Auth メール/パスワード認証
-- Firebase未設定時: 任意のメールを入力するとデモモードでダッシュボードが表示される
-- エラーメッセージ対応:
+**認証ヘルパー `verifyAdminAndShow(user, errEl)`:**
+- `user.getIdTokenResult(true)` で最新トークンを強制取得
+- `claims.admin === true` なら `showDashboard(user)`
+- それ以外なら `auth.signOut()` → `showLogin()` → errEl にエラー表示
+
+**ページロード時（既存セッション確認）:**
+- Promise ベース one-shot で `onAuthStateChanged` を一度だけ購読
+- ユーザーなし → `showLogin()`
+- ユーザーあり → `verifyAdminAndShow()` を呼び出し
+
+**ログインフォーム送信:**
+- `signInWithEmailAndPassword()` 成功後 → `verifyAdminAndShow()`
+- 失敗時: エラーコードを日本語メッセージにマッピング
   - `auth/user-not-found`: メールアドレスが見つかりません
   - `auth/wrong-password`: パスワードが正しくありません
   - `auth/invalid-email`: メールアドレスの形式が正しくありません
   - `auth/too-many-requests`: ログイン試行が多すぎます
+
+**ログアウト（`doSignOut()`）:**
+- `auth.signOut()` → 明示的に `showLogin()` を呼び出す
+- （Promise ベースで listener は解除済みのため onAuthStateChanged は使わない）
 
 #### サイドバーナビ
 
@@ -670,21 +700,19 @@ db.collection('organizations').where('owner_uid', '==', uid).limit(1).get()
   └─ お問い合わせタブ: 一般問い合わせへの返信
 ```
 
-### 5.4 Firebase未設定時のフォールバック（デモモード）
+### 5.4 Firebase未設定時のフォールバック（v1.3以降: デモデータ廃止）
 
-| 機能 | Firebase設定済み | Firebase未設定（デモモード） |
-|-----|---------------|--------------------------|
-| 団体一覧 | Firestoreから取得 | サンプルデータ3件を表示 |
-| 統計カウンター | Firestoreから取得 | サンプル件数をカウントアニメーション |
+| 機能 | Firebase設定済み | Firebase未設定 |
+|-----|---------------|--------------|
+| 団体一覧 | Firestoreから取得 | 空リスト表示（「該当するクラブはありません」） |
+| 統計カウンター | Firestoreから取得 | `0` を表示 |
 | 団体登録申請 | Firestoreへ保存 | 「デモモード」メッセージを表示 |
 | 支援申請 | Firestoreへ保存 | 「デモモード」メッセージを表示 |
 | お問い合わせ | Firestoreへ保存 | 「デモモード」メッセージを表示 |
-| 管理ダッシュボード | Firebase Auth認証後に表示 | 任意メール入力でデモ表示 |
+| マイページ | Firebase Auth認証後に表示 | no-org-screen を表示 |
+| 管理ダッシュボード | Firebase Auth + Custom Claims認証後に表示 | 任意メール入力でデモ表示 |
 
-**サンプルデータ（3件）:**
-1. 青空ジュニアサッカークラブ（スポーツ / 島根県松江市）
-2. ふるさと伝統芸能保存会（文化・芸術 / 島根県出雲市）
-3. わんぱく野球団（スポーツ / 島根県浜田市）
+> v1.3以前に存在したサンプルデータ（SAMPLE_ORGS / DEMO_ORG / DEMO_MENUS / DEMO_POSTS）は全て削除済み。
 
 ### 5.5 認証フロー
 
@@ -869,16 +897,13 @@ function esc(s) {
 | モード | Native モード |
 | SDK | Firebase v10.12.2 compat |
 
-**Firestoreインデックス（推奨設定）:**
-```
-コレクション: organizations
-  - status ASC, created_at DESC（公開一覧取得に使用）
-  - status ASC（管理者フィルタリングに使用）
+**Firestoreインデックス（`firestore.indexes.json` にて管理・デプロイ済み）:**
 
-コレクション: inquiries
-  - created_at DESC（支援申請一覧取得に使用）
-  - status ASC（未対応フィルタリングに使用）
-```
+| コレクション | フィールド1 | フィールド2 | 状態 | 用途 |
+|------------|----------|----------|------|-----|
+| posts | org_id ASC | created_at DESC | ✅ デプロイ済み | マイページ活動日記一覧取得 |
+
+> `firebase deploy --only firestore:indexes` でデプロイ管理。
 
 ### 7.3 認証（Firebase Auth）
 
@@ -891,18 +916,30 @@ function esc(s) {
 
 ### 7.4 デプロイフロー
 
+**フロントエンド（Netlify 自動デプロイ）:**
 ```
 開発者のローカル環境
     ↓ git push (main ブランチ)
 GitHub リポジトリ
     ↓ Netlify CI/CD 自動検知
 Netlify ビルド（publish="." のためビルド不要）
-    ↓ 即時
+    ↓ 即時（数十秒以内）
 本番環境（Netlify CDN）で公開
 ```
 
-- ビルドコマンド: なし（静的ファイルのため不要）
-- ビルド所要時間: ほぼ即時（数十秒以内）
+**Firestore ルール・インデックス（Firebase CLI 手動デプロイ）:**
+```bash
+# ルールのみ更新
+firebase deploy --only firestore:rules
+
+# インデックスのみ更新
+firebase deploy --only firestore:indexes
+
+# 両方まとめて
+firebase deploy --only firestore
+```
+
+> Firestoreルール・インデックスは git push では自動デプロイされない。変更時は必ず Firebase CLI でデプロイすること。
 
 ---
 
@@ -910,9 +947,24 @@ Netlify ビルド（publish="." のためビルド不要）
 
 ### 8.1 管理者アカウント管理
 
-- Firebase Console（Authentication）からメール/パスワードアカウントを作成
-- 管理者権限の付与はFirebase Auth への登録のみで完結（Firestoreルールで `auth != null` を管理者と判定）
-- パスワードリセットはFirebase Consoleまたは Firebase Auth API経由
+**手順:**
+1. Firebase Console（Authentication）でメール/パスワードアカウントを作成
+2. Firebase Admin SDK で Custom Claims を付与（**必須**）:
+   ```javascript
+   // Node.js スクリプト（set-admin.js）
+   const admin = require('firebase-admin');
+   const serviceAccount = require('./serviceAccountKey.json');
+   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+   await admin.auth().setCustomUserClaims('管理者のUID', { admin: true });
+   ```
+3. 管理者が一度ログアウト → 再ログインしてトークンを更新（`admin.html` は `getIdTokenResult(true)` で強制リフレッシュするため即反映）
+
+**権限剥奪:**
+```javascript
+await admin.auth().setCustomUserClaims('対象UID', {});
+```
+
+**注意:** サービスアカウントキー（`serviceAccountKey.json`）は `.gitignore` で管理し、リポジトリにコミットしないこと。
 
 ### 8.2 団体審査フロー
 
@@ -924,18 +976,22 @@ Netlify ビルド（publish="." のためビルド不要）
 6. 却下する場合: 「却下」ボタンをクリック → 確認ダイアログで「却下する」を選択
 7. 必要に応じて申請者の `contact_email` に直接メールで結果を通知（システム自動通知なし）
 
-### 8.3 Firestoreインデックス設定
+### 8.3 Firestoreインデックス管理
 
-以下のクエリを使用しているため、複合インデックスが必要な場合はFirebase Consoleで設定:
+インデックスは `firestore.indexes.json` で管理し、`firebase deploy --only firestore:indexes` でデプロイする。
+
+**現在のデプロイ済みインデックス:**
 
 | コレクション | フィールド1 | フィールド2 | 用途 |
 |------------|----------|----------|-----|
-| organizations | status (==) | created_at (desc) | 公開クラブ一覧取得 |
-| organizations | status (==) | created_at (desc) | 審査待ち一覧取得 |
-| inquiries | created_at (desc) | - | 支援申請一覧取得 |
-| contacts | created_at (desc) | - | お問い合わせ一覧取得 |
+| posts | org_id ASC | created_at DESC | マイページ活動日記一覧（`where org_id + orderBy created_at`） |
 
-初回クエリ実行時にFirebaseエラーコンソールにインデックス作成リンクが表示されるため、そちらからワンクリックで作成可能。
+**インデックス追加が必要になった場合:**
+1. `firestore.indexes.json` に定義を追加
+2. `firebase deploy --only firestore:indexes` を実行
+3. Firebase Console で「有効」になるまで待つ（通常2〜5分）
+
+> admin.html での `organizations` / `inquiries` / `contacts` の `orderBy` クエリはクライアント側ソートに変更済みのため追加インデックス不要。
 
 ### 8.4 Phase 2 拡張計画
 
