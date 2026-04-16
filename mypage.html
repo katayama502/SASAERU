@@ -560,7 +560,7 @@
 
     // 公開ページリンク
     const publicLink = document.getElementById('public-page-link');
-    publicLink.href = `index.html#club-${currentOrg.id}`;
+    publicLink.href = `club.html?id=${currentOrg.id}`;
 
     // ナビ用に org-name 表示
     const orgNameEl = document.getElementById('org-name-header');

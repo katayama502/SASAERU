@@ -122,11 +122,24 @@
         <a href="index.html#about" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">SASAERUとは</a>
         <a href="index.html#clubs" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">クラブを探す</a>
         <a href="index.html#for-company" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">企業の方へ</a>
-        <a href="index.html" onclick="closeMobileMenu();"
-          class="w-full mt-2 bg-orange-400 hover:bg-orange-500 text-white font-bold px-5 py-3 rounded-xl text-sm shadow-lg transition-all flex items-center justify-center gap-2">
-          <i data-lucide="home" width="16" height="16"></i>
-          トップに戻る
-        </a>
+        <!-- 未ログイン時 -->
+        <div id="mobile-guest" class="space-y-1 pt-1">
+          <button onclick="closeMobileMenu(); openLoginModal();"
+            class="w-full text-left py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">ログイン</button>
+          <a href="index.html" onclick="closeMobileMenu();"
+            class="w-full mt-1 bg-orange-400 hover:bg-orange-500 text-white font-bold px-5 py-3 rounded-xl text-sm shadow-lg transition-all flex items-center justify-center gap-2">
+            <i data-lucide="plus-circle" width="16" height="16"></i>
+            団体登録（無料）
+          </a>
+        </div>
+        <!-- ログイン済み時 -->
+        <div id="mobile-user" class="hidden space-y-1 pt-1">
+          <a href="mypage.html" onclick="closeMobileMenu();"
+            class="w-full bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 border border-white/20">
+            <i data-lucide="layout-dashboard" width="16" height="16"></i>
+            マイページ
+          </a>
+        </div>
       </div>
     </div>
   </nav>
@@ -443,16 +456,22 @@
   // ===================================================
   if (auth) {
     auth.onAuthStateChanged(user => {
-      const guestEl = document.getElementById('header-guest');
-      const userEl  = document.getElementById('header-user');
-      const emailEl = document.getElementById('header-email');
+      const guestEl       = document.getElementById('header-guest');
+      const userEl        = document.getElementById('header-user');
+      const emailEl       = document.getElementById('header-email');
+      const mobileGuest   = document.getElementById('mobile-guest');
+      const mobileUser    = document.getElementById('mobile-user');
       if (user) {
         guestEl.classList.add('hidden');
         userEl.classList.remove('hidden');
         if (emailEl) emailEl.textContent = user.email || '';
+        if (mobileGuest) mobileGuest.classList.add('hidden');
+        if (mobileUser)  mobileUser.classList.remove('hidden');
       } else {
         guestEl.classList.remove('hidden');
         userEl.classList.add('hidden');
+        if (mobileGuest) mobileGuest.classList.remove('hidden');
+        if (mobileUser)  mobileUser.classList.add('hidden');
       }
     });
   }
