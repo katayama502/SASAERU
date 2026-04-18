@@ -141,7 +141,8 @@
       <main class="flex-1 overflow-y-auto">
         <header class="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between sticky top-0 z-10">
           <div class="flex items-center gap-3">
-            <button onclick="toggleSidebar()" class="md:hidden w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
+            <button onclick="toggleSidebar()" aria-label="サイドバーを開く"
+              class="md:hidden w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
               <i data-lucide="menu" width="18" height="18"></i>
             </button>
             <div>
@@ -251,6 +252,13 @@
 
           <!-- お問い合わせタブ -->
           <div id="tab-contacts" class="hidden fade-in">
+            <div class="flex items-center justify-between mb-4">
+              <p class="text-xs text-slate-500">未読のお問い合わせは紫色で表示されます</p>
+              <button onclick="markAllContactsRead()"
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-lg transition-all">
+                <i data-lucide="check-check" width="13" height="13"></i>全て既読にする
+              </button>
+            </div>
             <div id="contacts-list" class="space-y-3">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
             </div>
@@ -513,6 +521,7 @@
     confirmCallback   = callback;
     const d = document.getElementById('confirm-dialog');
     d.classList.remove('hidden'); d.classList.add('flex');
+    setTimeout(() => okBtn.focus(), 50);
   }
   function closeConfirm() {
     const d = document.getElementById('confirm-dialog');
@@ -522,6 +531,15 @@
   document.getElementById('confirm-ok').addEventListener('click', async () => {
     if (confirmCallback) await confirmCallback();
     closeConfirm();
+  });
+  document.getElementById('confirm-dialog').addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeConfirm();
+    if (e.key === 'Tab') {
+      const btns = document.getElementById('confirm-dialog').querySelectorAll('button');
+      const first = btns[0], last = btns[btns.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
   });
 
   // ============================================================
@@ -543,7 +561,8 @@
       updateBadge('badge-pending',   pendSnap.size);
       updateBadge('badge-inquiries', inqSnap.docs.filter(d => d.data().status === 'new').length);
       updateBadge('badge-contacts',  conSnap.docs.filter(d => !d.data().read_at).length);
-      renderRecentPending(pendSnap.docs.slice(0, 5));
+      const pendingSorted = pendSnap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
+      renderRecentPending(pendingSorted.slice(0, 5));
     } catch(e) {
       console.error(e); renderOverviewDemo();
     }
@@ -574,7 +593,9 @@
           <div class="flex items-center gap-2 shrink-0">
             ${statusBadge('pending')}
             <button onclick="approveOrg('${d.id}')" class="text-[10px] font-bold px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-full transition-all">承認</button>
-            <button onclick="rejectOrg('${d.id}','${esc(o.name).replace(/'/g,"\\'")}')" class="text-[10px] font-bold px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-all">却下</button>
+            <button data-id="${esc(d.id)}" data-name="${esc(o.name)}"
+              onclick="rejectOrg(this.dataset.id, this.dataset.name)"
+              class="text-[10px] font-bold px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-all">却下</button>
           </div>
         </div>`;
     }).join('');
@@ -679,7 +700,8 @@
             <button onclick="approveOrg('${id}')"
               class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
               <i data-lucide="check" width="12" height="12"></i>承認・公開</button>
-            <button onclick="rejectOrg('${id}','${esc(o.name).replace(/'/g,"\\'")}')"
+            <button data-id="${esc(id)}" data-name="${esc(o.name)}"
+              onclick="rejectOrg(this.dataset.id, this.dataset.name)"
               class="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-all">
               <i data-lucide="x" width="12" height="12"></i>却下</button>` : ''}
           ${o.status === 'public' ? `
@@ -689,7 +711,8 @@
           <a href="club.html?id=${id}" target="_blank" rel="noopener"
             class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
             <i data-lucide="external-link" width="12" height="12"></i>公開ページ</a>
-          <button onclick="deleteOrg('${id}','${esc(o.name).replace(/'/g,"\\'")}')"
+          <button data-id="${esc(id)}" data-name="${esc(o.name)}"
+            onclick="deleteOrg(this.dataset.id, this.dataset.name)"
             class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
             <i data-lucide="trash-2" width="12" height="12"></i>削除</button>
         </div>
@@ -860,6 +883,34 @@
       showToast('既読にしました');
       loadContacts(); loadOverview();
     } catch(e) { showToast('エラー: ' + e.message, false); }
+  }
+
+  async function markAllContactsRead() {
+    if (!db) { showToast('Firebase未設定です', false); return; }
+    try {
+      const snap = await db.collection('contacts').where('read_at', '==', null).get();
+      const unread = snap.docs.filter(d => !d.data().read_at);
+      if (unread.length === 0) { showToast('未読のお問い合わせはありません'); return; }
+      const batch = db.batch();
+      const ts = firebase.firestore.FieldValue.serverTimestamp();
+      unread.forEach(d => batch.update(d.ref, { read_at: ts }));
+      await batch.commit();
+      showToast(`${unread.length}件を既読にしました`);
+      loadContacts(); loadOverview();
+    } catch(e) {
+      // Fallback: fetch all and batch update unread
+      try {
+        const snap = await db.collection('contacts').get();
+        const unread = snap.docs.filter(d => !d.data().read_at);
+        if (unread.length === 0) { showToast('未読のお問い合わせはありません'); return; }
+        const batch = db.batch();
+        const ts = firebase.firestore.FieldValue.serverTimestamp();
+        unread.forEach(d => batch.update(d.ref, { read_at: ts }));
+        await batch.commit();
+        showToast(`${unread.length}件を既読にしました`);
+        loadContacts(); loadOverview();
+      } catch(e2) { showToast('エラー: ' + e2.message, false); }
+    }
   }
 
   // ============================================================

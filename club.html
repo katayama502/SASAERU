@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>クラブ詳細 - SASAERU</title>
+  <meta name="description" content="地域クラブの活動紹介・支援メニューをご覧いただけます - SASAERU">
+  <meta property="og:site_name" content="SASAERU">
+  <meta property="og:type" content="website">
+  <meta id="og-title" property="og:title" content="クラブ詳細 - SASAERU">
+  <meta id="og-description" property="og:description" content="地域クラブの活動紹介・支援メニューをご覧ください">
+  <meta id="og-image" property="og:image" content="">
+  <meta id="og-url" property="og:url" content="">
+  <meta name="twitter:card" content="summary_large_image">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = { theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } } }
@@ -465,6 +473,15 @@
       currentOrgId   = org.id;
       currentOrgName = org.name || '';
       document.title = `${org.name || 'クラブ詳細'} - SASAERU`;
+      // OG tags
+      const ogTitle = document.getElementById('og-title');
+      const ogDesc  = document.getElementById('og-description');
+      const ogImg   = document.getElementById('og-image');
+      const ogUrl   = document.getElementById('og-url');
+      if (ogTitle) ogTitle.content = `${org.name || 'クラブ詳細'} - SASAERU`;
+      if (ogDesc)  ogDesc.content  = (org.activity_how || '').slice(0, 150) || '地域クラブの活動を支援してください';
+      if (ogImg && org.main_image) ogImg.content = org.main_image;
+      if (ogUrl)   ogUrl.content   = window.location.href;
 
       renderHero(org);
       renderAbout(org);
@@ -636,16 +653,34 @@
   // ===================================================
   async function copyShareLink() {
     const url = window.location.href;
-    try {
-      await navigator.clipboard.writeText(url);
-      const btn = document.getElementById('share-btn');
-      const orig = btn.innerHTML;
+    const btn  = document.getElementById('share-btn');
+    const orig = btn.innerHTML;
+
+    const showCopied = () => {
       btn.innerHTML = `<i data-lucide="check" width="15" height="15"></i> コピーしました！`;
       lucide.createIcons();
       setTimeout(() => { btn.innerHTML = orig; lucide.createIcons(); }, 2000);
       showToast('URLをコピーしました');
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        showCopied(); return;
+      } catch(e) { /* fall through */ }
+    }
+    // Fallback for non-HTTPS or old browsers
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      textarea.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      showCopied();
     } catch(e) {
-      showToast('コピーに失敗しました', false);
+      showToast('コピーに失敗しました。URLバーからコピーしてください。', false);
     }
   }
 
@@ -661,11 +696,14 @@
     const m = document.getElementById('inquiry-modal');
     m.classList.remove('hidden'); m.classList.add('flex');
     document.body.style.overflow = 'hidden';
+    _activeModal = m;
+    setTimeout(() => document.getElementById('inq-company')?.focus(), 50);
   }
   function closeInquiryModal() {
     const m = document.getElementById('inquiry-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
+    _activeModal = null;
   }
   document.getElementById('inquiry-modal').addEventListener('click', e => {
     if (e.target.id === 'inquiry-modal') closeInquiryModal();
@@ -733,10 +771,20 @@
   }
 
   // ===================================================
-  // ESCキー
+  // ESCキー & フォーカストラップ
   // ===================================================
+  let _activeModal = null;
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeInquiryModal();
+    if (e.key === 'Tab' && _activeModal) {
+      const focusable = [..._activeModal.querySelectorAll(
+        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled])'
+      )].filter(el => el.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
   });
 
   // ===================================================

@@ -830,11 +830,13 @@
     const m = document.getElementById('register-modal');
     m.classList.remove('hidden'); m.classList.add('flex');
     document.body.style.overflow = 'hidden';
+    setTimeout(() => { document.getElementById('reg-name')?.focus(); _trapFocus(m); }, 50);
   }
   function closeRegisterModal() {
     const m = document.getElementById('register-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
+    _releaseFocus();
   }
   document.getElementById('register-modal').addEventListener('click', e => {
     if (e.target.id === 'register-modal') closeRegisterModal();
@@ -896,11 +898,13 @@
     const m = document.getElementById('inquiry-modal');
     m.classList.remove('hidden'); m.classList.add('flex');
     document.body.style.overflow = 'hidden';
+    setTimeout(() => { document.getElementById('inq-company')?.focus(); _trapFocus(m); }, 50);
   }
   function closeInquiryModal() {
     const m = document.getElementById('inquiry-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
+    _releaseFocus();
   }
   document.getElementById('inquiry-modal').addEventListener('click', e => {
     if (e.target.id === 'inquiry-modal') closeInquiryModal();
@@ -1026,12 +1030,13 @@
     const m = document.getElementById('login-modal');
     m.classList.remove('hidden'); m.classList.add('flex');
     document.body.style.overflow = 'hidden';
-    setTimeout(() => document.getElementById('login-email-input')?.focus(), 50);
+    setTimeout(() => { document.getElementById('login-email-input')?.focus(); _trapFocus(m); }, 50);
   }
   function closeLoginModal() {
     const m = document.getElementById('login-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
+    _releaseFocus();
   }
   function showLoginView() {
     document.getElementById('login-form-view').classList.remove('hidden');
@@ -1075,25 +1080,42 @@
     e.preventDefault();
     const email = new FormData(e.target).get('email');
     const res = document.getElementById('forgot-result');
+    const btn = e.target.querySelector('button[type="submit"]');
     if (!auth) { res.textContent = 'Firebase未設定です'; return; }
+    if (btn) { btn.disabled = true; btn.textContent = '送信中...'; }
     try {
       await auth.sendPasswordResetEmail(email);
       res.textContent = '✓ リセットメールを送信しました。メールをご確認ください。';
       res.className = 'text-xs text-center text-green-600 font-bold';
+      if (btn) { btn.disabled = false; btn.textContent = 'リセットメールを送信'; }
     } catch(err) {
       res.textContent = '✗ メールの送信に失敗しました: ' + err.message;
       res.className = 'text-xs text-center text-red-500';
+      if (btn) { btn.disabled = false; btn.textContent = 'リセットメールを送信'; }
     }
   });
 
   // ===================================================
-  // ESCキー
+  // ESCキー & フォーカストラップ
   // ===================================================
+  let _activeModal = null;
+  function _trapFocus(modal) { _activeModal = modal; }
+  function _releaseFocus() { _activeModal = null; }
+
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       closeRegisterModal();
       closeInquiryModal();
       closeLoginModal();
+    }
+    if (e.key === 'Tab' && _activeModal) {
+      const focusable = [..._activeModal.querySelectorAll(
+        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled])'
+      )].filter(el => el.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
   });
 
