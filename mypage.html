@@ -6,12 +6,9 @@
   <title>SASAERU マイページ</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } }
-    }
+    tailwind.config = { theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } } }
   </script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Firebase v10 compat -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -30,11 +27,14 @@
     .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     #sidebar { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
     #sidebar-overlay { transition: opacity 0.3s ease; }
+    /* Unsaved indicator */
+    .unsaved-dot { display:none; }
+    .unsaved-dot.show { display:inline-block; }
   </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
 
-  <!-- ===== ローディング ===== -->
+  <!-- ローディング -->
   <div id="loading-screen" class="min-h-screen flex items-center justify-center">
     <div class="flex flex-col items-center gap-4">
       <div class="w-12 h-12 bg-orange-400 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-400/30 animate-pulse">
@@ -44,7 +44,7 @@
     </div>
   </div>
 
-  <!-- ===== 団体なし画面 ===== -->
+  <!-- 団体なし画面 -->
   <div id="no-org-screen" class="hidden min-h-screen flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
       <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
@@ -52,28 +52,22 @@
       </div>
       <h1 class="text-xl font-black text-[#0f0e2e] mb-2">団体が見つかりません</h1>
       <p class="text-sm text-slate-500 mb-6 leading-relaxed">
-        このアカウントに紐づいた団体情報が見つかりませんでした。<br>
-        まずは団体登録を行ってください。
+        このアカウントに紐づいた団体情報が見つかりませんでした。<br>まずは団体登録を行ってください。
       </p>
-      <a href="index.html"
-        class="inline-flex items-center gap-2 px-6 py-3 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
-        <i data-lucide="arrow-left" width="16" height="16"></i>
-        トップページへ
+      <a href="index.html" class="inline-flex items-center gap-2 px-6 py-3 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+        <i data-lucide="arrow-left" width="16" height="16"></i>トップページへ
       </a>
     </div>
   </div>
 
-  <!-- ===== ダッシュボード ===== -->
+  <!-- ダッシュボード -->
   <div id="dashboard" class="hidden min-h-screen">
-
-    <!-- モバイル用サイドバーオーバーレイ -->
+    <!-- モバイル サイドバー オーバーレイ -->
     <div id="sidebar-overlay" class="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm hidden" onclick="closeSidebar()"></div>
 
     <div class="flex h-screen overflow-hidden">
-
       <!-- サイドバー -->
       <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-[#0f0e2e] flex flex-col shrink-0 -translate-x-full md:translate-x-0">
-        <!-- ロゴ -->
         <div class="px-5 py-5 border-b border-white/10">
           <a href="index.html" class="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div class="w-8 h-8 bg-orange-400 rounded-lg flex items-center justify-center shadow-md shadow-orange-400/30">
@@ -85,27 +79,26 @@
             </div>
           </a>
         </div>
-
-        <!-- ナビ -->
         <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           <button onclick="switchTab('profile')" data-tab="profile"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
             <i data-lucide="user-circle" width="16" height="16"></i>
             プロフィール
+            <span class="unsaved-dot ml-auto w-2 h-2 bg-orange-400 rounded-full" id="unsaved-dot"></span>
           </button>
           <button onclick="switchTab('menus')" data-tab="menus"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
             <i data-lucide="list" width="16" height="16"></i>
             支援メニュー
+            <span id="badge-menus" class="ml-auto bg-orange-400/80 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
           <button onclick="switchTab('diary')" data-tab="diary"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
             <i data-lucide="notebook-pen" width="16" height="16"></i>
             活動日記
+            <span id="badge-diary" class="ml-auto bg-orange-400/80 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
         </nav>
-
-        <!-- ユーザー情報 -->
         <div class="px-4 py-4 border-t border-white/10">
           <div class="flex items-center gap-2.5 mb-3">
             <div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
@@ -118,25 +111,20 @@
           </div>
           <button onclick="doSignOut()"
             class="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 text-xs font-bold transition-all">
-            <i data-lucide="log-out" width="13" height="13"></i>
-            ログアウト
+            <i data-lucide="log-out" width="13" height="13"></i>ログアウト
           </button>
           <a id="public-page-link" href="#"
             class="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 text-xs transition-all">
-            <i data-lucide="external-link" width="13" height="13"></i>
-            公開ページを見る
+            <i data-lucide="external-link" width="13" height="13"></i>公開ページを見る
           </a>
         </div>
       </aside>
 
       <!-- メインコンテンツ -->
       <main class="flex-1 overflow-y-auto">
-        <!-- ヘッダー -->
         <header class="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between sticky top-0 z-10">
           <div class="flex items-center gap-3">
-            <!-- モバイルハンバーガー -->
-            <button onclick="toggleSidebar()"
-              class="md:hidden w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
+            <button onclick="toggleSidebar()" class="md:hidden w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
               <i data-lucide="menu" width="18" height="18"></i>
             </button>
             <div>
@@ -145,38 +133,29 @@
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <span id="org-name-header" class="text-xs font-bold text-slate-500 hidden sm:block"></span>
+            <span id="org-name-header" class="text-xs font-bold text-slate-500 hidden sm:block truncate max-w-[140px]"></span>
           </div>
         </header>
 
-        <!-- コンテンツエリア -->
         <div class="p-4 sm:p-6 lg:p-8">
 
-          <!-- ===== プロフィールタブ ===== -->
+          <!-- プロフィールタブ -->
           <div id="tab-profile" class="hidden fade-in">
-            <!-- ステータスバッジ -->
             <div id="status-banner" class="mb-6 hidden"></div>
-
-            <!-- フォーム -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <h2 class="text-base font-black text-[#0f0e2e] mb-5">団体情報の編集</h2>
               <form id="profile-form" class="space-y-5">
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <!-- 団体名 -->
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">
-                      団体名 <span class="text-red-400">*</span>
-                    </label>
-                    <input type="text" id="f-name" required
+                    <label for="f-name" class="block text-xs font-bold text-slate-600 mb-1.5">団体名 <span class="text-red-400">*</span></label>
+                    <input type="text" id="f-name" required maxlength="100"
+                      oninput="markUnsaved()"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
                       placeholder="例: 〇〇フットボールクラブ">
                   </div>
-
-                  <!-- カテゴリ -->
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">カテゴリ</label>
-                    <select id="f-category"
+                    <label for="f-category" class="block text-xs font-bold text-slate-600 mb-1.5">カテゴリ</label>
+                    <select id="f-category" onchange="markUnsaved()"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
                       <option value="">選択してください</option>
                       <option value="sports">スポーツ</option>
@@ -186,89 +165,77 @@
                     </select>
                   </div>
                 </div>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <!-- エリア -->
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">エリア</label>
-                    <input type="text" id="f-area"
+                    <label for="f-area" class="block text-xs font-bold text-slate-600 mb-1.5">エリア</label>
+                    <input type="text" id="f-area" maxlength="100" oninput="markUnsaved()"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
-                      placeholder="例: 東京都渋谷区">
+                      placeholder="例: 島根県松江市">
                   </div>
-
-                  <!-- メイン画像URL -->
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">メイン画像URL</label>
-                    <input type="url" id="f-main-image"
+                    <label for="f-main-image" class="block text-xs font-bold text-slate-600 mb-1.5">メイン画像URL</label>
+                    <input type="url" id="f-main-image" maxlength="500"
+                      oninput="markUnsaved(); previewProfileImage(this.value)"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
                       placeholder="https://example.com/image.jpg">
+                    <div id="profile-img-preview" class="hidden mt-2">
+                      <img src="" alt="プレビュー" class="h-20 rounded-xl object-cover border border-slate-200 w-full"
+                        onerror="this.parentElement.classList.add('hidden')">
+                    </div>
                   </div>
                 </div>
-
-                <!-- 支援ニーズタグ -->
                 <div>
-                  <label class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ（カンマ区切り）</label>
-                  <input type="text" id="f-tags"
+                  <label for="f-tags" class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ（カンマ区切り）</label>
+                  <input type="text" id="f-tags" maxlength="300" oninput="markUnsaved()"
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
                     placeholder="例: 練習用具, ユニフォーム, 資金援助">
                   <p class="text-[10px] text-slate-400 mt-1">複数タグはカンマ（,）で区切って入力してください</p>
                 </div>
-
-                <!-- 活動内容・現状 -->
                 <div>
-                  <label class="block text-xs font-bold text-slate-600 mb-1.5">活動内容・現状</label>
-                  <textarea id="f-activity-how" rows="5"
+                  <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">活動内容・現状</label>
+                  <textarea id="f-activity-how" rows="5" maxlength="2000"
+                    oninput="markUnsaved(); document.getElementById('profile-char-counter').textContent=this.value.length"
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none leading-relaxed"
                     placeholder="団体の活動内容や現在の状況を詳しく説明してください..."></textarea>
+                  <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="profile-char-counter">0</span>/2000</p>
                 </div>
-
-                <!-- 保存ボタン -->
-                <div class="flex items-center justify-end gap-3 pt-2">
+                <div class="flex items-center justify-between pt-2">
+                  <p id="unsaved-msg" class="text-xs text-amber-600 hidden">
+                    <i data-lucide="alert-circle" width="12" height="12" class="inline-block mr-1"></i>未保存の変更があります
+                  </p>
+                  <p class="text-[10px] text-slate-400 hidden sm:block">Ctrl+S でも保存できます</p>
                   <button type="submit" id="save-profile-btn"
-                    class="flex items-center gap-2 px-6 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
-                    <i data-lucide="save" width="14" height="14"></i>
-                    変更を保存
+                    class="flex items-center gap-2 px-6 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm shadow-sm ml-auto">
+                    <i data-lucide="save" width="14" height="14"></i>変更を保存
                   </button>
                 </div>
               </form>
             </div>
           </div>
 
-          <!-- ===== 支援メニュータブ ===== -->
+          <!-- 支援メニュータブ -->
           <div id="tab-menus" class="hidden fade-in">
-            <!-- 追加ボタン -->
             <div class="flex items-center justify-between mb-5">
               <h2 class="text-sm font-black text-[#0f0e2e]">支援メニュー一覧</h2>
               <button onclick="toggleMenuForm()"
                 class="flex items-center gap-2 px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
-                <i data-lucide="plus" width="14" height="14"></i>
-                新規メニューを追加
+                <i data-lucide="plus" width="14" height="14"></i>新規メニューを追加
               </button>
             </div>
-
-            <!-- 追加フォーム（スライド） -->
             <div id="menu-form-wrap" class="hidden mb-5">
               <div class="bg-white rounded-2xl border border-orange-200 shadow-sm p-6 slide-down">
-                <h3 class="text-sm font-black text-[#0f0e2e] mb-4">
-                  <span id="menu-form-title">新規メニューを追加</span>
-                </h3>
+                <h3 class="text-sm font-black text-[#0f0e2e] mb-4"><span id="menu-form-title">新規メニューを追加</span></h3>
                 <form id="menu-form" class="space-y-4">
                   <input type="hidden" id="mf-id">
-
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- タイトル -->
                     <div>
-                      <label class="block text-xs font-bold text-slate-600 mb-1.5">
-                        メニュータイトル <span class="text-red-400">*</span>
-                      </label>
-                      <input type="text" id="mf-title" required
+                      <label for="mf-title" class="block text-xs font-bold text-slate-600 mb-1.5">メニュータイトル <span class="text-red-400">*</span></label>
+                      <input type="text" id="mf-title" required maxlength="100"
                         class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
                         placeholder="例: ユニフォームスポンサー">
                     </div>
-
-                    <!-- 支援タイプ -->
                     <div>
-                      <label class="block text-xs font-bold text-slate-600 mb-1.5">支援タイプ</label>
+                      <label for="mf-support-type" class="block text-xs font-bold text-slate-600 mb-1.5">支援タイプ</label>
                       <select id="mf-support-type"
                         class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
                         <option value="資金">資金</option>
@@ -279,19 +246,15 @@
                       </select>
                     </div>
                   </div>
-
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- 希望金額・数量 -->
                     <div>
-                      <label class="block text-xs font-bold text-slate-600 mb-1.5">希望金額・数量</label>
-                      <input type="text" id="mf-target-amount"
+                      <label for="mf-target-amount" class="block text-xs font-bold text-slate-600 mb-1.5">希望金額・数量</label>
+                      <input type="text" id="mf-target-amount" maxlength="100"
                         class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
                         placeholder="例: 50,000円 / ボール10個">
                     </div>
-
-                    <!-- 公開設定 -->
                     <div>
-                      <label class="block text-xs font-bold text-slate-600 mb-1.5">公開設定</label>
+                      <label for="mf-status" class="block text-xs font-bold text-slate-600 mb-1.5">公開設定</label>
                       <select id="mf-status"
                         class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
                         <option value="public">公開</option>
@@ -299,109 +262,88 @@
                       </select>
                     </div>
                   </div>
-
-                  <!-- 詳細説明 -->
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">詳細説明</label>
-                    <textarea id="mf-description" rows="3"
+                    <label for="mf-description" class="block text-xs font-bold text-slate-600 mb-1.5">詳細説明</label>
+                    <textarea id="mf-description" rows="3" maxlength="1000"
+                      oninput="document.getElementById('mf-desc-counter').textContent=this.value.length"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none"
                       placeholder="支援内容の詳細を記述してください..."></textarea>
+                    <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="mf-desc-counter">0</span>/1000</p>
                   </div>
-
-                  <!-- リターン -->
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">支援してくれた方へのリターン</label>
-                    <textarea id="mf-return-merit" rows="3"
+                    <label for="mf-return-merit" class="block text-xs font-bold text-slate-600 mb-1.5">支援してくれた方へのリターン</label>
+                    <textarea id="mf-return-merit" rows="3" maxlength="1000"
+                      oninput="document.getElementById('mf-ret-counter').textContent=this.value.length"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none"
                       placeholder="例: ユニフォームへのロゴ掲載、SNS告知、試合招待など..."></textarea>
+                    <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="mf-ret-counter">0</span>/1000</p>
                   </div>
-
                   <div class="flex items-center justify-end gap-3 pt-2">
                     <button type="button" onclick="cancelMenuForm()"
-                      class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">
-                      キャンセル
-                    </button>
-                    <button type="submit"
+                      class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">キャンセル</button>
+                    <button type="submit" id="menu-save-btn"
                       class="flex items-center gap-2 px-5 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
-                      <i data-lucide="save" width="14" height="14"></i>
-                      保存する
+                      <i data-lucide="save" width="14" height="14"></i>保存する
                     </button>
                   </div>
                 </form>
               </div>
             </div>
-
-            <!-- 一覧 -->
             <div id="menus-list" class="space-y-4">
               <div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>
             </div>
           </div>
 
-          <!-- ===== 活動日記タブ ===== -->
+          <!-- 活動日記タブ -->
           <div id="tab-diary" class="hidden fade-in">
-            <!-- 投稿ボタン -->
             <div class="flex items-center justify-between mb-5">
               <h2 class="text-sm font-black text-[#0f0e2e]">活動日記</h2>
               <button onclick="toggleDiaryForm()"
                 class="flex items-center gap-2 px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
-                <i data-lucide="pen-line" width="14" height="14"></i>
-                新しい活動を投稿
+                <i data-lucide="pen-line" width="14" height="14"></i>新しい活動を投稿
               </button>
             </div>
-
-            <!-- 投稿フォーム（スライド） -->
             <div id="diary-form-wrap" class="hidden mb-5">
               <div class="bg-white rounded-2xl border border-orange-200 shadow-sm p-6 slide-down">
-                <h3 class="text-sm font-black text-[#0f0e2e] mb-4">
-                  <span id="diary-form-title">新しい活動を投稿</span>
-                </h3>
+                <h3 class="text-sm font-black text-[#0f0e2e] mb-4"><span id="diary-form-title">新しい活動を投稿</span></h3>
                 <form id="diary-form" class="space-y-4">
                   <input type="hidden" id="df-id">
-
-                  <!-- タイトル -->
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">
-                      タイトル <span class="text-red-400">*</span>
-                    </label>
-                    <input type="text" id="df-title" required
+                    <label for="df-title" class="block text-xs font-bold text-slate-600 mb-1.5">タイトル <span class="text-red-400">*</span></label>
+                    <input type="text" id="df-title" required maxlength="100"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
                       placeholder="例: 秋季大会に参加しました！">
                   </div>
-
-                  <!-- 本文 -->
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">
-                      本文 <span class="text-red-400">*</span>
-                    </label>
-                    <textarea id="df-content" rows="8" required
+                    <label for="df-content" class="block text-xs font-bold text-slate-600 mb-1.5">本文 <span class="text-red-400">*</span></label>
+                    <textarea id="df-content" rows="8" required maxlength="5000"
+                      oninput="document.getElementById('df-content-counter').textContent=this.value.length"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none leading-relaxed"
                       placeholder="活動の内容を詳しく記入してください..."></textarea>
+                    <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="df-content-counter">0</span>/5000</p>
                   </div>
-
-                  <!-- 画像URL -->
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">画像URL（任意）</label>
-                    <input type="url" id="df-image-url"
+                    <label for="df-image-url" class="block text-xs font-bold text-slate-600 mb-1.5">画像URL（任意）</label>
+                    <input type="url" id="df-image-url" maxlength="500"
+                      oninput="previewDiaryImage(this.value)"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
                       placeholder="https://example.com/photo.jpg">
+                    <div id="diary-img-preview" class="hidden mt-2">
+                      <img src="" alt="プレビュー" class="h-32 rounded-xl object-cover border border-slate-200 w-full"
+                        onerror="this.parentElement.classList.add('hidden')">
+                    </div>
                   </div>
-
                   <div class="flex items-center justify-end gap-3 pt-2">
                     <button type="button" onclick="cancelDiaryForm()"
-                      class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">
-                      キャンセル
-                    </button>
-                    <button type="submit"
+                      class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">キャンセル</button>
+                    <button type="submit" id="diary-save-btn"
                       class="flex items-center gap-2 px-5 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
-                      <i data-lucide="send" width="14" height="14"></i>
-                      投稿する
+                      <i data-lucide="send" width="14" height="14"></i>投稿する
                     </button>
                   </div>
                 </form>
               </div>
             </div>
-
-            <!-- 一覧 -->
             <div id="diary-list" class="space-y-4">
               <div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>
             </div>
@@ -412,8 +354,9 @@
     </div>
   </div>
 
-  <!-- ===== 確認ダイアログ ===== -->
-  <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+  <!-- 確認ダイアログ -->
+  <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    role="dialog" aria-modal="true">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
       <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
@@ -441,12 +384,9 @@
     messagingSenderId: "51698278682",
     appId: "1:51698278682:web:7ebcac3c2d90fc04edcca3"
   };
-
   const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
 
-  let db   = null;
-  let auth = null;
-
+  let db = null, auth = null;
   if (isConfigured) {
     try {
       firebase.initializeApp(firebaseConfig);
@@ -464,24 +404,20 @@
   let confirmCallback = null;
   let editingMenuId  = null;
   let editingDiaryId = null;
+  let profileDirty   = false;
 
   // ============================================================
-  // 認証（Promise ベース: ページ遷移直後の null 誤判定を防止）
+  // 認証（Promise ベース）
   // ============================================================
   if (auth) {
-    // onAuthStateChanged が最初に確定した値を一度だけ受け取る
     new Promise(resolve => {
       const unsub = auth.onAuthStateChanged(user => { unsub(); resolve(user); });
     }).then(user => {
-      if (!user) {
-        window.location.href = 'index.html';
-        return;
-      }
+      if (!user) { window.location.href = 'index.html'; return; }
       currentUser = user;
       loadUserOrg(user.uid);
     });
   } else {
-    // Firebase未設定: 空の状態で no-org 画面を表示
     document.getElementById('loading-screen').classList.add('hidden');
     document.getElementById('no-org-screen').classList.remove('hidden');
     lucide.createIcons();
@@ -490,10 +426,7 @@
   async function loadUserOrg(uid) {
     try {
       const snap = await db.collection('organizations').where('owner_uid', '==', uid).limit(1).get();
-      if (snap.empty) {
-        showNoOrg();
-        return;
-      }
+      if (snap.empty) { showNoOrg(); return; }
       currentOrg = { id: snap.docs[0].id, ...snap.docs[0].data() };
       initDashboard();
     } catch(e) {
@@ -509,6 +442,9 @@
   }
 
   async function doSignOut() {
+    if (profileDirty) {
+      if (!confirm('未保存の変更があります。ログアウトしますか？')) return;
+    }
     if (auth) await auth.signOut();
     window.location.href = 'index.html';
   }
@@ -520,33 +456,78 @@
     document.getElementById('loading-screen').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
     document.getElementById('user-email').textContent = currentUser.email || '';
-
-    // 公開ページリンク
-    const publicLink = document.getElementById('public-page-link');
-    publicLink.href = `club.html?id=${currentOrg.id}`;
-
-    // ナビ用に org-name 表示
+    document.getElementById('public-page-link').href = `club.html?id=${currentOrg.id}`;
     const orgNameEl = document.getElementById('org-name-header');
-    if (orgNameEl) {
-      orgNameEl.textContent = currentOrg.name || '';
-      orgNameEl.classList.remove('hidden');
-    }
-
+    if (orgNameEl) { orgNameEl.textContent = currentOrg.name || ''; orgNameEl.classList.remove('hidden'); }
     lucide.createIcons();
     switchTab('profile');
+  }
+
+  // ============================================================
+  // 未保存インジケーター
+  // ============================================================
+  function markUnsaved() {
+    profileDirty = true;
+    document.getElementById('unsaved-dot').classList.add('show');
+    document.getElementById('unsaved-msg').classList.remove('hidden');
+  }
+  function clearUnsaved() {
+    profileDirty = false;
+    document.getElementById('unsaved-dot').classList.remove('show');
+    document.getElementById('unsaved-msg').classList.add('hidden');
+  }
+
+  // ============================================================
+  // 画像プレビュー
+  // ============================================================
+  function previewProfileImage(url) {
+    const wrap = document.getElementById('profile-img-preview');
+    const img  = wrap.querySelector('img');
+    if (url && url.startsWith('http')) { img.src = url; wrap.classList.remove('hidden'); }
+    else { wrap.classList.add('hidden'); }
+  }
+  function previewDiaryImage(url) {
+    const wrap = document.getElementById('diary-img-preview');
+    const img  = wrap.querySelector('img');
+    if (url && url.startsWith('http')) { img.src = url; wrap.classList.remove('hidden'); }
+    else { wrap.classList.add('hidden'); }
   }
 
   // ============================================================
   // タブ切り替え
   // ============================================================
   const TAB_TITLES = {
-    profile: { title: 'プロフィール',  subtitle: '団体情報の編集' },
-    menus:   { title: '支援メニュー',  subtitle: 'サポートメニューの管理' },
-    diary:   { title: '活動日記',      subtitle: '活動投稿の管理' },
+    profile: { title: 'プロフィール', subtitle: '団体情報の編集' },
+    menus:   { title: '支援メニュー', subtitle: 'サポートメニューの管理' },
+    diary:   { title: '活動日記',     subtitle: '活動投稿の管理' },
   };
 
+  function switchTab(name) {
+    if (name !== 'profile' && profileDirty) {
+      if (!confirm('プロフィールに未保存の変更があります。タブを切り替えますか？')) return;
+      clearUnsaved();
+    }
+    currentTab = name;
+    closeSidebar();
+    ['profile','menus','diary'].forEach(t => {
+      document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
+    });
+    document.querySelectorAll('.side-btn').forEach(btn => {
+      const isActive = btn.dataset.tab === name;
+      btn.classList.toggle('bg-white/15', isActive);
+      btn.classList.toggle('text-white',   isActive);
+      btn.classList.toggle('text-white/60', !isActive);
+    });
+    const info = TAB_TITLES[name] || {};
+    document.getElementById('page-title').textContent    = info.title    || '';
+    document.getElementById('page-subtitle').textContent = info.subtitle || '';
+    if (name === 'profile') loadProfile();
+    if (name === 'menus')   loadMenus();
+    if (name === 'diary')   loadDiary();
+  }
+
   // ============================================================
-  // モバイルサイドバー開閉
+  // モバイルサイドバー
   // ============================================================
   function toggleSidebar() {
     const sb = document.getElementById('sidebar');
@@ -561,68 +542,43 @@
     document.getElementById('sidebar-overlay').classList.add('hidden');
   }
 
-  function switchTab(name) {
-    currentTab = name;
-    closeSidebar(); // モバイルでタブ切替時にサイドバーを閉じる
-    ['profile', 'menus', 'diary'].forEach(t => {
-      document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
-    });
-    document.querySelectorAll('.side-btn').forEach(btn => {
-      const isActive = btn.dataset.tab === name;
-      btn.classList.toggle('bg-white/15', isActive);
-      btn.classList.toggle('text-white',   isActive);
-      btn.classList.toggle('text-white/60', !isActive);
-    });
-    const info = TAB_TITLES[name] || {};
-    document.getElementById('page-title').textContent    = info.title    || '';
-    document.getElementById('page-subtitle').textContent = info.subtitle || '';
-
-    if (name === 'profile') loadProfile();
-    if (name === 'menus')   loadMenus();
-    if (name === 'diary')   loadDiary();
-  }
-
   // ============================================================
   // プロフィールタブ
   // ============================================================
   function loadProfile() {
-    const org = currentOrg;
-
-    // ステータスバナー
+    const org    = currentOrg;
     const banner = document.getElementById('status-banner');
     if (org.status === 'pending') {
-      banner.innerHTML = `
-        <div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-pending border border-yellow-200">
-          <i data-lucide="clock" width="16" height="16"></i>
-          <p class="text-sm font-bold">現在審査中です。承認後に公開されます。</p>
-        </div>`;
+      banner.innerHTML = `<div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-pending border border-yellow-200">
+        <i data-lucide="clock" width="16" height="16"></i>
+        <p class="text-sm font-bold">現在審査中です。承認後に公開されます。</p></div>`;
       banner.classList.remove('hidden');
     } else if (org.status === 'public') {
-      banner.innerHTML = `
-        <div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-public border border-green-200">
-          <i data-lucide="check-circle" width="16" height="16"></i>
-          <p class="text-sm font-bold">公開中</p>
-        </div>`;
+      banner.innerHTML = `<div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-public border border-green-200">
+        <i data-lucide="check-circle" width="16" height="16"></i>
+        <p class="text-sm font-bold">公開中</p></div>`;
       banner.classList.remove('hidden');
     } else if (org.status === 'rejected') {
-      banner.innerHTML = `
-        <div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-rejected border border-red-200">
-          <i data-lucide="x-circle" width="16" height="16"></i>
-          <p class="text-sm font-bold">却下されました。内容を修正して再申請してください。</p>
-        </div>`;
+      banner.innerHTML = `<div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-rejected border border-red-200">
+        <i data-lucide="x-circle" width="16" height="16"></i>
+        <p class="text-sm font-bold">却下されました。内容を修正して再申請してください。</p></div>`;
       banner.classList.remove('hidden');
     } else {
       banner.classList.add('hidden');
     }
 
-    // フォームに現在値を設定
-    document.getElementById('f-name').value         = org.name         || '';
-    document.getElementById('f-category').value     = org.category     || '';
-    document.getElementById('f-area').value         = org.area         || '';
-    document.getElementById('f-main-image').value   = org.main_image   || '';
-    document.getElementById('f-tags').value         = (org.tags || []).join(', ');
-    document.getElementById('f-activity-how').value = org.activity_how || '';
+    document.getElementById('f-name').value          = org.name         || '';
+    document.getElementById('f-category').value      = org.category     || '';
+    document.getElementById('f-area').value          = org.area         || '';
+    document.getElementById('f-main-image').value    = org.main_image   || '';
+    document.getElementById('f-tags').value          = (org.tags || []).join(', ');
+    document.getElementById('f-activity-how').value  = org.activity_how || '';
+    document.getElementById('profile-char-counter').textContent = (org.activity_how || '').length;
 
+    // 画像プレビュー初期表示
+    if (org.main_image) previewProfileImage(org.main_image);
+
+    clearUnsaved();
     lucide.createIcons();
   }
 
@@ -633,38 +589,41 @@
     btn.innerHTML = '<span class="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full"></span> 保存中...';
 
     const rawTags = document.getElementById('f-tags').value;
-    const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
-
-    const data = {
+    const tags    = rawTags.split(',').map(t => t.trim()).filter(Boolean);
+    const data    = {
       name:         document.getElementById('f-name').value.trim(),
       category:     document.getElementById('f-category').value,
       area:         document.getElementById('f-area').value.trim(),
-      main_image:   document.getElementById('f-main-image').value.trim(),
+      main_image:   document.getElementById('f-main-image').value.trim() || null,
       tags,
       activity_how: document.getElementById('f-activity-how').value.trim(),
       updated_at:   db ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
     };
 
     if (!db) {
-      // デモモード: ローカル更新
       Object.assign(currentOrg, data);
-      showToast('保存しました（デモモード）');
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="save" width="14" height="14"></i> 変更を保存';
-      lucide.createIcons();
-      return;
+      showToast('保存しました（Firebase未接続）');
+      btn.disabled = false; btn.innerHTML = '<i data-lucide="save" width="14" height="14"></i> 変更を保存';
+      clearUnsaved(); lucide.createIcons(); return;
     }
-
     try {
       await db.collection('organizations').doc(currentOrg.id).update(data);
       Object.assign(currentOrg, data);
       showToast('保存しました');
+      clearUnsaved();
     } catch(err) {
       showToast('保存に失敗しました: ' + err.message, false);
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i data-lucide="save" width="14" height="14"></i> 変更を保存';
+      btn.disabled = false; btn.innerHTML = '<i data-lucide="save" width="14" height="14"></i> 変更を保存';
       lucide.createIcons();
+    }
+  });
+
+  // Ctrl+S 保存
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's' && currentTab === 'profile') {
+      e.preventDefault();
+      document.getElementById('profile-form').requestSubmit();
     }
   });
 
@@ -673,24 +632,34 @@
   // ============================================================
   async function loadMenus() {
     const el = document.getElementById('menus-list');
-
     if (!db) {
-      renderMenuCards(DEMO_MENUS);
+      el.innerHTML = '<div class="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">Firebase未接続のため表示できません</div>';
       return;
     }
-
     el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>';
     try {
       const snap = await db.collection('organizations').doc(currentOrg.id).collection('menus').get();
       if (snap.empty) {
-        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援メニューはまだありません</div>';
-        return;
+        el.innerHTML = `<div class="text-center py-16 text-slate-400">
+          <i data-lucide="inbox" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
+          <p class="text-sm font-medium">支援メニューはまだありません</p>
+          <p class="text-xs mt-1">「新規メニューを追加」から最初のメニューを作成しましょう</p></div>`;
+        updateBadge('badge-menus', 0);
+        lucide.createIcons(); return;
       }
       const menus = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      updateBadge('badge-menus', menus.length);
       renderMenuCards(menus);
     } catch(err) {
       el.innerHTML = `<div class="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">読み込みエラー: ${esc(err.message)}</div>`;
     }
+  }
+
+  function updateBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) { el.textContent = count; el.classList.remove('hidden'); }
+    else { el.classList.add('hidden'); }
   }
 
   function renderMenuCards(menus) {
@@ -711,33 +680,27 @@
                 </span>
               </div>
               <div class="flex flex-wrap gap-3 text-xs text-slate-500">
-                <span class="flex items-center gap-1">
-                  <i data-lucide="tag" width="11" height="11"></i>${esc(m.support_type || '—')}
-                </span>
-                ${m.target_amount ? `<span class="flex items-center gap-1">
-                  <i data-lucide="circle-dollar-sign" width="11" height="11"></i>${esc(m.target_amount)}
-                </span>` : ''}
+                <span class="flex items-center gap-1"><i data-lucide="tag" width="11" height="11"></i>${esc(m.support_type||'—')}</span>
+                ${m.target_amount ? `<span class="flex items-center gap-1"><i data-lucide="circle-dollar-sign" width="11" height="11"></i>${esc(m.target_amount)}</span>` : ''}
               </div>
             </div>
           </div>
           ${m.description ? `<p class="text-xs text-slate-600 leading-relaxed mb-2 line-clamp-2">${esc(m.description)}</p>` : ''}
-          ${m.return_merit ? `
-            <div class="bg-orange-50 rounded-xl px-3 py-2 mt-2">
-              <p class="text-[10px] font-bold text-orange-600 mb-0.5">リターン</p>
-              <p class="text-xs text-orange-700 leading-relaxed line-clamp-2">${esc(m.return_merit)}</p>
-            </div>` : ''}
+          ${m.return_merit ? `<div class="bg-orange-50 rounded-xl px-3 py-2 mt-2">
+            <p class="text-[10px] font-bold text-orange-600 mb-0.5">リターン</p>
+            <p class="text-xs text-orange-700 leading-relaxed line-clamp-2">${esc(m.return_merit)}</p></div>` : ''}
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-wrap">
-          <button onclick="editMenu(${JSON.stringify(m).replace(/"/g, '&quot;')})"
+          <button onclick='editMenu(${JSON.stringify(m).replace(/'/g,"&#39;").replace(/"/g,"&quot;")})'
             class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
             <i data-lucide="pencil" width="12" height="12"></i>編集
           </button>
-          <button onclick="toggleMenuStatus('${m.id}', '${m.status}')"
+          <button onclick="toggleMenuStatus('${m.id}','${m.status}')"
             class="flex items-center gap-1 px-3 py-1.5 ${m.status === 'public' ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-green-50 hover:bg-green-100 text-green-700'} text-xs font-bold rounded-lg transition-all">
             <i data-lucide="${m.status === 'public' ? 'eye-off' : 'eye'}" width="12" height="12"></i>
             ${m.status === 'public' ? '非公開にする' : '公開する'}
           </button>
-          <button onclick="deleteMenu('${m.id}', '${esc(m.title).replace(/'/g, "\\'")}')"
+          <button onclick="deleteMenu('${m.id}','${esc(m.title).replace(/'/g,"\\'")}')"
             class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
             <i data-lucide="trash-2" width="12" height="12"></i>削除
           </button>
@@ -751,11 +714,11 @@
     document.getElementById('menu-form-title').textContent = '新規メニューを追加';
     document.getElementById('menu-form').reset();
     document.getElementById('mf-id').value = '';
+    document.getElementById('mf-desc-counter').textContent = '0';
+    document.getElementById('mf-ret-counter').textContent  = '0';
     const wrap = document.getElementById('menu-form-wrap');
     wrap.classList.toggle('hidden');
-    if (!wrap.classList.contains('hidden')) {
-      wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    if (!wrap.classList.contains('hidden')) wrap.scrollIntoView({ behavior:'smooth', block:'start' });
     lucide.createIcons();
   }
 
@@ -766,23 +729,27 @@
 
   function editMenu(menuData) {
     editingMenuId = menuData.id;
-    document.getElementById('menu-form-title').textContent = 'メニューを編集';
-    document.getElementById('mf-id').value            = menuData.id;
-    document.getElementById('mf-title').value         = menuData.title         || '';
-    document.getElementById('mf-support-type').value  = menuData.support_type  || '資金';
-    document.getElementById('mf-target-amount').value = menuData.target_amount || '';
-    document.getElementById('mf-description').value   = menuData.description   || '';
-    document.getElementById('mf-return-merit').value  = menuData.return_merit  || '';
-    document.getElementById('mf-status').value        = menuData.status        || 'public';
-
+    document.getElementById('menu-form-title').textContent     = 'メニューを編集';
+    document.getElementById('mf-id').value                    = menuData.id;
+    document.getElementById('mf-title').value                 = menuData.title         || '';
+    document.getElementById('mf-support-type').value          = menuData.support_type  || '資金';
+    document.getElementById('mf-target-amount').value         = menuData.target_amount || '';
+    document.getElementById('mf-description').value           = menuData.description   || '';
+    document.getElementById('mf-return-merit').value          = menuData.return_merit  || '';
+    document.getElementById('mf-status').value                = menuData.status        || 'public';
+    document.getElementById('mf-desc-counter').textContent    = (menuData.description   || '').length;
+    document.getElementById('mf-ret-counter').textContent     = (menuData.return_merit  || '').length;
     const wrap = document.getElementById('menu-form-wrap');
     wrap.classList.remove('hidden');
-    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    wrap.scrollIntoView({ behavior:'smooth', block:'start' });
     lucide.createIcons();
   }
 
   document.getElementById('menu-form').addEventListener('submit', async e => {
     e.preventDefault();
+    if (!db) { showToast('Firebase未接続のため保存できません', false); return; }
+    const btn = document.getElementById('menu-save-btn');
+    btn.disabled = true; btn.textContent = '保存中...';
     const data = {
       title:         document.getElementById('mf-title').value.trim(),
       support_type:  document.getElementById('mf-support-type').value,
@@ -790,23 +757,8 @@
       description:   document.getElementById('mf-description').value.trim(),
       return_merit:  document.getElementById('mf-return-merit').value.trim(),
       status:        document.getElementById('mf-status').value,
-      updated_at:    db ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+      updated_at:    firebase.firestore.FieldValue.serverTimestamp(),
     };
-
-    if (!db) {
-      // デモモード
-      if (editingMenuId) {
-        const idx = DEMO_MENUS.findIndex(m => m.id === editingMenuId);
-        if (idx !== -1) Object.assign(DEMO_MENUS[idx], data);
-      } else {
-        DEMO_MENUS.push({ id: 'demo-menu-' + Date.now(), ...data });
-      }
-      cancelMenuForm();
-      renderMenuCards(DEMO_MENUS);
-      showToast(editingMenuId ? 'メニューを更新しました（デモ）' : 'メニューを追加しました（デモ）');
-      return;
-    }
-
     try {
       const menusRef = db.collection('organizations').doc(currentOrg.id).collection('menus');
       if (editingMenuId) {
@@ -821,49 +773,31 @@
       loadMenus();
     } catch(err) {
       showToast('エラー: ' + err.message, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="save" width="14" height="14"></i> 保存する';
+      lucide.createIcons();
     }
   });
 
   async function toggleMenuStatus(menuId, currentStatus) {
+    if (!db) { showToast('Firebase未接続のため変更できません', false); return; }
     const newStatus = currentStatus === 'public' ? 'private' : 'public';
-
-    if (!db) {
-      const m = DEMO_MENUS.find(m => m.id === menuId);
-      if (m) m.status = newStatus;
-      renderMenuCards(DEMO_MENUS);
-      showToast(newStatus === 'public' ? '公開しました（デモ）' : '非公開にしました（デモ）');
-      return;
-    }
-
     try {
       await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).update({ status: newStatus });
       showToast(newStatus === 'public' ? '公開しました' : '非公開にしました');
       loadMenus();
-    } catch(err) {
-      showToast('エラー: ' + err.message, false);
-    }
+    } catch(err) { showToast('エラー: ' + err.message, false); }
   }
 
   function deleteMenu(menuId, title) {
-    showConfirm(
-      `「${title}」を削除しますか？`,
-      'この操作は取り消せません。',
-      '削除する', 'bg-red-500 hover:bg-red-600',
+    showConfirm(`「${title}」を削除しますか？`, 'この操作は取り消せません。', '削除する', 'bg-red-500 hover:bg-red-600',
       async () => {
-        if (!db) {
-          const idx = DEMO_MENUS.findIndex(m => m.id === menuId);
-          if (idx !== -1) DEMO_MENUS.splice(idx, 1);
-          renderMenuCards(DEMO_MENUS);
-          showToast('削除しました（デモ）');
-          return;
-        }
+        if (!db) { showToast('Firebase未接続のため削除できません', false); return; }
         try {
           await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).delete();
-          showToast('削除しました');
-          loadMenus();
-        } catch(err) {
-          showToast('エラー: ' + err.message, false);
-        }
+          showToast('削除しました'); loadMenus();
+        } catch(err) { showToast('エラー: ' + err.message, false); }
       }
     );
   }
@@ -873,24 +807,24 @@
   // ============================================================
   async function loadDiary() {
     const el = document.getElementById('diary-list');
-
     if (!db) {
-      renderDiaryCards(DEMO_POSTS);
+      el.innerHTML = '<div class="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">Firebase未接続のため表示できません</div>';
       return;
     }
-
     el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>';
     try {
       const snap = await db.collection('posts')
-        .where('org_id', '==', currentOrg.id)
-        .orderBy('created_at', 'desc')
-        .get();
-
+        .where('org_id', '==', currentOrg.id).orderBy('created_at', 'desc').get();
       if (snap.empty) {
-        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">まだ投稿はありません</div>';
-        return;
+        el.innerHTML = `<div class="text-center py-16 text-slate-400">
+          <i data-lucide="notebook-pen" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
+          <p class="text-sm font-medium">まだ投稿はありません</p>
+          <p class="text-xs mt-1">「新しい活動を投稿」から最初の日記を書きましょう</p></div>`;
+        updateBadge('badge-diary', 0);
+        lucide.createIcons(); return;
       }
       const posts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      updateBadge('badge-diary', posts.length);
       renderDiaryCards(posts);
     } catch(err) {
       el.innerHTML = `<div class="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">読み込みエラー: ${esc(err.message)}</div>`;
@@ -905,18 +839,19 @@
     }
     el.innerHTML = posts.map(p => `
       <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden fade-in">
-        ${p.image_url ? `<img src="${esc(p.image_url)}" alt="" class="w-full h-40 object-cover bg-slate-100">` : ''}
+        ${p.image_url ? `<img src="${esc(p.image_url)}" alt="" class="w-full h-40 object-cover bg-slate-100"
+          onerror="this.style.display='none'">` : ''}
         <div class="p-5">
           <p class="text-[10px] text-slate-400 font-bold mb-1.5">${fmtDate(p.created_at)}</p>
           <h3 class="text-sm font-black text-[#0f0e2e] mb-2">${esc(p.title)}</h3>
           <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${esc(p.content)}</p>
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
-          <button onclick="editDiary(${JSON.stringify(p).replace(/"/g, '&quot;')})"
+          <button onclick='editDiary(${JSON.stringify(p).replace(/'/g,"&#39;").replace(/"/g,"&quot;")})'
             class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
             <i data-lucide="pencil" width="12" height="12"></i>編集
           </button>
-          <button onclick="deleteDiary('${p.id}', '${esc(p.title).replace(/'/g, "\\'")}')"
+          <button onclick="deleteDiary('${p.id}','${esc(p.title).replace(/'/g,"\\'")}')"
             class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
             <i data-lucide="trash-2" width="12" height="12"></i>削除
           </button>
@@ -930,11 +865,11 @@
     document.getElementById('diary-form-title').textContent = '新しい活動を投稿';
     document.getElementById('diary-form').reset();
     document.getElementById('df-id').value = '';
+    document.getElementById('df-content-counter').textContent = '0';
+    document.getElementById('diary-img-preview').classList.add('hidden');
     const wrap = document.getElementById('diary-form-wrap');
     wrap.classList.toggle('hidden');
-    if (!wrap.classList.contains('hidden')) {
-      wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    if (!wrap.classList.contains('hidden')) wrap.scrollIntoView({ behavior:'smooth', block:'start' });
     lucide.createIcons();
   }
 
@@ -945,40 +880,29 @@
 
   function editDiary(postData) {
     editingDiaryId = postData.id;
-    document.getElementById('diary-form-title').textContent = '投稿を編集';
-    document.getElementById('df-id').value        = postData.id;
-    document.getElementById('df-title').value     = postData.title     || '';
-    document.getElementById('df-content').value   = postData.content   || '';
-    document.getElementById('df-image-url').value = postData.image_url || '';
-
+    document.getElementById('diary-form-title').textContent    = '投稿を編集';
+    document.getElementById('df-id').value                    = postData.id;
+    document.getElementById('df-title').value                 = postData.title     || '';
+    document.getElementById('df-content').value               = postData.content   || '';
+    document.getElementById('df-image-url').value             = postData.image_url || '';
+    document.getElementById('df-content-counter').textContent = (postData.content || '').length;
+    if (postData.image_url) previewDiaryImage(postData.image_url);
     const wrap = document.getElementById('diary-form-wrap');
     wrap.classList.remove('hidden');
-    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    wrap.scrollIntoView({ behavior:'smooth', block:'start' });
     lucide.createIcons();
   }
 
   document.getElementById('diary-form').addEventListener('submit', async e => {
     e.preventDefault();
+    if (!db) { showToast('Firebase未接続のため保存できません', false); return; }
+    const btn = document.getElementById('diary-save-btn');
+    btn.disabled = true; btn.textContent = '送信中...';
     const data = {
       title:     document.getElementById('df-title').value.trim(),
       content:   document.getElementById('df-content').value.trim(),
-      image_url: document.getElementById('df-image-url').value.trim(),
+      image_url: document.getElementById('df-image-url').value.trim() || null,
     };
-
-    if (!db) {
-      // デモモード
-      if (editingDiaryId) {
-        const idx = DEMO_POSTS.findIndex(p => p.id === editingDiaryId);
-        if (idx !== -1) Object.assign(DEMO_POSTS[idx], data);
-      } else {
-        DEMO_POSTS.unshift({ id: 'demo-post-' + Date.now(), ...data, created_at: new Date() });
-      }
-      cancelDiaryForm();
-      renderDiaryCards(DEMO_POSTS);
-      showToast(editingDiaryId ? '投稿を更新しました（デモ）' : '投稿しました（デモ）');
-      return;
-    }
-
     try {
       if (editingDiaryId) {
         data.updated_at = firebase.firestore.FieldValue.serverTimestamp();
@@ -995,29 +919,21 @@
       loadDiary();
     } catch(err) {
       showToast('エラー: ' + err.message, false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="send" width="14" height="14"></i> 投稿する';
+      lucide.createIcons();
     }
   });
 
   function deleteDiary(postId, title) {
-    showConfirm(
-      `「${title}」を削除しますか？`,
-      'この操作は取り消せません。',
-      '削除する', 'bg-red-500 hover:bg-red-600',
+    showConfirm(`「${title}」を削除しますか？`, 'この操作は取り消せません。', '削除する', 'bg-red-500 hover:bg-red-600',
       async () => {
-        if (!db) {
-          const idx = DEMO_POSTS.findIndex(p => p.id === postId);
-          if (idx !== -1) DEMO_POSTS.splice(idx, 1);
-          renderDiaryCards(DEMO_POSTS);
-          showToast('削除しました（デモ）');
-          return;
-        }
+        if (!db) { showToast('Firebase未接続のため削除できません', false); return; }
         try {
           await db.collection('posts').doc(postId).delete();
-          showToast('削除しました');
-          loadDiary();
-        } catch(err) {
-          showToast('エラー: ' + err.message, false);
-        }
+          showToast('削除しました'); loadDiary();
+        } catch(err) { showToast('エラー: ' + err.message, false); }
       }
     );
   }
@@ -1058,17 +974,13 @@
     okBtn.className   = `flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white ${btnColor}`;
     confirmCallback   = callback;
     const d = document.getElementById('confirm-dialog');
-    d.classList.remove('hidden');
-    d.classList.add('flex');
+    d.classList.remove('hidden'); d.classList.add('flex');
   }
-
   function closeConfirm() {
     const d = document.getElementById('confirm-dialog');
-    d.classList.add('hidden');
-    d.classList.remove('flex');
+    d.classList.add('hidden'); d.classList.remove('flex');
     confirmCallback = null;
   }
-
   document.getElementById('confirm-ok').addEventListener('click', async () => {
     if (confirmCallback) await confirmCallback();
     closeConfirm();
@@ -1079,6 +991,11 @@
   // ============================================================
   document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
+  });
+
+  // ページ離脱警告
+  window.addEventListener('beforeunload', e => {
+    if (profileDirty) { e.preventDefault(); e.returnValue = ''; }
   });
   </script>
 </body>

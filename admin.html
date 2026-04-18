@@ -6,26 +6,21 @@
   <title>SASAERU 管理ダッシュボード</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } }
-    }
+    tailwind.config = { theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } } }
   </script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Firebase v10 compat -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     body { font-family: 'Noto Sans JP', sans-serif; }
-    .tab-active { background: #0f0e2e; color: #fff; }
-    .tab-inactive { color: #64748b; }
-    .tab-inactive:hover { background: #f1f5f9; }
     .badge-pending  { background:#fef3c7; color:#d97706; }
     .badge-public   { background:#dcfce7; color:#16a34a; }
     .badge-rejected { background:#fee2e2; color:#dc2626; }
     .badge-new      { background:#eff6ff; color:#2563eb; }
     .badge-done     { background:#f0fdf4; color:#16a34a; }
+    .badge-unread   { background:#fdf2f8; color:#9333ea; }
     @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
     .fade-in { animation: fadeIn .25s ease forwards; }
     ::-webkit-scrollbar { width:5px; height:5px; }
@@ -36,7 +31,7 @@
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
 
-  <!-- ===== ログイン画面 ===== -->
+  <!-- ログイン画面 -->
   <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
       <div class="flex items-center gap-2.5 mb-8">
@@ -52,17 +47,23 @@
       <p class="text-xs text-slate-400 mb-6">管理者アカウントでサインインしてください</p>
       <form id="login-form" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス</label>
-          <input type="email" id="login-email" required autocomplete="email"
+          <label for="login-email" class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス</label>
+          <input type="email" id="login-email" required maxlength="200" autocomplete="email"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1.5">パスワード</label>
-          <input type="password" id="login-password" required autocomplete="current-password"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
+          <label for="login-password" class="block text-xs font-bold text-slate-600 mb-1.5">パスワード</label>
+          <div class="relative">
+            <input type="password" id="login-password" required maxlength="200" autocomplete="current-password"
+              class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
+            <button type="button" onclick="toggleAdminPwd()"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <i id="admin-eye" data-lucide="eye" width="16" height="16"></i>
+            </button>
+          </div>
         </div>
-        <button type="submit"
-          class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl transition-all text-sm shadow-md mt-2">
+        <button type="submit" id="login-submit-btn"
+          class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl transition-all text-sm shadow-md mt-2 flex items-center justify-center gap-2">
           サインイン
         </button>
         <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]"></p>
@@ -73,18 +74,13 @@
     </div>
   </div>
 
-  <!-- ===== ダッシュボード ===== -->
+  <!-- ダッシュボード -->
   <div id="dashboard" class="hidden min-h-screen">
-
-    <!-- モバイル用サイドバーオーバーレイ -->
     <div id="sidebar-overlay" class="fixed inset-0 z-20 bg-black/50 backdrop-blur-sm hidden" onclick="closeSidebar()"></div>
 
-    <!-- サイドバー + メインの2カラム -->
     <div class="flex h-screen overflow-hidden">
-
       <!-- サイドバー -->
       <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-[#0f0e2e] flex flex-col shrink-0 -translate-x-full md:translate-x-0">
-        <!-- ロゴ -->
         <div class="px-5 py-5 border-b border-white/10">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 bg-orange-400 rounded-lg flex items-center justify-center shadow-md shadow-orange-400/30">
@@ -96,39 +92,31 @@
             </div>
           </div>
         </div>
-
-        <!-- ナビ -->
         <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           <button onclick="switchTab('overview')" data-tab="overview"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="layout-dashboard" width="16" height="16"></i>
-            概要
+            <i data-lucide="layout-dashboard" width="16" height="16"></i>概要
           </button>
           <button onclick="switchTab('pending')" data-tab="pending"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="clock" width="16" height="16"></i>
-            審査待ち
+            <i data-lucide="clock" width="16" height="16"></i>審査待ち
             <span id="badge-pending" class="ml-auto bg-orange-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
           <button onclick="switchTab('orgs')" data-tab="orgs"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="building-2" width="16" height="16"></i>
-            団体管理
+            <i data-lucide="building-2" width="16" height="16"></i>団体管理
           </button>
           <button onclick="switchTab('inquiries')" data-tab="inquiries"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="mail" width="16" height="16"></i>
-            支援申請
+            <i data-lucide="mail" width="16" height="16"></i>支援申請
             <span id="badge-inquiries" class="ml-auto bg-blue-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
           <button onclick="switchTab('contacts')" data-tab="contacts"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="message-square" width="16" height="16"></i>
-            お問い合わせ
+            <i data-lucide="message-square" width="16" height="16"></i>お問い合わせ
+            <span id="badge-contacts" class="ml-auto bg-purple-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
         </nav>
-
-        <!-- ユーザー情報 -->
         <div class="px-4 py-4 border-t border-white/10">
           <div class="flex items-center gap-2.5 mb-3">
             <div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
@@ -141,25 +129,19 @@
           </div>
           <button onclick="doSignOut()"
             class="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 text-xs font-bold transition-all">
-            <i data-lucide="log-out" width="13" height="13"></i>
-            ログアウト
+            <i data-lucide="log-out" width="13" height="13"></i>ログアウト
           </button>
-          <a href="index.html"
-            class="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 text-xs transition-all">
-            <i data-lucide="external-link" width="13" height="13"></i>
-            公開サイト
+          <a href="index.html" class="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 text-xs transition-all">
+            <i data-lucide="external-link" width="13" height="13"></i>公開サイト
           </a>
         </div>
       </aside>
 
       <!-- メインコンテンツ -->
       <main class="flex-1 overflow-y-auto">
-        <!-- ヘッダー -->
         <header class="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between sticky top-0 z-10">
           <div class="flex items-center gap-3">
-            <!-- モバイルハンバーガー -->
-            <button onclick="toggleSidebar()"
-              class="md:hidden w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
+            <button onclick="toggleSidebar()" class="md:hidden w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
               <i data-lucide="menu" width="18" height="18"></i>
             </button>
             <div>
@@ -174,10 +156,9 @@
           </button>
         </header>
 
-        <!-- コンテンツエリア -->
         <div class="p-4 sm:p-8">
 
-          <!-- ===== 概要タブ ===== -->
+          <!-- 概要タブ -->
           <div id="tab-overview" class="fade-in">
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
@@ -217,7 +198,6 @@
                 <p id="ov-contacts" class="text-3xl font-black text-[#0f0e2e]">—</p>
               </div>
             </div>
-            <!-- 最近の申請 -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm">
               <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <h2 class="text-sm font-black text-[#0f0e2e]">最近の審査待ち団体</h2>
@@ -229,39 +209,47 @@
             </div>
           </div>
 
-          <!-- ===== 審査待ちタブ ===== -->
+          <!-- 審査待ちタブ -->
           <div id="tab-pending" class="hidden fade-in">
             <div id="pending-list" class="space-y-4">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
             </div>
           </div>
 
-          <!-- ===== 団体管理タブ ===== -->
+          <!-- 団体管理タブ -->
           <div id="tab-orgs" class="hidden fade-in">
-            <!-- フィルター -->
-            <div class="flex gap-2 mb-5">
-              <button onclick="filterOrgs('all')" data-filter="all"
-                class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-[#0f0e2e] text-white">すべて</button>
-              <button onclick="filterOrgs('public')" data-filter="public"
-                class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">公開中</button>
-              <button onclick="filterOrgs('pending')" data-filter="pending"
-                class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">審査中</button>
-              <button onclick="filterOrgs('rejected')" data-filter="rejected"
-                class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">却下済み</button>
+            <!-- 検索＋フィルター -->
+            <div class="flex flex-col sm:flex-row gap-3 mb-5">
+              <div class="relative flex-1">
+                <i data-lucide="search" width="15" height="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="org-search" placeholder="団体名・メールで検索..." maxlength="100"
+                  oninput="renderFilteredOrgs()"
+                  class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-400 outline-none transition-all">
+              </div>
+              <div class="flex gap-2 flex-wrap">
+                <button onclick="filterOrgs('all')" data-filter="all"
+                  class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-[#0f0e2e] text-white">すべて</button>
+                <button onclick="filterOrgs('public')" data-filter="public"
+                  class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">公開中</button>
+                <button onclick="filterOrgs('pending')" data-filter="pending"
+                  class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">審査中</button>
+                <button onclick="filterOrgs('rejected')" data-filter="rejected"
+                  class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">却下済み</button>
+              </div>
             </div>
             <div id="orgs-list" class="space-y-3">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
             </div>
           </div>
 
-          <!-- ===== 支援申請タブ ===== -->
+          <!-- 支援申請タブ -->
           <div id="tab-inquiries" class="hidden fade-in">
             <div id="inquiries-list" class="space-y-3">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
             </div>
           </div>
 
-          <!-- ===== お問い合わせタブ ===== -->
+          <!-- お問い合わせタブ -->
           <div id="tab-contacts" class="hidden fade-in">
             <div id="contacts-list" class="space-y-3">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
@@ -273,8 +261,9 @@
     </div>
   </div>
 
-  <!-- ===== 確認ダイアログ ===== -->
-  <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+  <!-- 確認ダイアログ -->
+  <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    role="dialog" aria-modal="true">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
       <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
@@ -292,7 +281,7 @@
 
   <script>
   // ============================================================
-  // Firebase 設定（index.html と同じ値を入力してください）
+  // Firebase 設定
   // ============================================================
   const firebaseConfig = {
     apiKey: "AIzaSyBJrCIaSKr7m4B-Lj-YGMt9GGoY9CxPjQk",
@@ -304,9 +293,7 @@
   };
   const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
 
-  let db   = null;
-  let auth = null;
-
+  let db = null, auth = null;
   if (isConfigured) {
     try {
       firebase.initializeApp(firebaseConfig);
@@ -324,28 +311,19 @@
   let confirmCallback = null;
 
   // ============================================================
-  // 認証ヘルパー: admin: true の Claims を確認してダッシュボードへ
+  // 管理者認証
   // ============================================================
   async function verifyAdminAndShow(user, errEl) {
     try {
       const tokenResult = await user.getIdTokenResult(true);
-      if (tokenResult.claims.admin === true) {
-        showDashboard(user);
-        return;
-      }
-    } catch(e) {
-      console.error('Claims check error:', e);
-    }
-    // 管理者権限なし: サインアウトしてログイン画面へ
-    // （Promise ベースなので onAuthStateChanged の再発火ループは起きない）
+      if (tokenResult.claims.admin === true) { showDashboard(user); return; }
+    } catch(e) { console.error('Claims check error:', e); }
     if (auth) await auth.signOut();
     showLogin();
     if (errEl) errEl.textContent = '管理者権限がありません。管理者アカウントでログインしてください。';
   }
 
-  // ============================================================
-  // ページロード時: 既存セッションの確認（一発確定）
-  // ============================================================
+  // ページロード
   if (auth) {
     new Promise(resolve => {
       const unsub = auth.onAuthStateChanged(user => { unsub(); resolve(user); });
@@ -365,10 +343,12 @@
     const email    = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     const errEl    = document.getElementById('login-error');
+    const btn      = document.getElementById('login-submit-btn');
     errEl.textContent = '';
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> 確認中...';
 
     if (!auth) { showDashboard({ email }); return; }
-
     try {
       const cred = await auth.signInWithEmailAndPassword(email, password);
       await verifyAdminAndShow(cred.user, errEl);
@@ -376,12 +356,30 @@
       const msgs = {
         'auth/user-not-found':    'メールアドレスが見つかりません',
         'auth/wrong-password':    'パスワードが正しくありません',
+        'auth/invalid-credential':'メールアドレスまたはパスワードが正しくありません',
         'auth/invalid-email':     'メールアドレスの形式が正しくありません',
         'auth/too-many-requests': 'ログイン試行が多すぎます。しばらく待ってください',
+        'auth/user-disabled':     'このアカウントは無効化されています',
       };
       errEl.textContent = msgs[err.code] || 'ログインに失敗しました: ' + err.message;
+    } finally {
+      btn.disabled  = false;
+      btn.innerHTML = 'サインイン';
     }
   });
+
+  // パスワード表示トグル
+  function toggleAdminPwd() {
+    const input = document.getElementById('login-password');
+    const icon  = document.getElementById('admin-eye');
+    if (!input || !icon) return;
+    if (input.type === 'password') {
+      input.type = 'text'; icon.setAttribute('data-lucide', 'eye-off');
+    } else {
+      input.type = 'password'; icon.setAttribute('data-lucide', 'eye');
+    }
+    lucide.createIcons();
+  }
 
   // ============================================================
   // ログアウト
@@ -394,6 +392,10 @@
   function showLogin() {
     document.getElementById('login-screen').classList.remove('hidden');
     document.getElementById('dashboard').classList.add('hidden');
+    // フォームリセット
+    document.getElementById('login-form').reset();
+    document.getElementById('login-error').textContent = '';
+    lucide.createIcons();
   }
 
   function showDashboard(user) {
@@ -408,16 +410,13 @@
   // タブ切り替え
   // ============================================================
   const TAB_TITLES = {
-    overview:  { title: '概要',       subtitle: 'ダッシュボード' },
-    pending:   { title: '審査待ち',    subtitle: '登録申請を審査・承認' },
-    orgs:      { title: '団体管理',    subtitle: '全団体の管理・編集' },
+    overview:  { title: '概要',        subtitle: 'ダッシュボード' },
+    pending:   { title: '審査待ち',     subtitle: '登録申請を審査・承認' },
+    orgs:      { title: '団体管理',     subtitle: '全団体の管理・編集' },
     inquiries: { title: '支援申請一覧', subtitle: '企業からの問い合わせ' },
     contacts:  { title: 'お問い合わせ', subtitle: 'お問い合わせ一覧' },
   };
 
-  // ============================================================
-  // モバイルサイドバー開閉
-  // ============================================================
   function toggleSidebar() {
     const sb = document.getElementById('sidebar');
     sb.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
@@ -433,34 +432,30 @@
 
   function switchTab(name) {
     currentTab = name;
-    closeSidebar(); // モバイルでタブ切替時にサイドバーを閉じる
-    // コンテンツ切り替え
+    closeSidebar();
     ['overview','pending','orgs','inquiries','contacts'].forEach(t => {
       document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
     });
-    // サイドバーハイライト
     document.querySelectorAll('.side-btn').forEach(btn => {
       const isActive = btn.dataset.tab === name;
       btn.classList.toggle('bg-white/15', isActive);
       btn.classList.toggle('text-white',  isActive);
       btn.classList.toggle('text-white/60', !isActive);
     });
-    // タイトル更新
     const info = TAB_TITLES[name] || {};
     document.getElementById('page-title').textContent    = info.title    || '';
     document.getElementById('page-subtitle').textContent = info.subtitle || '';
-    // データ読み込み
     loadTab(name);
   }
 
   function refreshCurrent() { loadTab(currentTab); }
 
   function loadTab(name) {
-    if (name === 'overview')   loadOverview();
-    if (name === 'pending')    loadPending();
-    if (name === 'orgs')       loadOrgs();
-    if (name === 'inquiries')  loadInquiries();
-    if (name === 'contacts')   loadContacts();
+    if (name === 'overview')  loadOverview();
+    if (name === 'pending')   loadPending();
+    if (name === 'orgs')      loadOrgs();
+    if (name === 'inquiries') loadInquiries();
+    if (name === 'contacts')  loadContacts();
   }
 
   // ============================================================
@@ -471,7 +466,6 @@
       ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
     );
   }
-
   function showToast(msg, ok = true) {
     const t  = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
@@ -480,13 +474,11 @@
     t.classList.remove('hidden');
     setTimeout(() => t.classList.add('hidden'), 3000);
   }
-
   function fmtDate(val) {
     if (!val) return '—';
     const d = val.toDate ? val.toDate() : new Date(val);
     return d.toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
   }
-
   function statusBadge(status) {
     const map = {
       pending:  ['badge-pending',  '審査中'],
@@ -494,12 +486,20 @@
       rejected: ['badge-rejected', '却下'],
       new:      ['badge-new',      '未対応'],
       done:     ['badge-done',     '対応済み'],
+      unread:   ['badge-unread',   '未読'],
+      read:     ['bg-slate-100 text-slate-500', '既読'],
     };
     const [cls, label] = map[status] || ['bg-slate-100 text-slate-500', status];
     return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full ${cls}">${label}</span>`;
   }
-
   const CAT = { sports:'スポーツ', culture:'文化・芸術', welfare:'福祉', other:'その他' };
+
+  function updateBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) { el.textContent = count; el.classList.remove('hidden'); }
+    else { el.classList.add('hidden'); }
+  }
 
   // ============================================================
   // 確認ダイアログ
@@ -508,17 +508,15 @@
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-body').textContent  = body;
     const okBtn = document.getElementById('confirm-ok');
-    okBtn.textContent  = btnLabel;
-    okBtn.className    = `flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white ${btnColor}`;
-    confirmCallback    = callback;
+    okBtn.textContent = btnLabel;
+    okBtn.className   = `flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white ${btnColor}`;
+    confirmCallback   = callback;
     const d = document.getElementById('confirm-dialog');
-    d.classList.remove('hidden');
-    d.classList.add('flex');
+    d.classList.remove('hidden'); d.classList.add('flex');
   }
   function closeConfirm() {
     const d = document.getElementById('confirm-dialog');
-    d.classList.add('hidden');
-    d.classList.remove('flex');
+    d.classList.add('hidden'); d.classList.remove('flex');
     confirmCallback = null;
   }
   document.getElementById('confirm-ok').addEventListener('click', async () => {
@@ -540,24 +538,15 @@
       ]);
       document.getElementById('ov-pending').textContent   = pendSnap.size;
       document.getElementById('ov-public').textContent    = pubSnap.size;
-      document.getElementById('ov-inquiries').textContent = inqSnap.size;
-      document.getElementById('ov-contacts').textContent  = conSnap.size;
-      // バッジ更新
+      document.getElementById('ov-inquiries').textContent = inqSnap.docs.filter(d => d.data().status === 'new').length;
+      document.getElementById('ov-contacts').textContent  = conSnap.docs.filter(d => !d.data().read_at).length;
       updateBadge('badge-pending',   pendSnap.size);
       updateBadge('badge-inquiries', inqSnap.docs.filter(d => d.data().status === 'new').length);
-      // 最近の審査待ち
+      updateBadge('badge-contacts',  conSnap.docs.filter(d => !d.data().read_at).length);
       renderRecentPending(pendSnap.docs.slice(0, 5));
     } catch(e) {
-      console.error(e);
-      renderOverviewDemo();
+      console.error(e); renderOverviewDemo();
     }
-  }
-
-  function updateBadge(id, count) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (count > 0) { el.textContent = count; el.classList.remove('hidden'); }
-    else           { el.classList.add('hidden'); }
   }
 
   function renderOverviewDemo() {
@@ -585,7 +574,7 @@
           <div class="flex items-center gap-2 shrink-0">
             ${statusBadge('pending')}
             <button onclick="approveOrg('${d.id}')" class="text-[10px] font-bold px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-full transition-all">承認</button>
-            <button onclick="rejectOrg('${d.id}', '${esc(o.name).replace(/'/g,"\\'")}')" class="text-[10px] font-bold px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-all">却下</button>
+            <button onclick="rejectOrg('${d.id}','${esc(o.name).replace(/'/g,"\\'")}')" class="text-[10px] font-bold px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-all">却下</button>
           </div>
         </div>`;
     }).join('');
@@ -606,9 +595,7 @@
       }
       el.innerHTML = snap.docs.map(d => renderOrgCard(d, true)).join('');
       lucide.createIcons();
-    } catch(e) {
-      el.innerHTML = errMsg(e);
-    }
+    } catch(e) { el.innerHTML = errMsg(e); }
   }
 
   // ============================================================
@@ -619,34 +606,37 @@
     if (!db) { el.innerHTML = demoMsg(); return; }
     try {
       const snap = await db.collection('organizations').get();
-      allOrgsData = snap.docs.sort((a, b) => {
+      allOrgsData = snap.docs.slice().sort((a, b) => {
         const ta = a.data().created_at?.toMillis?.() ?? 0;
         const tb = b.data().created_at?.toMillis?.() ?? 0;
         return tb - ta;
       });
       renderFilteredOrgs();
-    } catch(e) {
-      el.innerHTML = errMsg(e);
-    }
+    } catch(e) { el.innerHTML = errMsg(e); }
   }
 
   function filterOrgs(f) {
     orgFilter = f;
     document.querySelectorAll('.filter-btn').forEach(btn => {
       const active = btn.dataset.filter === f;
-      btn.classList.toggle('bg-[#0f0e2e]', active);
-      btn.classList.toggle('text-white', active);
-      btn.classList.toggle('bg-white', !active);
-      btn.classList.toggle('text-slate-500', !active);
+      btn.classList.toggle('bg-[#0f0e2e]', active); btn.classList.toggle('text-white', active);
+      btn.classList.toggle('bg-white', !active);     btn.classList.toggle('text-slate-500', !active);
     });
     renderFilteredOrgs();
   }
 
   function renderFilteredOrgs() {
-    const el   = document.getElementById('orgs-list');
-    const list = orgFilter === 'all'
-      ? allOrgsData
-      : allOrgsData.filter(d => d.data().status === orgFilter);
+    const el     = document.getElementById('orgs-list');
+    const query  = (document.getElementById('org-search')?.value || '').toLowerCase();
+    let list = orgFilter === 'all' ? allOrgsData : allOrgsData.filter(d => d.data().status === orgFilter);
+    if (query) {
+      list = list.filter(d => {
+        const o = d.data();
+        return (o.name || '').toLowerCase().includes(query) ||
+               (o.contact_email || '').toLowerCase().includes(query) ||
+               (o.area || '').toLowerCase().includes(query);
+      });
+    }
     if (list.length === 0) {
       el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">該当する団体はありません</div>';
       return;
@@ -662,10 +652,10 @@
       <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div class="p-5">
           <div class="flex items-start gap-4">
-            ${o.main_image ? `<img src="${esc(o.main_image)}" alt="" class="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100">` :
-              `<div class="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                <i data-lucide="image" class="text-slate-300" width="24" height="24"></i>
-              </div>`}
+            ${o.main_image
+              ? `<img src="${esc(o.main_image)}" alt="" class="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100" onerror="this.style.display='none'">`
+              : `<div class="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                  <i data-lucide="image" class="text-slate-300" width="24" height="24"></i></div>`}
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1 flex-wrap">
                 <h3 class="text-sm font-black text-[#0f0e2e]">${esc(o.name)}</h3>
@@ -688,21 +678,20 @@
           ${showApproveActions || o.status === 'pending' ? `
             <button onclick="approveOrg('${id}')"
               class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
-              <i data-lucide="check" width="12" height="12"></i>承認・公開
-            </button>
-            <button onclick="rejectOrg('${id}', '${esc(o.name).replace(/'/g,"\\'")}')"
+              <i data-lucide="check" width="12" height="12"></i>承認・公開</button>
+            <button onclick="rejectOrg('${id}','${esc(o.name).replace(/'/g,"\\'")}')"
               class="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-all">
-              <i data-lucide="x" width="12" height="12"></i>却下
-            </button>` : ''}
+              <i data-lucide="x" width="12" height="12"></i>却下</button>` : ''}
           ${o.status === 'public' ? `
             <button onclick="changeOrgStatus('${id}','pending','非公開にしますか？','このクラブを一時非公開（審査中）に戻します')"
               class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
-              <i data-lucide="eye-off" width="12" height="12"></i>非公開
-            </button>` : ''}
-          <button onclick="deleteOrg('${id}', '${esc(o.name).replace(/'/g,"\\'")}')"
+              <i data-lucide="eye-off" width="12" height="12"></i>非公開</button>` : ''}
+          <a href="club.html?id=${id}" target="_blank" rel="noopener"
+            class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
+            <i data-lucide="external-link" width="12" height="12"></i>公開ページ</a>
+          <button onclick="deleteOrg('${id}','${esc(o.name).replace(/'/g,"\\'")}')"
             class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
-            <i data-lucide="trash-2" width="12" height="12"></i>削除
-          </button>
+            <i data-lucide="trash-2" width="12" height="12"></i>削除</button>
         </div>
       </div>`;
   }
@@ -713,25 +702,19 @@
   async function approveOrg(id) {
     if (!db) { showToast('Firebase未設定です', false); return; }
     try {
-      await db.collection('organizations').doc(id).update({ status: 'public' });
+      await db.collection('organizations').doc(id).update({ status:'public' });
       showToast('承認・公開しました');
-      loadTab(currentTab);
-      loadOverview();
+      loadTab(currentTab); loadOverview();
     } catch(e) { showToast('エラー: ' + e.message, false); }
   }
 
   function rejectOrg(id, name) {
-    showConfirm(
-      `「${name}」を却下しますか？`,
-      'ステータスを「却下」に変更します。後から変更することもできます。',
-      '却下する', 'bg-red-500 hover:bg-red-600',
-      async () => {
+    showConfirm(`「${name}」を却下しますか？`, 'ステータスを「却下」に変更します。後から変更することもできます。',
+      '却下する', 'bg-red-500 hover:bg-red-600', async () => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
-          await db.collection('organizations').doc(id).update({ status: 'rejected' });
-          showToast('却下しました');
-          loadTab(currentTab);
-          loadOverview();
+          await db.collection('organizations').doc(id).update({ status:'rejected' });
+          showToast('却下しました'); loadTab(currentTab); loadOverview();
         } catch(e) { showToast('エラー: ' + e.message, false); }
       }
     );
@@ -742,24 +725,18 @@
       if (!db) { showToast('Firebase未設定です', false); return; }
       try {
         await db.collection('organizations').doc(id).update({ status });
-        showToast('ステータスを変更しました');
-        loadTab(currentTab);
+        showToast('ステータスを変更しました'); loadTab(currentTab);
       } catch(e) { showToast('エラー: ' + e.message, false); }
     });
   }
 
   function deleteOrg(id, name) {
-    showConfirm(
-      `「${name}」を削除しますか？`,
-      'この操作は取り消せません。団体情報がすべて削除されます。',
-      '削除する', 'bg-red-500 hover:bg-red-600',
-      async () => {
+    showConfirm(`「${name}」を削除しますか？`, 'この操作は取り消せません。団体情報がすべて削除されます。',
+      '削除する', 'bg-red-500 hover:bg-red-600', async () => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
           await db.collection('organizations').doc(id).delete();
-          showToast('削除しました');
-          loadTab(currentTab);
-          loadOverview();
+          showToast('削除しました'); loadTab(currentTab); loadOverview();
         } catch(e) { showToast('エラー: ' + e.message, false); }
       }
     );
@@ -773,7 +750,7 @@
     if (!db) { el.innerHTML = demoMsg(); return; }
     try {
       const snap = await db.collection('inquiries').get();
-      const sorted = snap.docs.sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
+      const sorted = snap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
       const newCount = sorted.filter(d => d.data().status === 'new').length;
       updateBadge('badge-inquiries', newCount);
       if (snap.empty) {
@@ -786,41 +763,36 @@
         return `
           <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
             <div class="flex items-start justify-between gap-4 mb-3">
-              <div>
-                <div class="flex items-center gap-2 mb-1">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
                   <p class="text-sm font-black text-[#0f0e2e]">${esc(q.company_name||'—')}</p>
                   ${statusBadge(q.status||'new')}
                 </div>
                 <div class="flex flex-wrap gap-3 text-xs text-slate-400">
                   <span>${esc(q.pic_name||'—')} 様</span>
-                  <span>${esc(q.sender_email||'—')}</span>
-                  ${q.phone ? `<span>${esc(q.phone)}</span>` : ''}
-                  <span>${fmtDate(q.created_at)}</span>
+                  <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(q.sender_email||'—')}</span>
+                  ${q.phone ? `<span class="flex items-center gap-1"><i data-lucide="phone" width="11" height="11"></i>${esc(q.phone)}</span>` : ''}
+                  <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(q.created_at)}</span>
                 </div>
               </div>
             </div>
             ${q.message ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 mb-3 leading-relaxed">${esc(q.message)}</p>` : ''}
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
               ${q.status !== 'done' ? `
                 <button onclick="updateInquiryStatus('${id}','done')"
                   class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
-                  <i data-lucide="check" width="12" height="12"></i>対応済みにする
-                </button>` : `
+                  <i data-lucide="check" width="12" height="12"></i>対応済みにする</button>` : `
                 <button onclick="updateInquiryStatus('${id}','new')"
                   class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
-                  <i data-lucide="undo-2" width="12" height="12"></i>未対応に戻す
-                </button>`}
-              <a href="mailto:${esc(q.sender_email)}"
+                  <i data-lucide="undo-2" width="12" height="12"></i>未対応に戻す</button>`}
+              <a href="mailto:${esc(q.sender_email)}?subject=${encodeURIComponent('【SASAERU】支援申請についてのご連絡')}"
                 class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
-                <i data-lucide="mail" width="12" height="12"></i>返信する
-              </a>
+                <i data-lucide="mail" width="12" height="12"></i>返信する</a>
             </div>
           </div>`;
       }).join('');
       lucide.createIcons();
-    } catch(e) {
-      el.innerHTML = errMsg(e);
-    }
+    } catch(e) { el.innerHTML = errMsg(e); }
   }
 
   async function updateInquiryStatus(id, status) {
@@ -833,49 +805,68 @@
   }
 
   // ============================================================
-  // お問い合わせ（Contacts）
+  // お問い合わせ（Contacts）- Bug Fix: sort result stored
   // ============================================================
   async function loadContacts() {
     const el = document.getElementById('contacts-list');
     if (!db) { el.innerHTML = demoMsg(); return; }
     try {
       const snap = await db.collection('contacts').get();
-      snap.docs.sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
+      const sorted = snap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
+      const unreadCount = sorted.filter(d => !d.data().read_at).length;
+      updateBadge('badge-contacts', unreadCount);
       if (snap.empty) {
         el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">お問い合わせはありません</div>';
         return;
       }
-      el.innerHTML = snap.docs.map(d => {
-        const c = d.data();
+      el.innerHTML = sorted.map(d => {
+        const c  = d.data();
+        const id = d.id;
+        const isRead = !!c.read_at;
         return `
-          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <div class="bg-white rounded-2xl border ${isRead ? 'border-slate-100' : 'border-purple-100'} shadow-sm p-5 ${isRead ? '' : 'ring-1 ring-purple-100'}">
             <div class="flex items-start justify-between gap-4 mb-2">
-              <div>
-                <p class="text-sm font-black text-[#0f0e2e] mb-1">${esc(c.name||'—')}</p>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                  <p class="text-sm font-black text-[#0f0e2e]">${esc(c.name||'—')}</p>
+                  ${statusBadge(isRead ? 'read' : 'unread')}
+                </div>
                 <div class="flex flex-wrap gap-3 text-xs text-slate-400">
-                  <span>${esc(c.email||'—')}</span>
-                  <span>${fmtDate(c.created_at)}</span>
+                  <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(c.email||'—')}</span>
+                  <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(c.created_at)}</span>
                 </div>
               </div>
-              <a href="mailto:${esc(c.email)}"
-                class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all shrink-0">
-                <i data-lucide="mail" width="12" height="12"></i>返信
-              </a>
+              <div class="flex gap-2 shrink-0">
+                ${!isRead ? `
+                  <button onclick="markContactRead('${id}')"
+                    class="flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-lg transition-all">
+                    <i data-lucide="check" width="12" height="12"></i>既読にする</button>` : ''}
+                <a href="mailto:${esc(c.email)}?subject=${encodeURIComponent('【SASAERU】お問い合わせへのご回答')}"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
+                  <i data-lucide="mail" width="12" height="12"></i>返信</a>
+              </div>
             </div>
             ${c.message ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 leading-relaxed">${esc(c.message)}</p>` : ''}
           </div>`;
       }).join('');
       lucide.createIcons();
-    } catch(e) {
-      el.innerHTML = errMsg(e);
-    }
+    } catch(e) { el.innerHTML = errMsg(e); }
+  }
+
+  async function markContactRead(id) {
+    if (!db) return;
+    try {
+      await db.collection('contacts').doc(id).update({ read_at: firebase.firestore.FieldValue.serverTimestamp() });
+      showToast('既読にしました');
+      loadContacts(); loadOverview();
+    } catch(e) { showToast('エラー: ' + e.message, false); }
   }
 
   // ============================================================
   // ヘルパー
   // ============================================================
   function demoMsg() {
-    return '<div class="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">Firebase未設定のため表示できません（admin.html内のfirebaseConfigを設定してください）</div>';
+    return '<div class="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">Firebase未設定のため表示できません</div>';
   }
   function errMsg(e) {
     return `<div class="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">読み込みエラー: ${esc(e.message)}</div>`;
