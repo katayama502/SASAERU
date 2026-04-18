@@ -29,6 +29,7 @@
     #sidebar-overlay { transition: opacity 0.3s ease; }
   </style>
 </head>
+<noscript><div style="background:#ff4444;color:#fff;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999">このサイトの利用にはJavaScriptが必要です。ブラウザの設定を確認してください。</div></noscript>
 <body class="min-h-screen bg-slate-100 text-slate-900">
 
   <!-- ログイン画面 -->
@@ -245,6 +246,15 @@
 
           <!-- 支援申請タブ -->
           <div id="tab-inquiries" class="hidden fade-in">
+            <div class="flex gap-2 mb-4 flex-wrap items-center">
+              <button onclick="filterInquiries('all')" data-inq-filter="all"
+                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-[#0f0e2e] text-white">すべて</button>
+              <button onclick="filterInquiries('new')" data-inq-filter="new"
+                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">未対応</button>
+              <button onclick="filterInquiries('done')" data-inq-filter="done"
+                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">対応済み</button>
+              <span id="inq-count" class="ml-auto text-xs text-slate-400"></span>
+            </div>
             <div id="inquiries-list" class="space-y-3">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
             </div>
@@ -313,10 +323,12 @@
   // ============================================================
   // 状態
   // ============================================================
-  let currentTab     = 'overview';
-  let allOrgsData    = [];
-  let orgFilter      = 'all';
-  let confirmCallback = null;
+  let currentTab       = 'overview';
+  let allOrgsData      = [];
+  let orgFilter        = 'all';
+  let allInquiriesData = [];
+  let inquiryFilter    = 'all';
+  let confirmCallback  = null;
 
   // ============================================================
   // 管理者認証
@@ -611,8 +623,11 @@
       const snap = await db.collection('organizations').where('status','==','pending').get();
       updateBadge('badge-pending', snap.size);
       if (snap.empty) {
-        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">審査待ちの団体はありません</div>';
-        return;
+        el.innerHTML = `<div class="text-center py-16 text-slate-400">
+          <i data-lucide="check-circle-2" width="40" height="40" class="mx-auto mb-3 text-green-300"></i>
+          <p class="text-sm font-medium">審査待ちの団体はありません</p>
+        </div>`;
+        lucide.createIcons(); return;
       }
       el.innerHTML = snap.docs.map(d => renderOrgCard(d, true)).join('');
       lucide.createIcons();
@@ -705,9 +720,9 @@
               class="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-all">
               <i data-lucide="x" width="12" height="12"></i>却下</button>` : ''}
           ${o.status === 'public' ? `
-            <button onclick="changeOrgStatus('${id}','pending','非公開にしますか？','このクラブを一時非公開（審査中）に戻します')"
+            <button onclick="changeOrgStatus('${id}','pending','審査中に戻しますか？','このクラブを一時非公開にして再審査状態に戻します。')"
               class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
-              <i data-lucide="eye-off" width="12" height="12"></i>非公開</button>` : ''}
+              <i data-lucide="rotate-ccw" width="12" height="12"></i>審査中に戻す</button>` : ''}
           <a href="club.html?id=${id}" target="_blank" rel="noopener"
             class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
             <i data-lucide="external-link" width="12" height="12"></i>公開ページ</a>
@@ -773,49 +788,68 @@
     if (!db) { el.innerHTML = demoMsg(); return; }
     try {
       const snap = await db.collection('inquiries').get();
-      const sorted = snap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
-      const newCount = sorted.filter(d => d.data().status === 'new').length;
+      allInquiriesData = snap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
+      const newCount = allInquiriesData.filter(d => d.data().status === 'new').length;
       updateBadge('badge-inquiries', newCount);
-      if (snap.empty) {
-        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援申請はありません</div>';
-        return;
-      }
-      el.innerHTML = sorted.map(d => {
-        const q  = d.data();
-        const id = d.id;
-        return `
-          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <div class="flex items-start justify-between gap-4 mb-3">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                  <p class="text-sm font-black text-[#0f0e2e]">${esc(q.company_name||'—')}</p>
-                  ${statusBadge(q.status||'new')}
-                </div>
-                <div class="flex flex-wrap gap-3 text-xs text-slate-400">
-                  <span>${esc(q.pic_name||'—')} 様</span>
-                  <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(q.sender_email||'—')}</span>
-                  ${q.phone ? `<span class="flex items-center gap-1"><i data-lucide="phone" width="11" height="11"></i>${esc(q.phone)}</span>` : ''}
-                  <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(q.created_at)}</span>
-                </div>
+      renderFilteredInquiries();
+    } catch(e) { el.innerHTML = errMsg(e); }
+  }
+
+  function filterInquiries(f) {
+    inquiryFilter = f;
+    document.querySelectorAll('.inq-filter-btn').forEach(btn => {
+      const active = btn.dataset.inqFilter === f;
+      btn.classList.toggle('bg-[#0f0e2e]', active); btn.classList.toggle('text-white', active);
+      btn.classList.toggle('bg-white',      !active); btn.classList.toggle('text-slate-500', !active);
+      btn.classList.toggle('border',        !active); btn.classList.toggle('border-slate-200', !active);
+    });
+    renderFilteredInquiries();
+  }
+
+  function renderFilteredInquiries() {
+    const el   = document.getElementById('inquiries-list');
+    const list = inquiryFilter === 'all' ? allInquiriesData : allInquiriesData.filter(d => d.data().status === inquiryFilter);
+    const countEl = document.getElementById('inq-count');
+    if (countEl) countEl.textContent = `${list.length}件`;
+    if (!list.length) {
+      el.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">${allInquiriesData.length === 0 ? '支援申請はありません' : '該当する申請はありません'}</div>`;
+      return;
+    }
+    el.innerHTML = list.map(d => {
+      const q  = d.data();
+      const id = d.id;
+      return `
+        <div class="bg-white rounded-2xl border ${q.status === 'new' ? 'border-blue-100' : 'border-slate-100'} shadow-sm p-5">
+          <div class="flex items-start justify-between gap-4 mb-3">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <p class="text-sm font-black text-[#0f0e2e]">${esc(q.company_name||'—')}</p>
+                ${statusBadge(q.status||'new')}
+              </div>
+              <div class="flex flex-wrap gap-3 text-xs text-slate-400">
+                <span>${esc(q.pic_name||'—')} 様</span>
+                <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(q.sender_email||'—')}</span>
+                ${q.phone ? `<span class="flex items-center gap-1"><i data-lucide="phone" width="11" height="11"></i>${esc(q.phone)}</span>` : ''}
+                <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(q.created_at)}</span>
               </div>
             </div>
-            ${q.message ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 mb-3 leading-relaxed">${esc(q.message)}</p>` : ''}
-            <div class="flex flex-wrap gap-2">
-              ${q.status !== 'done' ? `
-                <button onclick="updateInquiryStatus('${id}','done')"
-                  class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
-                  <i data-lucide="check" width="12" height="12"></i>対応済みにする</button>` : `
-                <button onclick="updateInquiryStatus('${id}','new')"
-                  class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
-                  <i data-lucide="undo-2" width="12" height="12"></i>未対応に戻す</button>`}
-              <a href="mailto:${esc(q.sender_email)}?subject=${encodeURIComponent('【SASAERU】支援申請についてのご連絡')}"
-                class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
-                <i data-lucide="mail" width="12" height="12"></i>返信する</a>
-            </div>
-          </div>`;
-      }).join('');
-      lucide.createIcons();
-    } catch(e) { el.innerHTML = errMsg(e); }
+          </div>
+          ${q.message ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 mb-3 leading-relaxed">${esc(q.message)}</p>` : ''}
+          <div class="flex flex-wrap gap-2">
+            ${q.status !== 'done' ? `
+              <button onclick="updateInquiryStatus('${id}','done')"
+                class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
+                <i data-lucide="check" width="12" height="12"></i>対応済みにする</button>` : `
+              <button onclick="updateInquiryStatus('${id}','new')"
+                class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
+                <i data-lucide="undo-2" width="12" height="12"></i>未対応に戻す</button>`}
+            <a href="mailto:${esc(q.sender_email)}?subject=${encodeURIComponent('【SASAERU】支援申請についてのご連絡')}"
+              class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
+              <i data-lucide="mail" width="12" height="12"></i>返信する</a>
+          </div>
+        </div>`;
+    }).join('');
+    lucide.createIcons();
   }
 
   async function updateInquiryStatus(id, status) {
@@ -888,7 +922,7 @@
   async function markAllContactsRead() {
     if (!db) { showToast('Firebase未設定です', false); return; }
     try {
-      const snap = await db.collection('contacts').where('read_at', '==', null).get();
+      const snap = await db.collection('contacts').get();
       const unread = snap.docs.filter(d => !d.data().read_at);
       if (unread.length === 0) { showToast('未読のお問い合わせはありません'); return; }
       const batch = db.batch();
@@ -897,20 +931,7 @@
       await batch.commit();
       showToast(`${unread.length}件を既読にしました`);
       loadContacts(); loadOverview();
-    } catch(e) {
-      // Fallback: fetch all and batch update unread
-      try {
-        const snap = await db.collection('contacts').get();
-        const unread = snap.docs.filter(d => !d.data().read_at);
-        if (unread.length === 0) { showToast('未読のお問い合わせはありません'); return; }
-        const batch = db.batch();
-        const ts = firebase.firestore.FieldValue.serverTimestamp();
-        unread.forEach(d => batch.update(d.ref, { read_at: ts }));
-        await batch.commit();
-        showToast(`${unread.length}件を既読にしました`);
-        loadContacts(); loadOverview();
-      } catch(e2) { showToast('エラー: ' + e2.message, false); }
-    }
+    } catch(e) { showToast('エラー: ' + e.message, false); }
   }
 
   // ============================================================

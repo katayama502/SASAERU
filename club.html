@@ -53,6 +53,7 @@
     #back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
   </style>
 </head>
+<noscript><div style="background:#ff4444;color:#fff;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999">このサイトの利用にはJavaScriptが必要です。ブラウザの設定を確認してください。</div></noscript>
 <body class="min-h-screen bg-slate-50 text-slate-900">
 
   <!-- ===== NAVIGATION ===== -->
@@ -159,10 +160,11 @@
             <div id="hero-tags" class="flex flex-wrap gap-2 mb-8"></div>
           </div>
           <div class="flex flex-col sm:flex-row gap-3">
-            <a href="#support-menus" class="w-full sm:w-auto sm:ml-auto inline-flex items-center justify-center gap-2 bg-orange-400 hover:bg-orange-500 text-white font-black px-7 py-3.5 rounded-xl shadow-xl shadow-orange-400/30 transition-all text-sm hover:-translate-y-0.5">
+            <button onclick="openInquiryModal(currentOrgId, currentOrgName)"
+              class="w-full sm:w-auto sm:ml-auto inline-flex items-center justify-center gap-2 bg-orange-400 hover:bg-orange-500 text-white font-black px-7 py-3.5 rounded-xl shadow-xl shadow-orange-400/30 transition-all text-sm hover:-translate-y-0.5">
               <i data-lucide="heart" width="16" height="16" class="fill-white"></i>
               このクラブを応援する
-            </a>
+            </button>
             <button onclick="copyShareLink()" id="share-btn"
               class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold px-5 py-3.5 rounded-xl text-sm transition-all">
               <i data-lucide="share-2" width="15" height="15"></i>
@@ -629,7 +631,7 @@
           <div class="card-hover bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
             ${p.image_url ? `
               <div class="h-44 overflow-hidden">
-                <img src="${esc(p.image_url)}" alt="${esc(p.title||'')}"
+                <img src="${esc(p.image_url)}" alt="${esc(p.title||'')}" loading="lazy"
                   class="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
                   onerror="this.parentElement.style.display='none'">
               </div>` : `<div class="h-2 bg-gradient-to-r from-orange-400 to-amber-400"></div>`}

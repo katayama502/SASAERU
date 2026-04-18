@@ -32,6 +32,7 @@
     .unsaved-dot.show { display:inline-block; }
   </style>
 </head>
+<noscript><div style="background:#ff4444;color:#fff;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999">このサイトの利用にはJavaScriptが必要です。ブラウザの設定を確認してください。</div></noscript>
 <body class="min-h-screen bg-slate-100 text-slate-900">
 
   <!-- ローディング -->
@@ -442,6 +443,16 @@
     lucide.createIcons();
   }
 
+  async function reapplyOrg() {
+    if (!db) { showToast('Firebase未接続のため変更できません', false); return; }
+    try {
+      await db.collection('organizations').doc(currentOrg.id).update({ status: 'pending', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
+      currentOrg.status = 'pending';
+      showToast('再申請しました。審査をお待ちください。');
+      loadProfile();
+    } catch(err) { showToast('エラー: ' + err.message, false); }
+  }
+
   async function doSignOut() {
     if (profileDirty) {
       if (!confirm('未保存の変更があります。ログアウトしますか？')) return;
@@ -566,9 +577,18 @@
         </a></div>`;
       banner.classList.remove('hidden');
     } else if (org.status === 'rejected') {
-      banner.innerHTML = `<div class="flex items-center gap-3 px-5 py-3.5 rounded-xl badge-rejected border border-red-200">
-        <i data-lucide="x-circle" width="16" height="16"></i>
-        <p class="text-sm font-bold">却下されました。内容を修正して再申請してください。</p></div>`;
+      banner.innerHTML = `<div class="flex items-start justify-between gap-3 px-5 py-3.5 rounded-xl badge-rejected border border-red-200">
+        <div class="flex items-start gap-2">
+          <i data-lucide="x-circle" width="16" height="16" class="shrink-0 mt-0.5"></i>
+          <div>
+            <p class="text-sm font-bold">登録申請が却下されました</p>
+            <p class="text-xs mt-0.5">内容を修正してから「再申請する」ボタンを押してください。</p>
+          </div>
+        </div>
+        <button onclick="reapplyOrg()"
+          class="shrink-0 text-xs font-bold px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all whitespace-nowrap">
+          再申請する
+        </button></div>`;
       banner.classList.remove('hidden');
     } else {
       banner.classList.add('hidden');

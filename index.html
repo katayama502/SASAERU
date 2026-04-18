@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SASAERU - 地域循環型マッチングプラットフォーム</title>
+  <meta name="description" content="地域クラブと企業をつなぐマッチングプラットフォーム。島根県の子どもたちの活動を、企業の力で支えます。掲載無料。">
+  <meta property="og:title" content="SASAERU - 地域循環型マッチングプラットフォーム">
+  <meta property="og:description" content="地域クラブと企業をつなぐマッチングプラットフォーム。島根県の子どもたちの活動を支援します。">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="SASAERU">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="robots" content="index,follow">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -56,6 +63,7 @@
     #img-preview { transition: opacity 0.2s; }
   </style>
 </head>
+<noscript><div style="background:#ff4444;color:#fff;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999">このサイトの利用にはJavaScriptが必要です。ブラウザの設定を確認してください。</div></noscript>
 <body class="min-h-screen bg-slate-50 text-slate-900">
 
   <!-- ===== NAVIGATION ===== -->
@@ -791,7 +799,7 @@
       return `
         <div class="card-hover bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 flex flex-col">
           <div class="h-48 relative overflow-hidden">
-            <img src="${esc(img)}" alt="${orgName}" class="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
+            <img src="${esc(img)}" alt="${orgName}" loading="lazy" class="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
               onerror="this.src='https://placehold.co/600x400/0f0e2e/ffffff?text=${encodeURIComponent(o.name||'CLUB')}'">
             <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
             <div class="absolute top-3 left-3">
