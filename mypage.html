@@ -175,11 +175,22 @@
                       placeholder="例: 島根県松江市">
                   </div>
                   <div>
-                    <label for="f-main-image" class="block text-xs font-bold text-slate-600 mb-1.5">メイン画像URL</label>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">メイン画像</label>
+                    <div class="flex items-center gap-2 mb-2">
+                      <label for="f-main-image-file"
+                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-600 transition-all">
+                        <i data-lucide="upload" width="14" height="14"></i>画像をアップロード
+                      </label>
+                      <input type="file" id="f-main-image-file" accept="image/*" class="hidden"
+                        onchange="handleImageUpload(this,'f-main-image','profile-upload-status')">
+                      <span id="profile-upload-status" class="hidden flex items-center gap-1 text-xs text-slate-500">
+                        <i data-lucide="loader-2" width="12" height="12" class="animate-spin"></i>アップロード中...
+                      </span>
+                    </div>
                     <input type="url" id="f-main-image" maxlength="500"
                       oninput="markUnsaved(); previewProfileImage(this.value)"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
-                      placeholder="https://example.com/image.jpg">
+                      placeholder="https://... またはURLを直接入力">
                     <div id="profile-img-preview" class="hidden mt-2">
                       <img src="" alt="プレビュー" class="h-20 rounded-xl object-cover border border-slate-200 w-full"
                         onerror="this.parentElement.classList.add('hidden')">
@@ -325,11 +336,22 @@
                     <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="df-content-counter">0</span>/5000</p>
                   </div>
                   <div>
-                    <label for="df-image-url" class="block text-xs font-bold text-slate-600 mb-1.5">画像URL（任意）</label>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">画像（任意）</label>
+                    <div class="flex items-center gap-2 mb-2">
+                      <label for="df-image-file"
+                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-600 transition-all">
+                        <i data-lucide="upload" width="14" height="14"></i>画像をアップロード
+                      </label>
+                      <input type="file" id="df-image-file" accept="image/*" class="hidden"
+                        onchange="handleImageUpload(this,'df-image-url','diary-upload-status')">
+                      <span id="diary-upload-status" class="hidden flex items-center gap-1 text-xs text-slate-500">
+                        <i data-lucide="loader-2" width="12" height="12" class="animate-spin"></i>アップロード中...
+                      </span>
+                    </div>
                     <input type="url" id="df-image-url" maxlength="500"
                       oninput="previewDiaryImage(this.value)"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
-                      placeholder="https://example.com/photo.jpg">
+                      placeholder="https://... またはURLを直接入力">
                     <div id="diary-img-preview" class="hidden mt-2">
                       <img src="" alt="プレビュー" class="h-32 rounded-xl object-cover border border-slate-200 w-full"
                         onerror="this.parentElement.classList.add('hidden')">
@@ -387,6 +409,45 @@
     appId: "1:51698278682:web:7ebcac3c2d90fc04edcca3"
   };
   const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+
+  // ============================================================
+  // Cloudinary 設定
+  // ============================================================
+  const CLOUDINARY_CLOUD_NAME    = 'YOUR_CLOUD_NAME';    // ← Cloudinaryダッシュボードで確認
+  const CLOUDINARY_UPLOAD_PRESET = 'YOUR_UPLOAD_PRESET'; // ← Unsigned upload preset名
+
+  async function uploadToCloudinary(file) {
+    if (CLOUDINARY_CLOUD_NAME === 'YOUR_CLOUD_NAME') {
+      throw new Error('Cloudinaryの設定が必要です。CLOUDINARY_CLOUD_NAMEとCLOUDINARY_UPLOAD_PRESETを設定してください。');
+    }
+    const form = new FormData();
+    form.append('file', file);
+    form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      { method: 'POST', body: form }
+    );
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'アップロード失敗'); }
+    return (await res.json()).secure_url;
+  }
+
+  async function handleImageUpload(fileInput, urlInputId, statusElId) {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const statusEl = document.getElementById(statusElId);
+    if (statusEl) statusEl.classList.remove('hidden');
+    try {
+      const url = await uploadToCloudinary(file);
+      const urlInput = document.getElementById(urlInputId);
+      urlInput.value = url;
+      urlInput.dispatchEvent(new Event('input')); // triggers existing oninput (previewXxx / markUnsaved)
+    } catch(err) {
+      showToast('アップロードエラー: ' + err.message, false);
+    } finally {
+      if (statusEl) statusEl.classList.add('hidden');
+      fileInput.value = '';
+    }
+  }
 
   let db = null, auth = null;
   if (isConfigured) {

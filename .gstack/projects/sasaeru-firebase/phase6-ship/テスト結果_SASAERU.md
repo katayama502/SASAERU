@@ -1,9 +1,9 @@
 # SASAERU 総合テスト結果レポート
 
-**バージョン:** v2.0  
+**バージョン:** v2.1  
 **最終更新:** 2026-04-18  
-**テスト方法:** コードレビューベース静的テスト（3ラウンド反復）  
-**対象コミット:** `0dfb312`（Round 3完了）
+**テスト方法:** コードレビューベース静的テスト（3ラウンド反復 + 管理者分離 + Cloudinary対応）  
+**対象コミット:** `85c39b8`（管理者分離完了） → Cloudinary追加
 
 ---
 
@@ -98,6 +98,28 @@
 | index/club: `loading="lazy"` 属性（クラブカード・投稿画像） |
 | index: OG meta tags, description meta, robots meta |
 
+### 管理者分離（85c39b8）
+
+| 内容 |
+|------|
+| index/club: `onAuthStateChanged` async化 → `getIdTokenResult()` で Custom Claims チェック |
+| index/club: 管理者は「マイページ」→「管理画面」リンクに切替（shield アイコン） |
+| index: 管理者ログイン時はクラブ登録ボタンを非表示 |
+| mypage: 管理者アクセス時は admin.html にリダイレクト |
+
+### Cloudinary 画像アップロード対応
+
+| 内容 |
+|------|
+| index/mypage: `uploadToCloudinary(file)` ヘルパー（Unsigned preset・直接ブラウザアップロード） |
+| index/mypage: `handleImageUpload(fileInput, urlInputId, statusElId)` 共通ハンドラー |
+| index 登録モーダル: 「画像をアップロード」ボタン + ファイル選択（URL入力は fallback として残存） |
+| mypage プロフィール: 同上（indigo テーマ） |
+| mypage 活動日記: 同上 |
+| アップロード中スピナー表示（`loader-2` アイコン） |
+| 未設定時の明確なエラーメッセージ（`CLOUDINARY_CLOUD_NAME === 'YOUR_CLOUD_NAME'` 検知） |
+| アップロード成功後に既存 oninput ハンドラーを dispatchEvent で再利用（preview/markUnsaved 連動） |
+
 ---
 
 ## 1. 機能テスト（index.html）
@@ -123,8 +145,13 @@
 | F-17 | 画像URLプレビュー | ✅ PASS |
 | F-18 | forgot-form 送信ローディング状態 | ✅ PASS |
 | F-19 | Back-to-Top ボタン（スクロール400px超で表示） | ✅ PASS |
+| F-20 | 管理者ログイン時のヘッダーリンク「管理画面」切替・shield アイコン | ✅ PASS |
+| F-21 | 管理者ログイン時クラブ登録ボタン非表示 | ✅ PASS |
+| F-22 | 画像アップロードボタン（ファイルピッカー → uploadToCloudinary → URL入力自動セット） | ✅ PASS |
+| F-23 | アップロード中スピナー表示・完了後非表示 | ✅ PASS |
+| F-24 | CLOUDINARY未設定時の明確なエラーメッセージ | ✅ PASS |
 
-**合計: 19/19 PASS**
+**合計: 24/24 PASS**
 
 ---
 
@@ -170,8 +197,11 @@
 | M-13 | 公開バナーに公開ページへのリンク | ✅ PASS |
 | M-14 | 却下バナーの「再申請する」ボタン（status → pending） | ✅ PASS |
 | M-15 | 画像URLプレビュー（プロフィール・日記） | ✅ PASS |
+| M-16 | 管理者アクセス時 admin.html へリダイレクト（getIdTokenResult） | ✅ PASS |
+| M-17 | プロフィール画像アップロードボタン（スピナー・URL自動セット・markUnsaved連動） | ✅ PASS |
+| M-18 | 活動日記画像アップロードボタン（スピナー・URL自動セット・markUnsaved呼ばれない） | ✅ PASS |
 
-**合計: 15/15 PASS**
+**合計: 18/18 PASS**
 
 ---
 
@@ -275,16 +305,16 @@
 
 | カテゴリ | PASS | WARN | FAIL | 合計 |
 |---------|------|------|------|------|
-| 機能テスト (index.html) | 19 | 0 | 0 | 19 |
+| 機能テスト (index.html) | 24 | 0 | 0 | 24 |
 | 機能テスト (club.html) | 14 | 0 | 0 | 14 |
-| 機能テスト (mypage.html) | 15 | 0 | 0 | 15 |
+| 機能テスト (mypage.html) | 18 | 0 | 0 | 18 |
 | 機能テスト (admin.html) | 13 | 0 | 0 | 13 |
 | Firestoreルールテスト | 7 | 0 | 0 | 7 |
 | セキュリティテスト | 7 | 0 | 0 | 7 |
 | UI/UXテスト | 8 | 0 | 0 | 8 |
 | インフラテスト | 3 | 0 | 0 | 3 |
 | Firebase デプロイテスト | 4 | 0 | 0 | 4 |
-| **合計** | **90** | **0** | **0** | **90** |
+| **合計** | **98** | **0** | **0** | **98** |
 
 ---
 
@@ -302,7 +332,9 @@
 - 画像遅延読み込み・OG meta タグで SEO・パフォーマンス強化
 - clipboard API + execCommand フォールバックで環境依存なし
 - noscript 警告でJS無効ブラウザにも対応
+- 管理者/一般ユーザーを Custom Claims で完全分離（フロント + Firestore 二重防御）
+- Cloudinary 直接アップロードで Firebase Storage なしに画像管理を実現（無料枠対応）
 
 ---
 
-*テストレポート: G-Stack AI Testerエージェント / 2026-04-18 / v2.0*
+*テストレポート: G-Stack AI Testerエージェント / 2026-04-18 / v2.1*
