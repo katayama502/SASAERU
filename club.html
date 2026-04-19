@@ -81,7 +81,7 @@
           </div>
           <div id="header-user" class="hidden items-center gap-2">
             <span id="header-email" class="text-xs text-white/50 truncate max-w-[120px]"></span>
-            <a href="mypage.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-[13px] font-bold transition-all flex items-center gap-1.5 border border-white/20">
+            <a id="header-user-link" href="mypage.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-[13px] font-bold transition-all flex items-center gap-1.5 border border-white/20">
               <i data-lucide="layout-dashboard" width="14" height="14"></i>マイページ
             </a>
           </div>
@@ -105,7 +105,7 @@
           </a>
         </div>
         <div id="mobile-user" class="hidden space-y-1 pt-1">
-          <a href="mypage.html" onclick="closeMobileMenu();" class="w-full bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 border border-white/20">
+          <a id="mobile-user-link" href="mypage.html" onclick="closeMobileMenu();" class="w-full bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 border border-white/20">
             <i data-lucide="layout-dashboard" width="16" height="16"></i>マイページ
           </a>
         </div>
@@ -410,16 +410,41 @@
   // 認証状態監視
   // ===================================================
   if (auth) {
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async user => {
       const guestEl = document.getElementById('header-guest');
       const userEl  = document.getElementById('header-user');
       const emailEl = document.getElementById('header-email');
       const mobG    = document.getElementById('mobile-guest');
       const mobU    = document.getElementById('mobile-user');
       if (user) {
+        // 管理者かどうかチェック
+        let isAdmin = false;
+        try {
+          const token = await user.getIdTokenResult();
+          isAdmin = token.claims.admin === true;
+        } catch(e) { /* claims取得失敗時は通常ユーザーとして扱う */ }
+
         guestEl.classList.add('hidden');    guestEl.classList.remove('flex');
         userEl.classList.remove('hidden');  userEl.classList.add('flex');
         if (emailEl) emailEl.textContent = user.email || '';
+
+        // ヘッダーリンクを管理者/一般で切り替え
+        const userLink   = document.getElementById('header-user-link');
+        const mobileLink = document.getElementById('mobile-user-link');
+        if (userLink) {
+          userLink.href = isAdmin ? 'admin.html' : 'mypage.html';
+          userLink.innerHTML = isAdmin
+            ? '<i data-lucide="shield" width="14" height="14"></i>管理画面'
+            : '<i data-lucide="layout-dashboard" width="14" height="14"></i>マイページ';
+        }
+        if (mobileLink) {
+          mobileLink.href = isAdmin ? 'admin.html' : 'mypage.html';
+          mobileLink.innerHTML = isAdmin
+            ? '<i data-lucide="shield" width="14" height="14"></i>管理画面'
+            : '<i data-lucide="layout-dashboard" width="14" height="14"></i>マイページ';
+        }
+        lucide.createIcons();
+
         if (mobG) mobG.classList.add('hidden');
         if (mobU) mobU.classList.remove('hidden');
       } else {
