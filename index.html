@@ -891,11 +891,14 @@
     const container = document.getElementById('clubs-container');
     if (!db) { allOrgs = []; renderOrgs(); return; }
     try {
-      const snap = await db.collection('organizations').where('status', '==', 'public').limit(30).get();
+      const snap = await db.collection('organizations')
+        .where('status', '==', 'public')
+        .orderBy('created_at', 'desc')
+        .limit(50)
+        .get();
       if (!snap.empty) {
         allOrgs = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
+          .map(d => ({ id: d.id, ...d.data() }));
         renderOrgs();
         return;
       }
