@@ -22,6 +22,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <!-- EmailJS SDK（メール通知に使用） -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <!-- ローカル設定（シークレット管理・gitignore対象） -->
+  <script src="config.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     body { font-family: 'Noto Sans JP', sans-serif; }
@@ -358,12 +360,13 @@
   } catch(e) { console.warn("Firebase init error:", e); }
 
   // ===================================================
-  // 管理者通知設定（index.html と同じ値を設定）
+  // 管理者通知設定（config.js から読み込み）
   // ===================================================
-  const NOTIFY_SLACK_WEBHOOK       = '';  // Slack Incoming Webhook URL（空欄で無効）
-  const NOTIFY_EMAILJS_PUBLIC_KEY = 'V50wijLKFvClfEkmy';  // EmailJS Public Key（空欄で無効）
-  const NOTIFY_EMAILJS_SERVICE_ID = 'service_sddzr7a';  // EmailJS Service ID
-  const NOTIFY_EMAILJS_TEMPLATE_ID = 'template_jot6ake'; // EmailJS Template ID（変数: notification_type, message）
+  const _cfg = window.SASAERU_CONFIG || {};
+  const NOTIFY_SLACK_WEBHOOK       = _cfg.slackWebhook      || '';
+  const NOTIFY_EMAILJS_PUBLIC_KEY  = _cfg.emailjsPublicKey  || '';
+  const NOTIFY_EMAILJS_SERVICE_ID  = _cfg.emailjsServiceId  || '';
+  const NOTIFY_EMAILJS_TEMPLATE_ID = _cfg.emailjsTemplateId || '';
 
   let _emailjsReady = false;
   async function sendAdminNotification(type, params) {

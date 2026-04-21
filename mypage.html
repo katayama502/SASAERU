@@ -12,6 +12,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <!-- ローカル設定（シークレット管理・gitignore対象） -->
+  <script src="config.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     body { font-family: 'Noto Sans JP', sans-serif; }
@@ -413,12 +415,13 @@
   // ============================================================
   // Cloudinary 設定
   // ============================================================
-  const CLOUDINARY_CLOUD_NAME    = 'dzfcj3rvc';
-  const CLOUDINARY_UPLOAD_PRESET = 'SASAERU';
+  const _cfg = window.SASAERU_CONFIG || {};
+  const CLOUDINARY_CLOUD_NAME    = _cfg.cloudinaryCloudName || '';
+  const CLOUDINARY_UPLOAD_PRESET = _cfg.cloudinaryPreset    || '';
 
   async function uploadToCloudinary(file) {
-    if (CLOUDINARY_CLOUD_NAME === 'YOUR_CLOUD_NAME') {
-      throw new Error('Cloudinaryの設定が必要です。CLOUDINARY_CLOUD_NAMEとCLOUDINARY_UPLOAD_PRESETを設定してください。');
+    if (!CLOUDINARY_CLOUD_NAME) {
+      throw new Error('config.js に cloudinaryCloudName が設定されていません。');
     }
     const form = new FormData();
     form.append('file', file);

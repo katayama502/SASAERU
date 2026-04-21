@@ -28,6 +28,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <!-- EmailJS SDK（メール通知に使用） -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <!-- ローカル設定（シークレット管理・gitignore対象） -->
+  <script src="config.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     body { font-family: 'Noto Sans JP', sans-serif; }
@@ -664,14 +666,15 @@
   const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
 
   // ===================================================
-  // Cloudinary 設定
+  // 設定（config.js から読み込み）
   // ===================================================
-  const CLOUDINARY_CLOUD_NAME    = 'dzfcj3rvc';    // ← Cloudinaryダッシュボードで確認
-  const CLOUDINARY_UPLOAD_PRESET = 'SASAERU'; // ← Unsigned upload preset名
+  const _cfg = window.SASAERU_CONFIG || {};
+  const CLOUDINARY_CLOUD_NAME    = _cfg.cloudinaryCloudName || '';
+  const CLOUDINARY_UPLOAD_PRESET = _cfg.cloudinaryPreset    || '';
 
   async function uploadToCloudinary(file) {
-    if (CLOUDINARY_CLOUD_NAME === 'YOUR_CLOUD_NAME') {
-      throw new Error('Cloudinaryの設定が必要です。CLOUDINARY_CLOUD_NAMEとCLOUDINARY_UPLOAD_PRESETを設定してください。');
+    if (!CLOUDINARY_CLOUD_NAME) {
+      throw new Error('config.js に cloudinaryCloudName が設定されていません。');
     }
     const form = new FormData();
     form.append('file', file);
@@ -703,15 +706,12 @@
   }
 
   // ===================================================
-  // 管理者通知設定
-  //   Slack: https://api.slack.com/messaging/webhooks でWebhook URL取得
-  //   Email: https://www.emailjs.com で無料アカウント作成後
-  //          Service ID / Template ID / Public Key を設定
+  // 管理者通知設定（config.js から読み込み）
   // ===================================================
-  const NOTIFY_SLACK_WEBHOOK      = '';  // Slack Incoming Webhook URL（空欄で無効）
-  const NOTIFY_EMAILJS_PUBLIC_KEY = 'V50wijLKFvClfEkmy';  // EmailJS Public Key（空欄で無効）
-  const NOTIFY_EMAILJS_SERVICE_ID = 'service_sddzr7a';  // EmailJS Service ID
-  const NOTIFY_EMAILJS_TEMPLATE_ID = 'template_jot6ake'; // EmailJS Template ID（変数: notification_type, message）
+  const NOTIFY_SLACK_WEBHOOK       = _cfg.slackWebhook      || '';
+  const NOTIFY_EMAILJS_PUBLIC_KEY  = _cfg.emailjsPublicKey  || '';
+  const NOTIFY_EMAILJS_SERVICE_ID  = _cfg.emailjsServiceId  || '';
+  const NOTIFY_EMAILJS_TEMPLATE_ID = _cfg.emailjsTemplateId || '';
 
   let _emailjsReady = false;
   async function sendAdminNotification(type, params) {
