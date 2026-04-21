@@ -22,8 +22,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <!-- EmailJS SDK（メール通知に使用） -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-  <!-- ローカル設定（シークレット管理・gitignore対象） -->
-  <script src="config.js"></script>
+  <!-- 設定は Netlify Snippet Injection で window.SASAERU_CONFIG として注入済み -->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     body { font-family: 'Noto Sans JP', sans-serif; }
@@ -292,6 +291,41 @@
     <i data-lucide="chevron-up" width="18" height="18"></i>
   </button>
 
+  <!-- 活動日記詳細モーダル -->
+  <div id="post-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-[#0f0e2e]/80 backdrop-blur-sm p-4"
+    role="dialog" aria-modal="true" aria-labelledby="post-modal-title">
+    <div class="modal-inner bg-white rounded-2xl max-w-2xl w-full relative max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col">
+      <button onclick="closePostModal()" aria-label="モーダルを閉じる"
+        class="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-white/90 hover:bg-slate-100 flex items-center justify-center transition-colors shadow">
+        <i data-lucide="x" width="16" height="16"></i>
+      </button>
+      <!-- 日記画像 -->
+      <div id="post-modal-img-wrap" class="hidden">
+        <img id="post-modal-img" src="" alt="" class="w-full max-h-72 object-cover rounded-t-2xl"
+          onerror="document.getElementById('post-modal-img-wrap').classList.add('hidden')">
+      </div>
+      <div class="p-6 sm:p-8 flex flex-col flex-grow">
+        <!-- 日付 -->
+        <p id="post-modal-date" class="text-xs text-slate-400 font-medium mb-3 flex items-center gap-1.5">
+          <i data-lucide="calendar" width="12" height="12"></i>
+        </p>
+        <!-- タイトル -->
+        <h2 id="post-modal-title" class="text-xl sm:text-2xl font-black text-[#0f0e2e] mb-5 leading-snug"></h2>
+        <!-- 本文 -->
+        <div id="post-modal-content" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap flex-grow mb-8"></div>
+        <!-- 支援ボタン -->
+        <div class="border-t border-slate-100 pt-6">
+          <p class="text-xs text-slate-500 mb-3 text-center">このクラブの活動を支援しませんか？</p>
+          <button id="post-modal-support-btn"
+            class="w-full bg-orange-400 hover:bg-orange-500 text-white font-black py-4 rounded-xl shadow-lg shadow-orange-400/30 transition-all text-sm flex items-center justify-center gap-2 hover:-translate-y-0.5">
+            <i data-lucide="heart-handshake" width="18" height="18"></i>
+            このクラブを応援する・支援申請をする
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 支援申請モーダル -->
   <div id="inquiry-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-[#0f0e2e]/80 backdrop-blur-sm p-4"
     role="dialog" aria-modal="true" aria-labelledby="inquiry-modal-title">
@@ -365,6 +399,9 @@
     db = firebase.firestore();
     auth = firebase.auth();
   } catch(e) { console.warn("Firebase init error:", e); }
+
+  // 活動日記 IDキャッシュ（モーダル用）
+  const _postCache = new Map();
 
   // ===================================================
   // 管理者通知（config.js から lazy 読み込み）
@@ -696,10 +733,14 @@
         .where('org_id', '==', orgId).orderBy('created_at', 'desc').limit(20).get();
       if (snap.empty) { container.classList.add('hidden'); emptyEl.classList.remove('hidden'); return; }
       const posts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      _postCache.clear();
+      posts.forEach(p => _postCache.set(p.id, p));
       container.innerHTML = posts.map(p => {
         const dateStr = formatDate(p.created_at);
         return `
-          <div class="card-hover bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+          <div class="card-hover bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col cursor-pointer"
+            onclick="openPostModal('${esc(p.id)}')" role="button" tabindex="0"
+            onkeydown="if(event.key==='Enter'||event.key===' ')openPostModal('${esc(p.id)}')">
             ${p.image_url ? `
               <div class="h-44 overflow-hidden">
                 <img src="${esc(p.image_url)}" alt="${esc(p.title||'')}" loading="lazy"
@@ -711,6 +752,9 @@
                 <i data-lucide="calendar" width="11" height="11"></i>${esc(dateStr)}</p>` : ''}
               <h3 class="text-base font-black text-[#0f0e2e] mb-2 leading-snug">${esc(p.title||'（タイトルなし）')}</h3>
               ${p.content ? `<p class="text-sm text-slate-500 leading-relaxed line-clamp-3 flex-grow">${esc(p.content)}</p>` : ''}
+              <p class="text-xs text-orange-500 font-bold mt-3 flex items-center gap-1">
+                <i data-lucide="book-open" width="12" height="12"></i>続きを読む
+              </p>
             </div>
           </div>`;
       }).join('');
@@ -756,6 +800,57 @@
       showToast('コピーに失敗しました。URLバーからコピーしてください。', false);
     }
   }
+
+  // ===================================================
+  // 活動日記詳細モーダル
+  // ===================================================
+  function openPostModal(postId) {
+    const p = _postCache.get(postId);
+    if (!p) return;
+
+    // 画像
+    const imgWrap = document.getElementById('post-modal-img-wrap');
+    const imgEl   = document.getElementById('post-modal-img');
+    if (p.image_url) {
+      imgEl.src = p.image_url;
+      imgEl.alt = p.title || '';
+      imgWrap.classList.remove('hidden');
+    } else {
+      imgWrap.classList.add('hidden');
+    }
+
+    // 日付
+    const dateStr = formatDate(p.created_at);
+    const dateEl  = document.getElementById('post-modal-date');
+    dateEl.innerHTML = dateStr
+      ? `<i data-lucide="calendar" width="12" height="12"></i>${esc(dateStr)}`
+      : '';
+
+    // タイトル・本文
+    document.getElementById('post-modal-title').textContent   = p.title   || '（タイトルなし）';
+    document.getElementById('post-modal-content').textContent = p.content || '';
+
+    // 支援ボタン
+    document.getElementById('post-modal-support-btn').onclick = () => {
+      closePostModal();
+      openInquiryModal(currentOrgId, currentOrgName);
+    };
+
+    const m = document.getElementById('post-modal');
+    m.classList.remove('hidden'); m.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+    lucide.createIcons();
+  }
+
+  function closePostModal() {
+    const m = document.getElementById('post-modal');
+    m.classList.add('hidden'); m.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('post-modal').addEventListener('click', e => {
+    if (e.target.id === 'post-modal') closePostModal();
+  });
 
   // ===================================================
   // 支援申請モーダル

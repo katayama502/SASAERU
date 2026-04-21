@@ -13,8 +13,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <!-- ローカル設定（シークレット管理・gitignore対象） -->
-  <script src="config.js"></script>
+  <!-- 設定は Netlify Snippet Injection で window.SASAERU_CONFIG として注入済み -->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     body { font-family: 'Noto Sans JP', sans-serif; }
@@ -531,7 +530,7 @@
       if (!confirm('未保存の変更があります。ログアウトしますか？')) return;
     }
     if (auth) await auth.signOut();
-    window.location.href = 'index.html';
+    window.location.replace('index.html');
   }
 
   // ============================================================
@@ -1116,6 +1115,13 @@
   // ページ離脱警告
   window.addEventListener('beforeunload', e => {
     if (profileDirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // BFCache（戻るボタン）対策: キャッシュから復元された場合も認証チェック
+  window.addEventListener('pageshow', e => {
+    if (e.persisted && auth && !auth.currentUser) {
+      window.location.replace('index.html');
+    }
   });
   </script>
 </body>
