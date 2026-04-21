@@ -865,14 +865,14 @@
   // ===================================================
   // 統計カウンター
   // ===================================================
-  async function loadStats() {
+  function loadStats() {
     if (!db) { animateCount('stat-orgs', 0); return; }
-    try {
-      const orgSnap = await db.collection('organizations').where('status', '==', 'public').get();
-      animateCount('stat-orgs', orgSnap.size);
-    } catch(e) {
-      document.getElementById('stat-orgs').textContent = '—';
-    }
+    db.collection('organizations')
+      .where('status', '==', 'public')
+      .onSnapshot(
+        snap => { animateCount('stat-orgs', snap.size); },
+        () => { document.getElementById('stat-orgs').textContent = '—'; }
+      );
   }
 
   function animateCount(id, target) {
@@ -891,21 +891,24 @@
   // ===================================================
   // 団体一覧
   // ===================================================
-  async function loadOrgs() {
-    const container = document.getElementById('clubs-container');
+  function loadOrgs() {
     if (!db) { allOrgs = []; renderOrgs(); return; }
-    try {
-      const snap = await db.collection('organizations').where('status', '==', 'public').limit(50).get();
-      if (!snap.empty) {
-        allOrgs = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
-        renderOrgs();
-        return;
-      }
-    } catch(e) { console.warn('Firestore fetch failed:', e); }
-    allOrgs = [];
-    renderOrgs();
+    db.collection('organizations')
+      .where('status', '==', 'public')
+      .limit(50)
+      .onSnapshot(
+        snap => {
+          allOrgs = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
+          renderOrgs();
+        },
+        err => {
+          console.warn('Firestore fetch failed:', err);
+          allOrgs = [];
+          renderOrgs();
+        }
+      );
   }
 
   function renderOrgs() {
