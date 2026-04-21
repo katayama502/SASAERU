@@ -666,21 +666,22 @@
   const isConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
 
   // ===================================================
-  // 設定（config.js から読み込み）
+  // 設定（config.js から lazy 読み込み）
   // ===================================================
-  const _cfg = window.SASAERU_CONFIG || {};
-  const CLOUDINARY_CLOUD_NAME    = _cfg.cloudinaryCloudName || '';
-  const CLOUDINARY_UPLOAD_PRESET = _cfg.cloudinaryPreset    || '';
+  function getCfg() { return window.SASAERU_CONFIG || {}; }
 
   async function uploadToCloudinary(file) {
-    if (!CLOUDINARY_CLOUD_NAME) {
-      throw new Error('config.js に cloudinaryCloudName が設定されていません。');
+    const cfg = getCfg();
+    const cloudName = cfg.cloudinaryCloudName || '';
+    const preset    = cfg.cloudinaryPreset    || '';
+    if (!cloudName) {
+      throw new Error('Cloudinaryが設定されていません。config.js を確認してください。');
     }
     const form = new FormData();
     form.append('file', file);
-    form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    form.append('upload_preset', preset);
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
       { method: 'POST', body: form }
     );
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'アップロード失敗'); }
@@ -706,36 +707,36 @@
   }
 
   // ===================================================
-  // 管理者通知設定（config.js から読み込み）
+  // 管理者通知（config.js から lazy 読み込み）
   // ===================================================
-  const NOTIFY_SLACK_WEBHOOK       = _cfg.slackWebhook      || '';
-  const NOTIFY_EMAILJS_PUBLIC_KEY  = _cfg.emailjsPublicKey  || '';
-  const NOTIFY_EMAILJS_SERVICE_ID  = _cfg.emailjsServiceId  || '';
-  const NOTIFY_EMAILJS_TEMPLATE_ID = _cfg.emailjsTemplateId || '';
-
   let _emailjsReady = false;
   async function sendAdminNotification(type, params) {
+    const cfg = getCfg();
+    const slackWebhook      = cfg.slackWebhook      || '';
+    const emailjsPublicKey  = cfg.emailjsPublicKey  || '';
+    const emailjsServiceId  = cfg.emailjsServiceId  || '';
+    const emailjsTemplateId = cfg.emailjsTemplateId || '';
+
     const labels = {
       club_apply: '🏃 新規クラブ申請',
       inquiry:    '📩 支援申請',
       contact:    '✉️ お問い合わせ',
     };
     const lines = Object.entries(params).map(([k,v]) => `${k}: ${v}`).join('\n');
-    const text   = `${labels[type] || type}\n\n${lines}\n\n🔗 管理画面: ${location.origin}/admin.html`;
+    const text  = `${labels[type] || type}\n\n${lines}\n\n🔗 管理画面: ${location.origin}/admin.html`;
 
-    if (NOTIFY_SLACK_WEBHOOK) {
+    if (slackWebhook) {
       try {
-        await fetch(NOTIFY_SLACK_WEBHOOK, {
+        await fetch(slackWebhook, {
           method: 'POST', mode: 'no-cors',
           body: new URLSearchParams({ payload: JSON.stringify({ text }) }),
         });
       } catch(e) { console.warn('Slack通知失敗:', e); }
     }
-
-    if (NOTIFY_EMAILJS_PUBLIC_KEY && NOTIFY_EMAILJS_SERVICE_ID && NOTIFY_EMAILJS_TEMPLATE_ID) {
+    if (emailjsPublicKey && emailjsServiceId && emailjsTemplateId) {
       try {
-        if (!_emailjsReady) { emailjs.init({ publicKey: NOTIFY_EMAILJS_PUBLIC_KEY }); _emailjsReady = true; }
-        await emailjs.send(NOTIFY_EMAILJS_SERVICE_ID, NOTIFY_EMAILJS_TEMPLATE_ID, {
+        if (!_emailjsReady) { emailjs.init({ publicKey: emailjsPublicKey }); _emailjsReady = true; }
+        await emailjs.send(emailjsServiceId, emailjsTemplateId, {
           notification_type: labels[type] || type,
           message: lines,
         });
@@ -1022,7 +1023,7 @@
       } catch(err) {
         const msgs = {
           'auth/email-already-in-use': 'このメールアドレスは既に登録されています',
-          'auth/weak-password': 'パスワードは6文字以上にしてください',
+          'auth/weak-password': 'パスワードは8文字以上で英字・数字・記号をすべて含めてください',
           'auth/invalid-email': 'メールアドレスの形式が正しくありません',
         };
         result.textContent = '✗ ' + (msgs[err.code] || err.message);
