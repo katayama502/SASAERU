@@ -26,6 +26,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <!-- EmailJS SDK（メール通知に使用） -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     body { font-family: 'Noto Sans JP', sans-serif; }
@@ -528,13 +530,20 @@
         <div>
           <label for="reg-pass" class="block text-xs font-bold text-slate-600 mb-1">パスワード設定 <span class="text-red-400">*</span></label>
           <div class="relative">
-            <input type="password" id="reg-pass" name="password" required minlength="6" maxlength="200"
-              autocomplete="new-password" placeholder="6文字以上"
+            <input type="password" id="reg-pass" name="password" required minlength="8" maxlength="200"
+              autocomplete="new-password" placeholder="8文字以上・英数字記号すべて含む"
+              oninput="updatePwRequirements(this.value)"
               class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
             <button type="button" onclick="togglePwd('reg-pass','reg-eye')"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               <i id="reg-eye" data-lucide="eye" width="16" height="16"></i>
             </button>
+          </div>
+          <div id="pw-requirements" class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+            <div id="req-length" class="flex items-center gap-1.5 text-slate-400 text-[11px]"><i data-lucide="circle" width="10" height="10"></i>8文字以上</div>
+            <div id="req-letter" class="flex items-center gap-1.5 text-slate-400 text-[11px]"><i data-lucide="circle" width="10" height="10"></i>英字を含む</div>
+            <div id="req-digit"  class="flex items-center gap-1.5 text-slate-400 text-[11px]"><i data-lucide="circle" width="10" height="10"></i>数字を含む</div>
+            <div id="req-symbol" class="flex items-center gap-1.5 text-slate-400 text-[11px]"><i data-lucide="circle" width="10" height="10"></i>記号を含む</div>
           </div>
         </div>
         <div>
@@ -692,6 +701,77 @@
       fileInput.value = '';
     }
   }
+
+  // ===================================================
+  // 管理者通知設定
+  //   Slack: https://api.slack.com/messaging/webhooks でWebhook URL取得
+  //   Email: https://www.emailjs.com で無料アカウント作成後
+  //          Service ID / Template ID / Public Key を設定
+  // ===================================================
+  const NOTIFY_SLACK_WEBHOOK      = '';  // Slack Incoming Webhook URL（空欄で無効）
+  const NOTIFY_EMAILJS_PUBLIC_KEY = 'V50wijLKFvClfEkmy';  // EmailJS Public Key（空欄で無効）
+  const NOTIFY_EMAILJS_SERVICE_ID = 'service_sddzr7a';  // EmailJS Service ID
+  const NOTIFY_EMAILJS_TEMPLATE_ID = 'template_jot6ake'; // EmailJS Template ID（変数: notification_type, message）
+
+  let _emailjsReady = false;
+  async function sendAdminNotification(type, params) {
+    const labels = {
+      club_apply: '🏃 新規クラブ申請',
+      inquiry:    '📩 支援申請',
+      contact:    '✉️ お問い合わせ',
+    };
+    const lines = Object.entries(params).map(([k,v]) => `${k}: ${v}`).join('\n');
+    const text   = `${labels[type] || type}\n\n${lines}\n\n🔗 管理画面: ${location.origin}/admin.html`;
+
+    if (NOTIFY_SLACK_WEBHOOK) {
+      try {
+        await fetch(NOTIFY_SLACK_WEBHOOK, {
+          method: 'POST', mode: 'no-cors',
+          body: new URLSearchParams({ payload: JSON.stringify({ text }) }),
+        });
+      } catch(e) { console.warn('Slack通知失敗:', e); }
+    }
+
+    if (NOTIFY_EMAILJS_PUBLIC_KEY && NOTIFY_EMAILJS_SERVICE_ID && NOTIFY_EMAILJS_TEMPLATE_ID) {
+      try {
+        if (!_emailjsReady) { emailjs.init({ publicKey: NOTIFY_EMAILJS_PUBLIC_KEY }); _emailjsReady = true; }
+        await emailjs.send(NOTIFY_EMAILJS_SERVICE_ID, NOTIFY_EMAILJS_TEMPLATE_ID, {
+          notification_type: labels[type] || type,
+          message: lines,
+        });
+      } catch(e) { console.warn('Email通知失敗:', e); }
+    }
+  }
+
+  // ===================================================
+  // パスワードバリデーション
+  // ===================================================
+  function validatePassword(pw) {
+    return {
+      length: pw.length >= 8,
+      letter: /[a-zA-Z]/.test(pw),
+      digit:  /[0-9]/.test(pw),
+      symbol: /[^a-zA-Z0-9]/.test(pw),
+    };
+  }
+  function updatePwRequirements(pw) {
+    const v = validatePassword(pw);
+    const map = { length: 'req-length', letter: 'req-letter', digit: 'req-digit', symbol: 'req-symbol' };
+    Object.entries(map).forEach(([key, id]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const icon = el.querySelector('i');
+      if (v[key]) {
+        el.className = 'flex items-center gap-1.5 text-green-600';
+        icon.setAttribute('data-lucide', 'check-circle-2');
+      } else {
+        el.className = 'flex items-center gap-1.5 text-slate-400';
+        icon.setAttribute('data-lucide', 'circle');
+      }
+      lucide.createIcons({ nodes: [icon] });
+    });
+  }
+
 
   let db = null, auth = null;
   if (isConfigured) {
@@ -908,6 +988,15 @@
     result.textContent = '';
     setBtnLoading('register-submit-btn', true);
 
+    // パスワード強度チェック
+    const pwCheck = validatePassword(data.password);
+    if (!pwCheck.length || !pwCheck.letter || !pwCheck.digit || !pwCheck.symbol) {
+      result.textContent = '✗ パスワードは8文字以上で英字・数字・記号をすべて含めてください';
+      result.className = 'text-xs text-center text-red-500';
+      setBtnLoading('register-submit-btn', false);
+      return;
+    }
+
     const tags = (data.tags || '').split(',').map(t => t.trim()).filter(Boolean);
     const payload = {
       name: data.name, category: data.category, area: data.area,
@@ -921,6 +1010,10 @@
         await db.collection('organizations').add({
           ...payload, owner_uid: cred.user.uid,
           created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        sendAdminNotification('club_apply', {
+          クラブ名: data.name, カテゴリ: data.category,
+          エリア: data.area || '未記入', メール: data.contact_email,
         });
         result.textContent = '✓ 登録申請を受け付けました！';
         result.className = 'text-xs text-center text-green-600 font-bold';
@@ -986,6 +1079,10 @@
     if (db) {
       try {
         await db.collection('inquiries').add({ ...payload, created_at: firebase.firestore.FieldValue.serverTimestamp() });
+        sendAdminNotification('inquiry', {
+          クラブID: orgId, 企業名: data.company_name, 担当者: data.pic_name,
+          メール: data.sender_email, 内容: (data.message || '').slice(0, 100),
+        });
         result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
@@ -1022,6 +1119,10 @@
         await db.collection('contacts').add({
           name: data.name, email: data.email, message: data.message,
           created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        sendAdminNotification('contact', {
+          名前: data.name, メール: data.email,
+          内容: (data.message || '').slice(0, 100),
         });
         result.textContent = 'お問い合わせを受け付けました。';
         result.className = 'text-xs text-center text-green-600 font-bold';
