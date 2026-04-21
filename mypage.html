@@ -4,11 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SASAERU マイページ</title>
+  <meta name="robots" content="noindex,nofollow">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = { theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } } }
   </script>
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@0.344.0"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -472,6 +473,8 @@
   let editingMenuId  = null;
   let editingDiaryId = null;
   let profileDirty   = false;
+  const _menuCache  = new Map();
+  const _diaryCache = new Map();
 
   // ============================================================
   // 認証（Promise ベース）
@@ -765,6 +768,8 @@
       el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援メニューはまだありません</div>';
       return;
     }
+    _menuCache.clear();
+    menus.forEach(m => _menuCache.set(m.id, m));
     el.innerHTML = menus.map(m => `
       <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden fade-in">
         <div class="p-5">
@@ -788,7 +793,7 @@
             <p class="text-xs text-orange-700 leading-relaxed line-clamp-2">${esc(m.return_merit)}</p></div>` : ''}
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-wrap">
-          <button onclick='editMenu(${JSON.stringify(m).replace(/'/g,"&#39;").replace(/"/g,"&quot;")})'
+          <button onclick="editMenu('${esc(m.id)}')"
             class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
             <i data-lucide="pencil" width="12" height="12"></i>編集
           </button>
@@ -825,7 +830,9 @@
     editingMenuId = null;
   }
 
-  function editMenu(menuData) {
+  function editMenu(menuId) {
+    const menuData = _menuCache.get(menuId);
+    if (!menuData) return;
     editingMenuId = menuData.id;
     document.getElementById('menu-form-title').textContent     = 'メニューを編集';
     document.getElementById('mf-id').value                    = menuData.id;
@@ -912,7 +919,7 @@
     el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>';
     try {
       const snap = await db.collection('posts')
-        .where('org_id', '==', currentOrg.id).orderBy('created_at', 'desc').get();
+        .where('org_id', '==', currentOrg.id).orderBy('created_at', 'desc').limit(100).get();
       if (snap.empty) {
         el.innerHTML = `<div class="text-center py-16 text-slate-400">
           <i data-lucide="notebook-pen" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
@@ -935,6 +942,8 @@
       el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">まだ投稿はありません</div>';
       return;
     }
+    _diaryCache.clear();
+    posts.forEach(p => _diaryCache.set(p.id, p));
     el.innerHTML = posts.map(p => `
       <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden fade-in">
         ${p.image_url ? `<img src="${esc(p.image_url)}" alt="" class="w-full h-40 object-cover bg-slate-100"
@@ -945,7 +954,7 @@
           <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${esc(p.content)}</p>
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
-          <button onclick='editDiary(${JSON.stringify(p).replace(/'/g,"&#39;").replace(/"/g,"&quot;")})'
+          <button onclick="editDiary('${esc(p.id)}')"
             class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
             <i data-lucide="pencil" width="12" height="12"></i>編集
           </button>
@@ -977,7 +986,9 @@
     editingDiaryId = null;
   }
 
-  function editDiary(postData) {
+  function editDiary(postId) {
+    const postData = _diaryCache.get(postId);
+    if (!postData) return;
     editingDiaryId = postData.id;
     document.getElementById('diary-form-title').textContent    = '投稿を編集';
     document.getElementById('df-id').value                    = postData.id;
