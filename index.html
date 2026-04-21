@@ -905,8 +905,17 @@
         },
         err => {
           console.warn('Firestore fetch failed:', err);
-          allOrgs = [];
-          renderOrgs();
+          const container = document.getElementById('clubs-container');
+          if (container) {
+            container.innerHTML = `
+              <div class="col-span-3 text-center py-20 text-slate-400">
+                <i data-lucide="wifi-off" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
+                <p class="text-sm font-medium">データの取得に失敗しました</p>
+                <p class="text-xs mt-1 text-red-400">${err.code || err.message || '不明なエラー'}</p>
+                <button onclick="loadOrgs()" class="mt-4 px-4 py-2 bg-[#0f0e2e] text-white text-xs font-bold rounded-xl hover:bg-indigo-900 transition-all">再試行</button>
+              </div>`;
+            lucide.createIcons();
+          }
         }
       );
   }
