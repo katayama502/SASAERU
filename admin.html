@@ -353,7 +353,10 @@
       verifyAdminAndShow(user, null);
     });
   } else {
-    showDashboard({ email: 'demo@sasaeru.jp' });
+    // Firebase未設定の場合はログイン画面にエラーを表示（デモ動作を無効化）
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('login-error').textContent = 'Firebase設定が読み込めません。管理者に連絡してください。';
+    lucide.createIcons();
   }
 
   // ============================================================
@@ -498,6 +501,7 @@
   function fmtDate(val) {
     if (!val) return '—';
     const d = val.toDate ? val.toDate() : new Date(val);
+    if (isNaN(d.getTime())) return '—';
     return d.toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
   }
   function statusBadge(status) {
@@ -738,13 +742,17 @@
   // ============================================================
   // 団体ステータス変更
   // ============================================================
-  async function approveOrg(id) {
-    if (!db) { showToast('Firebase未設定です', false); return; }
-    try {
-      await db.collection('organizations').doc(id).update({ status:'public', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
-      showToast('承認・公開しました');
-      loadTab(currentTab); loadOverview();
-    } catch(e) { showToast('エラー: ' + e.message, false); }
+  function approveOrg(id) {
+    showConfirm('この団体を承認・公開しますか？', '承認するとサイト上に公開されます。', '承認・公開する', 'bg-green-500 hover:bg-green-600',
+      async () => {
+        if (!db) { showToast('Firebase未設定です', false); return; }
+        try {
+          await db.collection('organizations').doc(id).update({ status:'public', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
+          showToast('承認・公開しました');
+          loadTab(currentTab); loadOverview();
+        } catch(e) { showToast('エラー: ' + e.message, false); }
+      }
+    );
   }
 
   function rejectOrg(id, name) {
@@ -770,10 +778,17 @@
   }
 
   function deleteOrg(id, name) {
-    showConfirm(`「${name}」を削除しますか？`, 'この操作は取り消せません。団体情報がすべて削除されます。',
+    showConfirm(`「${name}」を削除しますか？`, 'この操作は取り消せません。団体情報と支援メニューがすべて削除されます。\n※ ログインアカウント（メール）は別途 Firebase Console から削除してください。',
       '削除する', 'bg-red-500 hover:bg-red-600', async () => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
+          // menus サブコレクションを先に一括削除（Firestore は自動カスケード削除しない）
+          const menusSnap = await db.collection('organizations').doc(id).collection('menus').get();
+          if (!menusSnap.empty) {
+            const batch = db.batch();
+            menusSnap.docs.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+          }
           await db.collection('organizations').doc(id).delete();
           showToast('削除しました'); loadTab(currentTab); loadOverview();
         } catch(e) { showToast('エラー: ' + e.message, false); }
@@ -944,6 +959,15 @@
   function errMsg(e) {
     return `<div class="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">読み込みエラー: ${esc(e.message)}</div>`;
   }
+
+  // ============================================================
+  // BFCache（戻るボタン）対策: キャッシュから復元された場合も認証チェック
+  // ============================================================
+  window.addEventListener('pageshow', e => {
+    if (e.persisted && auth && !auth.currentUser) {
+      showLogin();
+    }
+  });
 
   // ============================================================
   // 初期化

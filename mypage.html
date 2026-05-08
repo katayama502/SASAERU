@@ -438,6 +438,11 @@
   async function handleImageUpload(fileInput, urlInputId, statusElId) {
     const file = fileInput.files[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('画像は5MB以下にしてください', false);
+      fileInput.value = '';
+      return;
+    }
     const statusEl = document.getElementById(statusElId);
     if (statusEl) statusEl.classList.remove('hidden');
     try {
@@ -525,12 +530,23 @@
     } catch(err) { showToast('エラー: ' + err.message, false); }
   }
 
-  async function doSignOut() {
+  function doSignOut() {
     if (profileDirty) {
-      if (!confirm('未保存の変更があります。ログアウトしますか？')) return;
+      showConfirm(
+        '未保存の変更があります',
+        'ログアウトすると変更内容が失われます。ログアウトしますか？',
+        'ログアウト', 'bg-red-500 hover:bg-red-600',
+        async () => {
+          if (auth) await auth.signOut();
+          window.location.replace('index.html');
+        }
+      );
+      return;
     }
-    if (auth) await auth.signOut();
-    window.location.replace('index.html');
+    (async () => {
+      if (auth) await auth.signOut();
+      window.location.replace('index.html');
+    })();
   }
 
   // ============================================================
@@ -588,9 +604,18 @@
 
   function switchTab(name) {
     if (name !== 'profile' && profileDirty) {
-      if (!confirm('プロフィールに未保存の変更があります。タブを切り替えますか？')) return;
-      clearUnsaved();
+      showConfirm(
+        '未保存の変更があります',
+        'プロフィールの変更を保存せずにタブを切り替えますか？',
+        '切り替える', 'bg-orange-500 hover:bg-orange-600',
+        () => { clearUnsaved(); _doSwitchTab(name); }
+      );
+      return;
     }
+    _doSwitchTab(name);
+  }
+
+  function _doSwitchTab(name) {
     currentTab = name;
     closeSidebar();
     ['profile','menus','diary'].forEach(t => {

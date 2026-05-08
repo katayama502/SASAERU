@@ -23,9 +23,10 @@ service cloud.firestore {
     match /organizations/{orgId} {
       // 公開中は誰でも1件取得可 / 認証済みなら取得可
       allow get:    if resource.data.status == "public" || isAuth();
-      // リスト: 未認証でも公開クラブ一覧を取得可（トップページの一覧表示に必要）
+      // リスト: 公開クラブは未認証でも取得可（トップページの一覧表示に必要）
       //         認証済みはすべて取得可（マイページのowner_uid照合 + 管理者の全件取得）
-      allow list:   if true;
+      //         ※ 未認証で pending/rejected 団体のメール等が漏洩しないよう isAuth() を要求
+      allow list:   if resource.data.status == "public" || isAuth();
       // 作成: 認証済みユーザーが自分のowner_uidで、かつstatus=pendingのみ
       allow create: if isAuth()
                     && request.resource.data.owner_uid == request.auth.uid
@@ -40,8 +41,9 @@ service cloud.firestore {
     match /organizations/{orgId}/menus/{menuId} {
       // 1件取得: 公開メニューは誰でも / オーナーは全て
       allow get:    if resource.data.status == "public" || isOwnerOf(orgId);
-      // 一覧取得: club.html での公開表示に必要なため未認証でも許可 / オーナーは全て
-      allow list:   if true;
+      // 一覧取得: 公開メニューは未認証でも取得可 / オーナーは非公開含む全て取得可
+      //         ※ list:true だと非公開メニューが外部から一覧取得できてしまうため制限
+      allow list:   if resource.data.status == "public" || isOwnerOf(orgId);
       // 作成・更新・削除: オーナーのみ
       allow create, update, delete: if isOwnerOf(orgId);
     }
