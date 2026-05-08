@@ -694,6 +694,11 @@
   async function handleImageUpload(fileInput, urlInputId, statusElId) {
     const file = fileInput.files[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('画像は5MB以下にしてください', false);
+      fileInput.value = '';
+      return;
+    }
     const statusEl = document.getElementById(statusElId);
     if (statusEl) statusEl.classList.remove('hidden');
     try {
@@ -702,7 +707,7 @@
       urlInput.value = url;
       urlInput.dispatchEvent(new Event('input'));
     } catch(err) {
-      alert('アップロードエラー: ' + err.message);
+      showToast('アップロードエラー: ' + err.message, false);
     } finally {
       if (statusEl) statusEl.classList.add('hidden');
       fileInput.value = '';
@@ -791,6 +796,8 @@
   // ===================================================
   let currentFilter = 'all';
   let allOrgs = [];
+  let _unsubStats = null;
+  let _unsubOrgs  = null;
 
   // ===================================================
   // ユーティリティ
@@ -866,7 +873,8 @@
   // ===================================================
   function loadStats() {
     if (!db) { animateCount('stat-orgs', 0); return; }
-    db.collection('organizations')
+    if (_unsubStats) { _unsubStats(); _unsubStats = null; }
+    _unsubStats = db.collection('organizations')
       .where('status', '==', 'public')
       .onSnapshot(
         snap => { animateCount('stat-orgs', snap.size); },
@@ -892,7 +900,8 @@
   // ===================================================
   function loadOrgs() {
     if (!db) { allOrgs = []; renderOrgs(); return; }
-    db.collection('organizations')
+    if (_unsubOrgs) { _unsubOrgs(); _unsubOrgs = null; }
+    _unsubOrgs = db.collection('organizations')
       .where('status', '==', 'public')
       .limit(50)
       .onSnapshot(
@@ -1021,8 +1030,11 @@
     };
 
     if (auth && db) {
+      let cred = null;
       try {
-        const cred = await auth.createUserWithEmailAndPassword(data.contact_email, data.password);
+        // ① Firebaseアカウント作成
+        cred = await auth.createUserWithEmailAndPassword(data.contact_email, data.password);
+        // ② Firestoreドキュメント保存（失敗時は①をロールバック）
         await db.collection('organizations').add({
           ...payload, owner_uid: cred.user.uid,
           created_at: firebase.firestore.FieldValue.serverTimestamp()
@@ -1036,6 +1048,10 @@
         e.target.reset();
         setTimeout(() => { closeRegisterModal(); window.location.href = 'mypage.html'; }, 2000);
       } catch(err) {
+        // Firestoreへの保存失敗時、作成済みのFirebaseアカウントを削除してロールバック
+        if (cred && err.code !== 'auth/email-already-in-use' && !err.code?.startsWith('auth/')) {
+          try { await cred.user.delete(); } catch(e2) { console.warn('Rollback failed:', e2); }
+        }
         const msgs = {
           'auth/email-already-in-use': 'このメールアドレスは既に登録されています',
           'auth/weak-password': 'パスワードは8文字以上で英字・数字・記号をすべて含めてください',
@@ -1062,6 +1078,7 @@
     document.getElementById('inquiry-form').reset();
     document.getElementById('inquiry-org-id').value = orgId;
     document.getElementById('inq-msg-counter').textContent = '0';
+    setBtnLoading('inquiry-submit-btn', false);
     const m = document.getElementById('inquiry-modal');
     m.classList.remove('hidden'); m.classList.add('flex');
     document.body.style.overflow = 'hidden';
@@ -1134,6 +1151,7 @@
       try {
         await db.collection('contacts').add({
           name: data.name, email: data.email, message: data.message,
+          read_at: null,
           created_at: firebase.firestore.FieldValue.serverTimestamp()
         });
         sendAdminNotification('contact', {
