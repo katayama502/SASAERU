@@ -13,6 +13,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <!-- 設定は Netlify Snippet Injection で window.SASAERU_CONFIG として注入済み -->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     body { font-family: 'Noto Sans JP', sans-serif; }
@@ -117,6 +119,10 @@
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
             <i data-lucide="message-square" width="16" height="16"></i>お問い合わせ
             <span id="badge-contacts" class="ml-auto bg-purple-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
+          </button>
+          <button onclick="switchTab('menus')" data-tab="menus"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="list-checks" width="16" height="16"></i>支援メニュー管理
           </button>
         </nav>
         <div class="px-4 py-4 border-t border-white/10">
@@ -275,6 +281,17 @@
             </div>
           </div>
 
+          <!-- 支援メニュー管理タブ（TASK-05） -->
+          <div id="tab-menus" class="hidden fade-in">
+            <div class="flex items-center justify-between mb-4">
+              <p class="text-xs text-slate-500">全団体の支援メニューを管理します</p>
+              <span id="menus-count" class="text-xs text-slate-400"></span>
+            </div>
+            <div id="admin-menus-list" class="space-y-2">
+              <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
         </div>
       </main>
     </div>
@@ -289,6 +306,23 @@
       <div class="flex gap-3">
         <button onclick="closeConfirm()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
         <button id="confirm-ok" class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 否認理由ダイアログ（TASK-03） -->
+  <div id="reject-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    role="dialog" aria-modal="true">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <h3 id="reject-dialog-title" class="text-base font-black text-[#0f0e2e] mb-2">申請を却下しますか？</h3>
+      <p class="text-sm text-slate-500 mb-3">ステータスを「却下」に変更します。後から変更することもできます。</p>
+      <label class="block text-xs font-bold text-slate-600 mb-1.5">否認理由（任意）</label>
+      <textarea id="reject-reason" rows="3" maxlength="500"
+        placeholder="理由がある場合は入力してください。申請者へのメールに含まれます。"
+        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-300 outline-none text-sm resize-none transition-all mb-5"></textarea>
+      <div class="flex gap-3">
+        <button onclick="closeRejectDialog()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
+        <button id="reject-ok" class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white bg-red-500 hover:bg-red-600">却下する</button>
       </div>
     </div>
   </div>
@@ -434,11 +468,12 @@
   // タブ切り替え
   // ============================================================
   const TAB_TITLES = {
-    overview:  { title: '概要',        subtitle: 'ダッシュボード' },
-    pending:   { title: '審査待ち',     subtitle: '登録申請を審査・承認' },
-    orgs:      { title: '団体管理',     subtitle: '全団体の管理・編集' },
-    inquiries: { title: '支援申請一覧', subtitle: '企業からの問い合わせ' },
-    contacts:  { title: 'お問い合わせ', subtitle: 'お問い合わせ一覧' },
+    overview:  { title: '概要',            subtitle: 'ダッシュボード' },
+    pending:   { title: '審査待ち',         subtitle: '登録申請を審査・承認' },
+    orgs:      { title: '団体管理',         subtitle: '全団体の管理・編集' },
+    inquiries: { title: '支援申請一覧',     subtitle: '企業からの問い合わせ' },
+    contacts:  { title: 'お問い合わせ',     subtitle: 'お問い合わせ一覧' },
+    menus:     { title: '支援メニュー管理', subtitle: '全団体の支援メニューを管理' },
   };
 
   function toggleSidebar() {
@@ -457,7 +492,7 @@
   function switchTab(name) {
     currentTab = name;
     closeSidebar();
-    ['overview','pending','orgs','inquiries','contacts'].forEach(t => {
+    ['overview','pending','orgs','inquiries','contacts','menus'].forEach(t => {
       document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
     });
     document.querySelectorAll('.side-btn').forEach(btn => {
@@ -480,6 +515,7 @@
     if (name === 'orgs')      loadOrgs();
     if (name === 'inquiries') loadInquiries();
     if (name === 'contacts')  loadContacts();
+    if (name === 'menus')     loadAdminMenus();
   }
 
   // ============================================================
@@ -728,9 +764,9 @@
             <button onclick="changeOrgStatus('${id}','pending','審査中に戻しますか？','このクラブを一時非公開にして再審査状態に戻します。')"
               class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
               <i data-lucide="rotate-ccw" width="12" height="12"></i>審査中に戻す</button>` : ''}
-          <a href="club.html?id=${id}" target="_blank" rel="noopener"
+          <a href="club.html?id=${id}&preview=1" target="_blank" rel="noopener"
             class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
-            <i data-lucide="external-link" width="12" height="12"></i>公開ページ</a>
+            <i data-lucide="external-link" width="12" height="12"></i>${o.status === 'public' ? '公開ページ' : 'プレビュー'}</a>
           <button data-id="${esc(id)}" data-name="${esc(o.name)}"
             onclick="deleteOrg(this.dataset.id, this.dataset.name)"
             class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
@@ -750,21 +786,19 @@
           await db.collection('organizations').doc(id).update({ status:'public', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
           showToast('承認・公開しました');
           loadTab(currentTab); loadOverview();
+          // 承認メール送信（TASK-03）
+          const orgSnap = await db.collection('organizations').doc(id).get();
+          if (orgSnap.exists) {
+            sendOrgStatusEmail('approve', { ...orgSnap.data(), _id: id });
+          }
         } catch(e) { showToast('エラー: ' + e.message, false); }
       }
     );
   }
 
   function rejectOrg(id, name) {
-    showConfirm(`「${name}」を却下しますか？`, 'ステータスを「却下」に変更します。後から変更することもできます。',
-      '却下する', 'bg-red-500 hover:bg-red-600', async () => {
-        if (!db) { showToast('Firebase未設定です', false); return; }
-        try {
-          await db.collection('organizations').doc(id).update({ status:'rejected', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
-          showToast('却下しました'); loadTab(currentTab); loadOverview();
-        } catch(e) { showToast('エラー: ' + e.message, false); }
-      }
-    );
+    // 否認理由入力ダイアログを使用（TASK-03）
+    showRejectDialog(id, name);
   }
 
   function changeOrgStatus(id, status, title, body) {
@@ -951,6 +985,80 @@
   }
 
   // ============================================================
+  // 支援メニュー管理（TASK-05）
+  // ============================================================
+  async function loadAdminMenus() {
+    const el = document.getElementById('admin-menus-list');
+    if (!db) { el.innerHTML = demoMsg(); return; }
+    el.innerHTML = '<div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>';
+    try {
+      const orgsSnap = await db.collection('organizations').get();
+      const allMenus = [];
+      await Promise.all(orgsSnap.docs.map(async orgDoc => {
+        const org = orgDoc.data();
+        const menusSnap = await db.collection('organizations').doc(orgDoc.id).collection('menus').get();
+        menusSnap.docs.forEach(m => {
+          allMenus.push({ orgId: orgDoc.id, orgName: org.name || '—', menuId: m.id, ...m.data() });
+        });
+      }));
+      allMenus.sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
+      const countEl = document.getElementById('menus-count');
+      if (countEl) countEl.textContent = `全 ${allMenus.length} 件`;
+      if (allMenus.length === 0) {
+        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援メニューはありません</div>';
+        return;
+      }
+      el.innerHTML = `
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-5 py-3 text-xs font-black text-slate-500">団体名</th>
+                <th class="text-left px-5 py-3 text-xs font-black text-slate-500">支援メニュー名</th>
+                <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">登録日</th>
+                <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">状態</th>
+                <th class="px-5 py-3"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              ${allMenus.map(m => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                  <td class="px-5 py-3 text-xs font-bold text-slate-700">${esc(m.orgName)}</td>
+                  <td class="px-5 py-3 text-xs text-[#0f0e2e] font-bold">${esc(m.title||'—')}</td>
+                  <td class="px-5 py-3 text-xs text-slate-400 hidden sm:table-cell">${fmtDate(m.created_at)}</td>
+                  <td class="px-5 py-3 hidden sm:table-cell">${statusBadge(m.status||'private')}</td>
+                  <td class="px-5 py-3 text-right">
+                    <button data-org="${esc(m.orgId)}" data-menu="${esc(m.menuId)}" data-title="${esc(m.title||'メニュー')}"
+                      onclick="deleteAdminMenu(this.dataset.org, this.dataset.menu, this.dataset.title)"
+                      class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
+                      <i data-lucide="trash-2" width="12" height="12"></i>削除
+                    </button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      lucide.createIcons();
+    } catch(e) { el.innerHTML = errMsg(e); }
+  }
+
+  function deleteAdminMenu(orgId, menuId, menuTitle) {
+    showConfirm(
+      `「${menuTitle}」を削除しますか？`,
+      'この操作は取り消せません。クラブページからも非表示になります。',
+      '削除する', 'bg-red-500 hover:bg-red-600',
+      async () => {
+        if (!db) { showToast('Firebase未設定です', false); return; }
+        try {
+          await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).delete();
+          showToast('支援メニューを削除しました');
+          loadAdminMenus();
+        } catch(e) { showToast('エラー: ' + e.message, false); }
+      }
+    );
+  }
+
+  // ============================================================
   // ヘルパー
   // ============================================================
   function demoMsg() {
@@ -958,6 +1066,82 @@
   }
   function errMsg(e) {
     return `<div class="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">読み込みエラー: ${esc(e.message)}</div>`;
+  }
+
+  // ============================================================
+  // 否認ダイアログ制御（TASK-03）
+  // ============================================================
+  let _rejectCallback = null;
+  function showRejectDialog(orgId, orgName) {
+    document.getElementById('reject-dialog-title').textContent = `「${orgName}」を却下しますか？`;
+    document.getElementById('reject-reason').value = '';
+    _rejectCallback = async () => {
+      const reason = document.getElementById('reject-reason').value.trim();
+      if (!db) { showToast('Firebase未設定です', false); return; }
+      try {
+        await db.collection('organizations').doc(orgId).update({
+          status: 'rejected', updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showToast('却下しました');
+        loadTab(currentTab); loadOverview();
+        // 申請者へ否認メール送信
+        const orgSnap = await db.collection('organizations').doc(orgId).get();
+        if (orgSnap.exists) {
+          sendOrgStatusEmail('reject', orgSnap.data(), reason);
+        }
+      } catch(e) { showToast('エラー: ' + e.message, false); }
+    };
+    const d = document.getElementById('reject-dialog');
+    d.classList.remove('hidden'); d.classList.add('flex');
+    setTimeout(() => document.getElementById('reject-reason').focus(), 50);
+  }
+  function closeRejectDialog() {
+    document.getElementById('reject-dialog').classList.add('hidden');
+    document.getElementById('reject-dialog').classList.remove('flex');
+    _rejectCallback = null;
+  }
+  document.getElementById('reject-ok').addEventListener('click', async () => {
+    if (_rejectCallback) await _rejectCallback();
+    closeRejectDialog();
+  });
+  document.getElementById('reject-dialog').addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeRejectDialog();
+  });
+
+  // ============================================================
+  // 承認・否認メール送信（TASK-03）
+  // EmailJS ダッシュボードで以下テンプレートを作成:
+  //   emailjsApproveTemplateId  変数: to_email, to_name, club_name, approved_at, club_page_url
+  //   emailjsRejectTemplateId   変数: to_email, to_name, club_name, reject_reason（空なら省略）
+  // ============================================================
+  let _adminEmailjsReady = false;
+  async function sendOrgStatusEmail(type, orgData, rejectReason = '') {
+    const cfg = window.SASAERU_CONFIG || {};
+    const publicKey  = cfg.emailjsPublicKey || '';
+    const serviceId  = cfg.emailjsServiceId || '';
+    const templateId = type === 'approve'
+      ? (cfg.emailjsApproveTemplateId || '')
+      : (cfg.emailjsRejectTemplateId  || '');
+    if (!publicKey || !serviceId || !templateId) return;
+    try {
+      if (!_adminEmailjsReady) { emailjs.init({ publicKey }); _adminEmailjsReady = true; }
+      const now = new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      const params = type === 'approve'
+        ? {
+            to_email:      orgData.contact_email,
+            to_name:       orgData.name,
+            club_name:     orgData.name,
+            approved_at:   now,
+            club_page_url: `${location.origin}/club.html?id=${orgData._id || ''}`,
+          }
+        : {
+            to_email:      orgData.contact_email,
+            to_name:       orgData.name,
+            club_name:     orgData.name,
+            reject_reason: rejectReason || '（理由の記載なし）',
+          };
+      await emailjs.send(serviceId, templateId, params);
+    } catch(e) { console.warn('ステータスメール送信失敗:', e); }
   }
 
   // ============================================================

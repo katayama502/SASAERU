@@ -567,14 +567,24 @@
           <input type="url" id="reg-image" name="main_image" maxlength="500" placeholder="https://... またはURLを直接入力"
             oninput="previewImage(this.value,'reg-img-preview')"
             class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm">
+          <p class="text-[10px] text-slate-400 mt-1.5">推奨：横 1200px × 縦 630px（16:9）／JPG・PNG／5MB以下</p>
           <div id="reg-img-preview" class="hidden mt-2">
             <img src="" alt="プレビュー" class="h-24 rounded-xl object-cover border border-slate-200 w-full" onerror="this.parentElement.classList.add('hidden')">
           </div>
         </div>
         <div>
-          <label for="reg-tags" class="block text-xs font-bold text-slate-600 mb-1.5">支援を求めている内容（カンマ区切り）</label>
-          <input type="text" id="reg-tags" name="tags" maxlength="300" placeholder="コーチ不足,備品不足,遠征費支援"
-            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm">
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">支援を求めている内容</label>
+          <div id="reg-tags-container"
+            class="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 bg-white flex flex-wrap gap-1.5 items-center cursor-text"
+            onclick="document.getElementById('reg-tags-input').focus()">
+            <div id="reg-tags-display" class="contents"></div>
+            <input type="text" id="reg-tags-input" maxlength="50"
+              placeholder="例：遠征費"
+              class="flex-1 min-w-[120px] outline-none text-sm bg-transparent py-0.5"
+              onkeydown="handleRegTagKey(event)">
+          </div>
+          <input type="hidden" id="reg-tags" name="tags">
+          <p class="text-[10px] text-slate-400 mt-1">Enterキーで追加。×で個別削除できます。</p>
         </div>
         <div>
           <label for="reg-activity" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介・現状 <span class="text-red-500">*</span></label>
@@ -694,6 +704,11 @@
   async function handleImageUpload(fileInput, urlInputId, statusElId) {
     const file = fileInput.files[0];
     if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      showToast('JPG・PNG形式のファイルを選択してください', false);
+      fileInput.value = '';
+      return;
+    }
     if (file.size > 5 * 1024 * 1024) {
       showToast('画像は5MB以下にしてください', false);
       fileInput.value = '';
@@ -753,6 +768,60 @@
   }
 
   // ===================================================
+  // 登録フォーム：タグUI（TASK-06）
+  // ===================================================
+  function handleRegTagKey(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = e.target.value.trim().replace(/,/g, '');
+      if (val && !_regTags.includes(val)) {
+        _regTags.push(val);
+        renderRegTags();
+      }
+      e.target.value = '';
+    }
+  }
+  function removeRegTag(i) {
+    _regTags.splice(i, 1);
+    renderRegTags();
+  }
+  function renderRegTags() {
+    const display = document.getElementById('reg-tags-display');
+    const hidden  = document.getElementById('reg-tags');
+    if (!display) return;
+    display.innerHTML = _regTags.map((t, i) =>
+      `<span class="inline-flex items-center gap-1 text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200 px-2 py-0.5 rounded-full">
+        ${esc(t)}<button type="button" onclick="removeRegTag(${i})" class="ml-0.5 hover:text-red-500 transition-colors leading-none text-base">×</button>
+      </span>`
+    ).join('');
+    if (hidden) hidden.value = _regTags.join(',');
+  }
+
+  // ===================================================
+  // 申請者へのメール送信（TASK-02）
+  // EmailJS ダッシュボードで以下の変数を持つテンプレートを作成し、
+  // config.js の emailjsApplicantTemplateId に設定してください。
+  // 変数: to_email, to_name, club_name, category_jp, registered_at
+  // ===================================================
+  async function sendApplicantEmail({ toEmail, clubName, categoryJp, registeredAt }) {
+    const cfg = getCfg();
+    const publicKey  = cfg.emailjsPublicKey           || '';
+    const serviceId  = cfg.emailjsServiceId            || '';
+    const templateId = cfg.emailjsApplicantTemplateId  || '';
+    if (!publicKey || !serviceId || !templateId) return; // 未設定は静かにスキップ
+    try {
+      if (!_emailjsReady) { emailjs.init({ publicKey }); _emailjsReady = true; }
+      await emailjs.send(serviceId, templateId, {
+        to_email:      toEmail,
+        to_name:       clubName,
+        club_name:     clubName,
+        category_jp:   categoryJp,
+        registered_at: registeredAt,
+      });
+    } catch(e) { console.warn('申請者メール送信失敗:', e); }
+  }
+
+  // ===================================================
   // パスワードバリデーション
   // ===================================================
   function validatePassword(pw) {
@@ -798,6 +867,7 @@
   let allOrgs = [];
   let _unsubStats = null;
   let _unsubOrgs  = null;
+  let _regTags    = [];
 
   // ===================================================
   // ユーティリティ
@@ -860,7 +930,16 @@
     lucide.createIcons();
   }
 
-  const CATEGORY_LABEL = { sports:'スポーツ', culture:'文化・芸術', welfare:'福祉', other:'その他' };
+  const CATEGORY_LABEL = {
+    sports:      'スポーツ',
+    culture:     '文化・芸術',
+    arts:        '芸術・文化',
+    welfare:     '福祉',
+    community:   '地域・コミュニティ',
+    education:   '教育',
+    environment: '環境',
+    other:       'その他',
+  };
   const CATEGORY_COLOR = {
     sports:  'bg-blue-50 text-blue-700 border-blue-100',
     culture: 'bg-purple-50 text-purple-700 border-purple-100',
@@ -990,6 +1069,7 @@
     document.getElementById('register-form').reset();
     document.getElementById('reg-img-preview').classList.add('hidden');
     document.getElementById('reg-activity-counter').textContent = '0';
+    _regTags = []; renderRegTags();
     const m = document.getElementById('register-modal');
     m.classList.remove('hidden'); m.classList.add('flex');
     document.body.style.overflow = 'hidden';
@@ -1022,7 +1102,7 @@
       return;
     }
 
-    const tags = (data.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+    const tags = [..._regTags];
     const payload = {
       name: data.name, category: data.category, area: data.area,
       contact_email: data.contact_email, main_image: data.main_image || null,
@@ -1035,18 +1115,37 @@
         // ① Firebaseアカウント作成
         cred = await auth.createUserWithEmailAndPassword(data.contact_email, data.password);
         // ② Firestoreドキュメント保存（失敗時は①をロールバック）
+        // [フェーズ2] メールアドレス認証の実装予定
+        //   1. Firebase Authentication の sendEmailVerification() を呼び出す
+        //   2. 認証前のユーザーは「審査待ち」状態のままにする
+        //   3. メール認証完了後に審査フローが開始される
+        //   参考：https://firebase.google.com/docs/auth/web/email-link-auth
         await db.collection('organizations').add({
           ...payload, owner_uid: cred.user.uid,
+          emailVerified: false,
           created_at: firebase.firestore.FieldValue.serverTimestamp()
         });
         sendAdminNotification('club_apply', {
-          クラブ名: data.name, カテゴリ: data.category,
+          クラブ名: data.name,
+          カテゴリ: CATEGORY_LABEL[data.category] ?? data.category,
           エリア: data.area || '未記入', メール: data.contact_email,
         });
-        result.textContent = '✓ 登録申請を受け付けました！';
+        // ③ メールアドレス確認メールを送信
+        try { await cred.user.sendEmailVerification(); } catch(e) { console.warn('確認メール送信失敗:', e); }
+        // 申請者に登録受付メール送信（TASK-02）
+        const now = new Date();
+        const registeredAt = now.toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        sendApplicantEmail({
+          toEmail:     data.contact_email,
+          clubName:    data.name,
+          categoryJp:  CATEGORY_LABEL[data.category] ?? data.category,
+          registeredAt,
+        });
+        result.textContent = '✓ 登録申請を受け付けました！確認メールをご確認ください。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
-        setTimeout(() => { closeRegisterModal(); window.location.href = 'mypage.html'; }, 2000);
+        _regTags = []; renderRegTags();
+        setTimeout(() => { closeRegisterModal(); window.location.href = 'mypage.html'; }, 2500);
       } catch(err) {
         // Firestoreへの保存失敗時、作成済みのFirebaseアカウントを削除してロールバック
         if (cred && err.code !== 'auth/email-already-in-use' && !err.code?.startsWith('auth/')) {
