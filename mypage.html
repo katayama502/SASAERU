@@ -63,6 +63,40 @@
     </div>
   </div>
 
+  <!-- メールアドレス確認待ち画面 -->
+  <div id="email-verify-screen" class="hidden min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
+      <div class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+        <i data-lucide="mail-check" class="text-indigo-500" width="32" height="32"></i>
+      </div>
+      <h1 class="text-xl font-black text-[#0f0e2e] mb-2">メールアドレスを確認してください</h1>
+      <p class="text-sm text-slate-500 mb-1 leading-relaxed">
+        登録したメールアドレスに確認メールをお送りしました。
+      </p>
+      <p id="verify-email-addr" class="text-sm font-bold text-indigo-600 mb-5"></p>
+      <p class="text-xs text-slate-400 mb-6 leading-relaxed">
+        メール内の「確認する」リンクをクリックした後、<br>下のボタンを押してください。
+      </p>
+      <!-- ステータスメッセージ -->
+      <p id="verify-status" class="text-xs text-center min-h-[1.2rem] mb-4"></p>
+      <!-- 確認済みチェックボタン -->
+      <button id="verify-check-btn" onclick="checkEmailVerified()"
+        class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl transition-all text-sm mb-3 flex items-center justify-center gap-2">
+        <i data-lucide="check-circle" width="16" height="16"></i>
+        確認しました
+      </button>
+      <!-- 再送ボタン -->
+      <button id="resend-btn" onclick="resendVerificationEmail()"
+        class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl transition-all text-sm mb-4">
+        確認メールを再送する
+      </button>
+      <button onclick="doSignOutFromVerify()"
+        class="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2">
+        別のアカウントでログインする
+      </button>
+    </div>
+  </div>
+
   <!-- ダッシュボード -->
   <div id="dashboard" class="hidden min-h-screen">
     <!-- モバイル サイドバー オーバーレイ -->
@@ -509,12 +543,94 @@
         if (token.claims.admin === true) { window.location.href = 'admin.html'; return; }
       } catch(e) { /* claims取得失敗時はそのまま進む */ }
       currentUser = user;
+      // メールアドレス未確認の場合は確認待ち画面を表示
+      if (!user.emailVerified) {
+        showEmailVerify(user.email);
+        return;
+      }
       loadUserOrg(user.uid);
     });
   } else {
     document.getElementById('loading-screen').classList.add('hidden');
     document.getElementById('no-org-screen').classList.remove('hidden');
     lucide.createIcons();
+  }
+
+  // ============================================================
+  // メールアドレス確認フロー
+  // ============================================================
+  function showEmailVerify(email) {
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('email-verify-screen').classList.remove('hidden');
+    const addrEl = document.getElementById('verify-email-addr');
+    if (addrEl) addrEl.textContent = email || '';
+    lucide.createIcons();
+  }
+
+  async function checkEmailVerified() {
+    const btn      = document.getElementById('verify-check-btn');
+    const statusEl = document.getElementById('verify-status');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> 確認中...';
+    statusEl.textContent = '';
+    statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4';
+    try {
+      await currentUser.reload();
+      const refreshed = auth.currentUser;
+      if (refreshed && refreshed.emailVerified) {
+        // 確認済み → ダッシュボードへ
+        currentUser = refreshed;
+        document.getElementById('email-verify-screen').classList.add('hidden');
+        document.getElementById('loading-screen').classList.remove('hidden');
+        loadUserOrg(currentUser.uid);
+      } else {
+        statusEl.textContent = 'まだ確認されていません。メール内のリンクをクリックしてから再度お試しください。';
+        statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-amber-500';
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="check-circle" width="16" height="16"></i> 確認しました';
+        lucide.createIcons();
+      }
+    } catch(e) {
+      statusEl.textContent = 'エラーが発生しました。しばらく待ってから再試行してください。';
+      statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="check-circle" width="16" height="16"></i> 確認しました';
+      lucide.createIcons();
+    }
+  }
+
+  async function resendVerificationEmail() {
+    const btn      = document.getElementById('resend-btn');
+    const statusEl = document.getElementById('verify-status');
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+    statusEl.textContent = '';
+    statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4';
+    try {
+      await currentUser.sendEmailVerification();
+      statusEl.textContent = '確認メールを再送しました。受信トレイをご確認ください。';
+      statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-green-600';
+      // 60秒間は再送不可（Firebase のレート制限対策）
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = '確認メールを再送する';
+      }, 60000);
+      btn.textContent = '再送しました（60秒後に再試行可能）';
+    } catch(e) {
+      if (e.code === 'auth/too-many-requests') {
+        statusEl.textContent = '送信回数が多すぎます。しばらく待ってから再試行してください。';
+      } else {
+        statusEl.textContent = '送信に失敗しました。しばらく待ってから再試行してください。';
+      }
+      statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
+      btn.disabled = false;
+      btn.textContent = '確認メールを再送する';
+    }
+  }
+
+  async function doSignOutFromVerify() {
+    if (auth) await auth.signOut();
+    window.location.replace('index.html');
   }
 
   async function loadUserOrg(uid) {
@@ -1192,9 +1308,16 @@
   });
 
   // BFCache（戻るボタン）対策: キャッシュから復元された場合も認証チェック
-  window.addEventListener('pageshow', e => {
-    if (e.persisted && auth && !auth.currentUser) {
-      window.location.replace('index.html');
+  window.addEventListener('pageshow', async e => {
+    if (!e.persisted) return;
+    if (!auth || !auth.currentUser) { window.location.replace('index.html'); return; }
+    // BFCacheから復元時にメール確認状態も最新化
+    try { await auth.currentUser.reload(); } catch(e) { /* ignore */ }
+    if (!auth.currentUser.emailVerified) {
+      // ダッシュボードが開いていた場合でも確認画面に戻す
+      document.getElementById('dashboard').classList.add('hidden');
+      currentUser = auth.currentUser;
+      showEmailVerify(currentUser.email);
     }
   });
   </script>

@@ -1130,6 +1130,8 @@
           カテゴリ: CATEGORY_LABEL[data.category] ?? data.category,
           エリア: data.area || '未記入', メール: data.contact_email,
         });
+        // ③ メールアドレス確認メールを送信
+        try { await cred.user.sendEmailVerification(); } catch(e) { console.warn('確認メール送信失敗:', e); }
         // 申請者に登録受付メール送信（TASK-02）
         const now = new Date();
         const registeredAt = now.toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -1139,11 +1141,11 @@
           categoryJp:  CATEGORY_LABEL[data.category] ?? data.category,
           registeredAt,
         });
-        result.textContent = '✓ 登録申請を受け付けました！';
+        result.textContent = '✓ 登録申請を受け付けました！確認メールをご確認ください。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
         _regTags = []; renderRegTags();
-        setTimeout(() => { closeRegisterModal(); window.location.href = 'mypage.html'; }, 2000);
+        setTimeout(() => { closeRegisterModal(); window.location.href = 'mypage.html'; }, 2500);
       } catch(err) {
         // Firestoreへの保存失敗時、作成済みのFirebaseアカウントを削除してロールバック
         if (cred && err.code !== 'auth/email-already-in-use' && !err.code?.startsWith('auth/')) {
