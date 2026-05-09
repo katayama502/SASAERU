@@ -193,6 +193,7 @@
                       oninput="markUnsaved(); previewProfileImage(this.value)"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
                       placeholder="https://... またはURLを直接入力">
+                    <p class="text-[10px] text-slate-400 mt-1">推奨：横 1200px × 縦 630px（16:9）／JPG・PNG／5MB以下</p>
                     <div id="profile-img-preview" class="hidden mt-2">
                       <img src="" alt="プレビュー" class="h-20 rounded-xl object-cover border border-slate-200 w-full"
                         onerror="this.parentElement.classList.add('hidden')">
@@ -200,11 +201,18 @@
                   </div>
                 </div>
                 <div>
-                  <label for="f-tags" class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ（カンマ区切り）</label>
-                  <input type="text" id="f-tags" maxlength="300" oninput="markUnsaved()"
-                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
-                    placeholder="例: 練習用具, ユニフォーム, 資金援助">
-                  <p class="text-[10px] text-slate-400 mt-1">複数タグはカンマ（,）で区切って入力してください</p>
+                  <label class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ</label>
+                  <div id="f-tags-container"
+                    class="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-400 bg-white flex flex-wrap gap-1.5 items-center cursor-text"
+                    onclick="document.getElementById('f-tags-input').focus()">
+                    <div id="f-tags-display" class="contents"></div>
+                    <input type="text" id="f-tags-input" maxlength="50"
+                      placeholder="例：練習用具"
+                      class="flex-1 min-w-[120px] outline-none text-sm bg-transparent py-0.5"
+                      onkeydown="handleProfileTagKey(event)">
+                  </div>
+                  <input type="hidden" id="f-tags">
+                  <p class="text-[10px] text-slate-400 mt-1">Enterキーで追加。×で個別削除できます。</p>
                 </div>
                 <div>
                   <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">活動内容・現状</label>
@@ -354,6 +362,7 @@
                       oninput="previewDiaryImage(this.value)"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
                       placeholder="https://... またはURLを直接入力">
+                    <p class="text-[10px] text-slate-400 mt-1">JPG・PNG／5MB以下</p>
                     <div id="diary-img-preview" class="hidden mt-2">
                       <img src="" alt="プレビュー" class="h-32 rounded-xl object-cover border border-slate-200 w-full"
                         onerror="this.parentElement.classList.add('hidden')">
@@ -438,6 +447,11 @@
   async function handleImageUpload(fileInput, urlInputId, statusElId) {
     const file = fileInput.files[0];
     if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      showToast('JPG・PNG形式のファイルを選択してください', false);
+      fileInput.value = '';
+      return;
+    }
     if (file.size > 5 * 1024 * 1024) {
       showToast('画像は5MB以下にしてください', false);
       fileInput.value = '';
@@ -477,6 +491,7 @@
   let editingMenuId  = null;
   let editingDiaryId = null;
   let profileDirty   = false;
+  let _profileTags   = [];
   const _menuCache  = new Map();
   const _diaryCache = new Map();
 
@@ -695,7 +710,10 @@
     document.getElementById('f-category').value      = org.category     || '';
     document.getElementById('f-area').value          = org.area         || '';
     document.getElementById('f-main-image').value    = org.main_image   || '';
-    document.getElementById('f-tags').value          = (org.tags || []).join(', ');
+    _profileTags = Array.isArray(org.tags)
+      ? [...org.tags]
+      : (typeof org.tags === 'string' ? org.tags.split(',').map(t=>t.trim()).filter(Boolean) : []);
+    renderProfileTags();
     document.getElementById('f-activity-how').value  = org.activity_how || '';
     document.getElementById('profile-char-counter').textContent = (org.activity_how || '').length;
 
@@ -712,8 +730,7 @@
     btn.disabled = true;
     btn.innerHTML = '<span class="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full"></span> 保存中...';
 
-    const rawTags = document.getElementById('f-tags').value;
-    const tags    = rawTags.split(',').map(t => t.trim()).filter(Boolean);
+    const tags = [..._profileTags];
     const data    = {
       name:         document.getElementById('f-name').value.trim(),
       category:     document.getElementById('f-category').value,
@@ -1070,6 +1087,38 @@
         } catch(err) { showToast('エラー: ' + err.message, false); }
       }
     );
+  }
+
+  // ============================================================
+  // プロフィールタグUI（TASK-06）
+  // ============================================================
+  function handleProfileTagKey(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = e.target.value.trim().replace(/,/g, '');
+      if (val && !_profileTags.includes(val)) {
+        _profileTags.push(val);
+        renderProfileTags();
+        markUnsaved();
+      }
+      e.target.value = '';
+    }
+  }
+  function removeProfileTag(i) {
+    _profileTags.splice(i, 1);
+    renderProfileTags();
+    markUnsaved();
+  }
+  function renderProfileTags() {
+    const display = document.getElementById('f-tags-display');
+    const hidden  = document.getElementById('f-tags');
+    if (!display) return;
+    display.innerHTML = _profileTags.map((t, i) =>
+      `<span class="inline-flex items-center gap-1 text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-0.5 rounded-full">
+        ${esc(t)}<button type="button" onclick="removeProfileTag(${i})" class="ml-0.5 hover:text-red-500 transition-colors leading-none text-base">×</button>
+      </span>`
+    ).join('');
+    if (hidden) hidden.value = _profileTags.join(',');
   }
 
   // ============================================================

@@ -564,6 +564,26 @@
   }
 
   // ===================================================
+  // 管理者プレビューモード判定（?preview=1 + admin claim）
+  // ===================================================
+  let _isAdminPreview = false;
+  async function checkAdminPreview() {
+    if (!auth) return false;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('preview') !== '1') return false;
+    return new Promise(resolve => {
+      const unsub = auth.onAuthStateChanged(async user => {
+        unsub();
+        if (!user) { resolve(false); return; }
+        try {
+          const token = await user.getIdTokenResult();
+          resolve(token.claims.admin === true);
+        } catch(e) { resolve(false); }
+      });
+    });
+  }
+
+  // ===================================================
   // メインロード
   // ===================================================
   async function loadClub() {
@@ -574,11 +594,17 @@
     if (!orgId) { showError('クラブが見つかりません', 'URLにクラブIDが指定されていません。'); return; }
     if (!db)    { showError('読み込みエラー', 'データベースへの接続に失敗しました。しばらく経ってから再度お試しください。'); return; }
 
+    // 管理者プレビューモードの確認（?preview=1 付きURLは管理者のみ非公開ページ閲覧可）
+    _isAdminPreview = await checkAdminPreview();
+
     try {
       const orgDoc = await db.collection('organizations').doc(orgId).get();
       if (!orgDoc.exists) { showError('クラブが見つかりません', '指定されたクラブは存在しません。URLをご確認ください。'); return; }
       const org = { id: orgDoc.id, ...orgDoc.data() };
-      if (org.status !== 'public') { showError('このページは非公開です', 'このクラブのページは現在非公開に設定されています。'); return; }
+      if (org.status !== 'public' && !_isAdminPreview) {
+        showError('このページは非公開です', 'このクラブのページは現在非公開に設定されています。');
+        return;
+      }
 
       currentOrgId   = org.id;
       currentOrgName = org.name || '';
