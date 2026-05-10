@@ -1117,13 +1117,39 @@
       let cred = null;
       try {
         // ① Firebaseアカウント作成
-        cred = await auth.createUserWithEmailAndPassword(data.contact_email, data.password);
+        //    email-already-in-use の場合、メール未確認の孤立アカウントなら削除して再試行
+        try {
+          cred = await auth.createUserWithEmailAndPassword(data.contact_email, data.password);
+        } catch(createErr) {
+          if (createErr.code === 'auth/email-already-in-use') {
+            // 同じパスワードでサインインを試みる
+            let existingCred = null;
+            try {
+              existingCred = await auth.signInWithEmailAndPassword(data.contact_email, data.password);
+            } catch(signInErr) {
+              // サインイン失敗（パスワード違い）→ 他人のアカウント。そのままエラーを再スロー
+              throw createErr;
+            }
+            if (existingCred.user.emailVerified) {
+              // 確認済みアカウントが存在する → 正規ユーザー。そのままエラーを再スロー
+              await auth.signOut();
+              throw createErr;
+            }
+            // 未確認の孤立アカウント → Firestore の pending org も削除してから Auth も削除
+            try {
+              const snap = await db.collection('organizations')
+                .where('owner_uid', '==', existingCred.user.uid)
+                .where('status', '==', 'pending').limit(1).get();
+              if (!snap.empty) await snap.docs[0].ref.delete();
+            } catch(e) { /* 無視して続行 */ }
+            await existingCred.user.delete();
+            // 再度アカウント作成
+            cred = await auth.createUserWithEmailAndPassword(data.contact_email, data.password);
+          } else {
+            throw createErr;
+          }
+        }
         // ② Firestoreドキュメント保存（失敗時は①をロールバック）
-        // [フェーズ2] メールアドレス認証の実装予定
-        //   1. Firebase Authentication の sendEmailVerification() を呼び出す
-        //   2. 認証前のユーザーは「審査待ち」状態のままにする
-        //   3. メール認証完了後に審査フローが開始される
-        //   参考：https://firebase.google.com/docs/auth/web/email-link-auth
         await db.collection('organizations').add({
           ...payload, owner_uid: cred.user.uid,
           emailVerified: false,
@@ -1159,8 +1185,9 @@
         _regTags = []; renderRegTags();
         setTimeout(() => { closeRegisterModal(); window.location.href = 'mypage.html'; }, 2500);
       } catch(err) {
-        // Firestoreへの保存失敗時、作成済みのFirebaseアカウントを削除してロールバック
-        if (cred && err.code !== 'auth/email-already-in-use' && !err.code?.startsWith('auth/')) {
+        // Firestore保存失敗など、Authアカウント作成後にエラーが起きた場合はアカウントを削除してロールバック
+        // （auth/で始まるエラーはアカウント作成前に発生するためロールバック不要）
+        if (cred && !err.code?.startsWith('auth/')) {
           try { await cred.user.delete(); } catch(e2) { console.warn('Rollback failed:', e2); }
         }
         const msgs = {

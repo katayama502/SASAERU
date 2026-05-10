@@ -572,8 +572,26 @@
         if (token.claims.admin === true) { window.location.href = 'admin.html'; return; }
       } catch(e) { /* claims取得失敗時はそのまま進む */ }
       currentUser = user;
-      // メールアドレス未確認の場合は確認待ち画面を表示
+      // メールアドレス未確認の場合 → まず reload() で最新状態を取得
+      // （メールリンクから戻った直後は Firebase SDK がキャッシュを持つため）
       if (!user.emailVerified) {
+        try {
+          await user.reload();
+          const fresh = auth.currentUser;
+          if (fresh && fresh.emailVerified) {
+            // 確認済みになっていた → Firestore も更新してダッシュボードへ
+            currentUser = fresh;
+            if (db) {
+              try {
+                const snap = await db.collection('organizations')
+                  .where('owner_uid', '==', fresh.uid).limit(1).get();
+                if (!snap.empty) await snap.docs[0].ref.update({ emailVerified: true });
+              } catch(e) { /* 更新失敗は無視 */ }
+            }
+            loadUserOrg(fresh.uid);
+            return;
+          }
+        } catch(e) { /* reload失敗時はそのまま確認待ち画面へ */ }
         showEmailVerify(user.email);
         return;
       }
