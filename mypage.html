@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
   <title>SASAERU マイページ</title>
   <meta name="robots" content="noindex,nofollow">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -449,7 +450,7 @@
 
   <!-- 確認ダイアログ -->
   <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true">
+    role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
       <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
@@ -499,7 +500,9 @@
       { method: 'POST', body: form }
     );
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'アップロード失敗'); }
-    return (await res.json()).secure_url;
+    // P-4: Cloudinary 自動最適化（WebP変換・品質80・幅1200px上限）
+    const raw = (await res.json()).secure_url;
+    return raw.replace('/upload/', '/upload/f_auto,q_80,w_1200/');
   }
 
   async function handleImageUpload(fileInput, urlInputId, statusElId) {
@@ -573,6 +576,10 @@
         return;
       }
       loadUserOrg(user.uid);
+    }).catch(err => {
+      // B-3: 認証チェーンの未処理rejectionを捕捉し、ログイン画面へ
+      console.error('Auth error:', err);
+      window.location.replace('index.html');
     });
   } else {
     document.getElementById('loading-screen').classList.add('hidden');
@@ -823,7 +830,8 @@
       const newCount = _myInquiries.filter(d => d.data().status === 'new').length;
       const badge = document.getElementById('badge-inquiries');
       if (badge) { badge.textContent = newCount; badge.classList.toggle('hidden', newCount === 0); }
-      renderMyInquiries();
+      // M-9: フィルターUI状態をデータ読み込み後に同期（タブ再表示後の不整合を防止）
+      filterMyInquiries(_myInqFilter);
     } catch(e) {
       el.innerHTML = `<div class="text-xs text-red-400 text-center py-10">読み込みエラー: ${esc(e.message)}</div>`;
     }
@@ -1371,13 +1379,15 @@
     );
   }
 
+  let _toastTimer = null;
   function showToast(msg, ok = true) {
     const t  = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
     ti.textContent = msg;
     ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
     t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3000);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
   }
 
   function fmtDate(val) {
@@ -1407,7 +1417,14 @@
     confirmCallback = null;
   }
   document.getElementById('confirm-ok').addEventListener('click', async () => {
-    if (confirmCallback) await confirmCallback();
+    // B-1: ダブルクリックによる二重実行防止 — 呼び出し前に null に設定
+    const cb = confirmCallback;
+    confirmCallback = null;
+    if (cb) {
+      const okBtn = document.getElementById('confirm-ok');
+      okBtn.disabled = true;
+      try { await cb(); } finally { okBtn.disabled = false; }
+    }
     closeConfirm();
   });
   document.getElementById('confirm-dialog').addEventListener('keydown', e => {
@@ -1445,6 +1462,11 @@
       showEmailVerify(currentUser.email);
     }
   });
+
+  // P-2: 本番環境で console.log を無効化
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.log = () => {};
+  }
   </script>
 </body>
 </html>

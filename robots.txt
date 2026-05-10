@@ -1,0 +1,7 @@
+User-agent: *
+# 管理画面・マイページはクロール禁止
+Disallow: /admin.html
+Disallow: /mypage.html
+Allow: /
+
+Sitemap: https://sasaeru.netlify.app/sitemap.xml

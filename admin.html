@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
   <title>SASAERU 管理ダッシュボード</title>
   <meta name="robots" content="noindex,nofollow">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -69,7 +70,7 @@
           class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl transition-all text-sm shadow-md mt-2 flex items-center justify-center gap-2">
           サインイン
         </button>
-        <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]"></p>
+        <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]" aria-live="assertive"></p>
       </form>
       <p class="text-center text-xs text-slate-400 mt-6">
         <a href="index.html" class="hover:text-indigo-700 underline underline-offset-2">← 公開サイトへ戻る</a>
@@ -298,7 +299,7 @@
 
   <!-- 確認ダイアログ -->
   <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true">
+    role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
       <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
@@ -311,11 +312,11 @@
 
   <!-- 否認理由ダイアログ（TASK-03） -->
   <div id="reject-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true">
+    role="dialog" aria-modal="true" aria-labelledby="reject-dialog-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <h3 id="reject-dialog-title" class="text-base font-black text-[#0f0e2e] mb-2">申請を却下しますか？</h3>
       <p class="text-sm text-slate-500 mb-3">ステータスを「却下」に変更します。後から変更することもできます。</p>
-      <label class="block text-xs font-bold text-slate-600 mb-1.5">否認理由（任意）</label>
+      <label for="reject-reason" class="block text-xs font-bold text-slate-600 mb-1.5">否認理由（任意）</label>
       <textarea id="reject-reason" rows="3" maxlength="500"
         placeholder="理由がある場合は入力してください。申請者へのメールに含まれます。"
         class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-300 outline-none text-sm resize-none transition-all mb-5"></textarea>
@@ -383,7 +384,11 @@
       const unsub = auth.onAuthStateChanged(user => { unsub(); resolve(user); });
     }).then(user => {
       if (!user) { showLogin(); return; }
-      verifyAdminAndShow(user, null);
+      // B-3: verifyAdminAndShow の Promise を return して rejection を伝播させる
+      return verifyAdminAndShow(user, null);
+    }).catch(err => {
+      console.error('Auth error:', err);
+      showLogin();
     });
   } else {
     // Firebase未設定の場合はログイン画面にエラーを表示（デモ動作を無効化）
@@ -405,7 +410,13 @@
     btn.disabled  = true;
     btn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> 確認中...';
 
-    if (!auth) { showDashboard({ email }); return; }
+    // H-1: Firebase未設定時はダッシュボードを表示せずエラーのみ表示
+    if (!auth) {
+      errEl.textContent = 'Firebase設定が読み込めません。管理者に連絡してください。';
+      btn.disabled = false;
+      btn.innerHTML = 'ログイン';
+      return;
+    }
     try {
       const cred = await auth.signInWithEmailAndPassword(email, password);
       await verifyAdminAndShow(cred.user, errEl);
@@ -525,13 +536,15 @@
       ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
     );
   }
+  let _toastTimer = null;
   function showToast(msg, ok = true) {
     const t  = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
     ti.textContent = msg;
     ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
     t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3000);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
   }
   function fmtDate(val) {
     if (!val) return '—';
@@ -544,6 +557,7 @@
       pending:  ['badge-pending',  '審査中'],
       public:   ['badge-public',   '公開中'],
       rejected: ['badge-rejected', '却下'],
+      private:  ['bg-slate-100 text-slate-500', '非公開'],  // M-6
       new:      ['badge-new',      '未対応'],
       done:     ['badge-done',     '対応済み'],
       unread:   ['badge-unread',   '未読'],
@@ -581,7 +595,14 @@
     confirmCallback = null;
   }
   document.getElementById('confirm-ok').addEventListener('click', async () => {
-    if (confirmCallback) await confirmCallback();
+    // B-1: ダブルクリックによる二重実行防止 — 呼び出し前に null に設定
+    const cb = confirmCallback;
+    confirmCallback = null;
+    if (cb) {
+      const okBtn = document.getElementById('confirm-ok');
+      okBtn.disabled = true;
+      try { await cb(); } finally { okBtn.disabled = false; }
+    }
     closeConfirm();
   });
   document.getElementById('confirm-dialog').addEventListener('keydown', e => {
@@ -600,19 +621,20 @@
   async function loadOverview() {
     if (!db) { renderOverviewDemo(); return; }
     try {
-      const [pendSnap, pubSnap, inqSnap, conSnap] = await Promise.all([
+      // P-1: where フィルタをサーバー側で適用し全件取得を回避
+      const [pendSnap, pubSnap, inqNewSnap, conSnap] = await Promise.all([
         db.collection('organizations').where('status','==','pending').get(),
         db.collection('organizations').where('status','==','public').get(),
-        db.collection('inquiries').get(),
-        db.collection('contacts').get(),
+        db.collection('inquiries').where('status','==','new').get(),
+        db.collection('contacts').where('read_at','==',null).get(),
       ]);
       document.getElementById('ov-pending').textContent   = pendSnap.size;
       document.getElementById('ov-public').textContent    = pubSnap.size;
-      document.getElementById('ov-inquiries').textContent = inqSnap.docs.filter(d => d.data().status === 'new').length;
-      document.getElementById('ov-contacts').textContent  = conSnap.docs.filter(d => !d.data().read_at).length;
+      document.getElementById('ov-inquiries').textContent = inqNewSnap.size;
+      document.getElementById('ov-contacts').textContent  = conSnap.size;
       updateBadge('badge-pending',   pendSnap.size);
-      updateBadge('badge-inquiries', inqSnap.docs.filter(d => d.data().status === 'new').length);
-      updateBadge('badge-contacts',  conSnap.docs.filter(d => !d.data().read_at).length);
+      updateBadge('badge-inquiries', inqNewSnap.size);
+      updateBadge('badge-contacts',  conSnap.size);
       const pendingSorted = pendSnap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
       renderRecentPending(pendingSorted.slice(0, 5));
     } catch(e) {
@@ -811,18 +833,35 @@
   }
 
   function deleteOrg(id, name) {
-    showConfirm(`「${name}」を削除しますか？`, 'この操作は取り消せません。団体情報と支援メニューがすべて削除されます。\n※ ログインアカウント（メール）は別途 Firebase Console から削除してください。',
-      '削除する', 'bg-red-500 hover:bg-red-600', async () => {
+    showConfirm(
+      `「${name}」を削除しますか？`,
+      'この操作は取り消せません。支援メニュー・問い合わせ履歴・活動日記もすべて削除されます。\n⚠️ ログインアカウント（メール）は別途 Firebase Console から削除してください。',
+      '削除する', 'bg-red-500 hover:bg-red-600',
+      async () => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
-          // menus サブコレクションを先に一括削除（Firestore は自動カスケード削除しない）
-          const menusSnap = await db.collection('organizations').doc(id).collection('menus').get();
-          if (!menusSnap.empty) {
-            const batch = db.batch();
-            menusSnap.docs.forEach(d => batch.delete(d.ref));
-            await batch.commit();
+          const orgRef = db.collection('organizations').doc(id);
+          const orgDoc = await orgRef.get();
+          const ownerUid = orgDoc.exists ? orgDoc.data().owner_uid : null;
+          const batch = db.batch();
+
+          // B-1: menus サブコレクション削除
+          const menusSnap = await orgRef.collection('menus').get();
+          menusSnap.docs.forEach(d => batch.delete(d.ref));
+
+          // B-1: inquiries（この団体宛）削除
+          const inqSnap = await db.collection('inquiries').where('org_id', '==', id).get();
+          inqSnap.docs.forEach(d => batch.delete(d.ref));
+
+          // B-1: posts（このオーナーの投稿）削除
+          if (ownerUid) {
+            const postsSnap = await db.collection('posts').where('owner_uid', '==', ownerUid).get();
+            postsSnap.docs.forEach(d => batch.delete(d.ref));
           }
-          await db.collection('organizations').doc(id).delete();
+
+          // 団体ドキュメント本体を削除
+          batch.delete(orgRef);
+          await batch.commit();
           showToast('削除しました'); loadTab(currentTab); loadOverview();
         } catch(e) { showToast('エラー: ' + e.message, false); }
       }
@@ -1128,7 +1167,16 @@
     closeRejectDialog();
   });
   document.getElementById('reject-dialog').addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeRejectDialog();
+    if (e.key === 'Escape') { closeRejectDialog(); return; }
+    // M-7: Tab キーのフォーカストラップ
+    if (e.key === 'Tab') {
+      const btns = document.getElementById('reject-dialog').querySelectorAll('button, textarea');
+      const focusable = [...btns].filter(el => !el.disabled);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
   });
 
   // ============================================================
@@ -1167,6 +1215,13 @@
       showLogin();
     }
   });
+
+  // ============================================================
+  // P-2: 本番環境で console.log を無効化（warn/error は残す）
+  // ============================================================
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.log = () => {};
+  }
 
   // ============================================================
   // 初期化

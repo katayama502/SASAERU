@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
   <title>クラブ詳細 - SASAERU</title>
   <meta name="description" content="地域クラブの活動紹介・支援メニューをご覧いただけます - SASAERU">
   <meta property="og:site_name" content="SASAERU">
   <meta property="og:type" content="website">
   <meta id="og-title" property="og:title" content="クラブ詳細 - SASAERU">
   <meta id="og-description" property="og:description" content="地域クラブの活動紹介・支援メニューをご覧ください">
-  <meta id="og-image" property="og:image" content="">
-  <meta id="og-url" property="og:url" content="">
+  <!-- L-4: 静的デフォルト値を設定（クローラーはJSを実行しないため） -->
+  <meta id="og-image" property="og:image" content="https://sasaeru.netlify.app/ogp.png">
+  <meta id="og-url" property="og:url" content="https://sasaeru.netlify.app/club.html">
   <meta name="twitter:card" content="summary_large_image">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -144,7 +146,9 @@
       <!-- ヒーローセクション -->
       <section id="hero-section" class="relative min-h-[520px] md:min-h-[600px] flex items-end overflow-hidden bg-[#0f0e2e]">
         <div class="absolute inset-0" id="hero-bg">
-          <img id="hero-img" src="" alt="" class="w-full h-full object-cover">
+          <!-- M-8: onerror でCDN障害時にグラデーション背景へフォールバック -->
+          <img id="hero-img" src="" alt="" class="w-full h-full object-cover"
+            onerror="document.getElementById('hero-bg').classList.add('hidden')">
           <div class="absolute inset-0 hero-overlay"></div>
         </div>
         <div id="hero-gradient" class="hidden absolute inset-0">
@@ -301,7 +305,7 @@
       <!-- 日記画像 -->
       <div id="post-modal-img-wrap" class="hidden">
         <img id="post-modal-img" src="" alt="" class="w-full max-h-72 object-cover rounded-t-2xl"
-          onerror="document.getElementById('post-modal-img-wrap').classList.add('hidden')">
+          loading="lazy" onerror="document.getElementById('post-modal-img-wrap').classList.add('hidden')">
       </div>
       <div class="p-6 sm:p-8 flex flex-col flex-grow">
         <!-- 日付 -->
@@ -355,6 +359,7 @@
         <div>
           <label for="inq-phone" class="block text-xs font-bold text-slate-600 mb-1.5">電話番号</label>
           <input type="tel" id="inq-phone" name="phone" maxlength="20" placeholder="090-0000-0000"
+            pattern="^[\d\-\+\(\)\s]{7,20}$" title="半角数字・ハイフンで入力してください"
             class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
         </div>
         <div>
@@ -369,7 +374,7 @@
           class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-black py-4 rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2">
           申請する
         </button>
-        <p id="inquiry-result" class="text-xs text-center min-h-[1rem]"></p>
+        <p id="inquiry-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
       </form>
     </div>
   </div>
@@ -445,13 +450,15 @@
     );
   }
 
+  let _toastTimer = null;
   function showToast(msg, ok = true) {
     const t = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
     ti.textContent = msg;
     ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
     t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3500);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
   }
 
   function setBtnLoading(id, loading) {
@@ -867,12 +874,17 @@
     m.classList.remove('hidden'); m.classList.add('flex');
     document.body.style.overflow = 'hidden';
     lucide.createIcons();
+    // U-3: モーダルを開いた後、閉じるボタンにフォーカスを移動
+    _postModalOpener = document.activeElement;
+    setTimeout(() => m.querySelector('button[aria-label="モーダルを閉じる"]')?.focus(), 50);
   }
 
   function closePostModal() {
     const m = document.getElementById('post-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
+    // U-3: モーダルを開いたボタンにフォーカスを戻す
+    if (_postModalOpener) { _postModalOpener.focus(); _postModalOpener = null; }
   }
 
   document.getElementById('post-modal').addEventListener('click', e => {
@@ -961,6 +973,8 @@
         result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
+        // H-3: 成功時もボタンをリセット（ESCでモーダルを早期に閉じた場合の対策）
+        setBtnLoading('inq-submit-btn', false);
         setTimeout(closeInquiryModal, 2500);
         showToast('支援申請を受け付けました');
         return;
@@ -1005,8 +1019,14 @@
   // ESCキー & フォーカストラップ
   // ===================================================
   let _activeModal = null;
+  let _postModalOpener = null;
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeInquiryModal();
+    if (e.key === 'Escape') {
+      // U-3: 日記詳細モーダルが開いている場合はそちらを閉じる
+      const postModal = document.getElementById('post-modal');
+      if (postModal && postModal.classList.contains('flex')) { closePostModal(); return; }
+      closeInquiryModal();
+    }
     if (e.key === 'Tab' && _activeModal) {
       const focusable = [..._activeModal.querySelectorAll(
         'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled])'
@@ -1017,6 +1037,13 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
   });
+
+  // ===================================================
+  // P-2: 本番環境で console.log を無効化
+  // ===================================================
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.log = () => {};
+  }
 
   // ===================================================
   // 初期化
