@@ -13,7 +13,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <!-- 設定は Netlify Snippet Injection で window.SASAERU_CONFIG として注入済み -->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
@@ -1109,38 +1108,30 @@
   });
 
   // ============================================================
-  // 承認・否認メール送信（TASK-03）
-  // EmailJS ダッシュボードで以下テンプレートを作成:
-  //   emailjsApproveTemplateId  変数: to_email, to_name, club_name, approved_at, club_page_url
-  //   emailjsRejectTemplateId   変数: to_email, to_name, club_name, reject_reason（空なら省略）
+  // 承認・否認メール送信（TASK-03 / Nodemailer + Netlify Function）
   // ============================================================
-  let _adminEmailjsReady = false;
   async function sendOrgStatusEmail(type, orgData, rejectReason = '') {
-    const cfg = window.SASAERU_CONFIG || {};
-    const publicKey  = cfg.emailjsPublicKey || '';
-    const serviceId  = cfg.emailjsServiceId || '';
-    const templateId = type === 'approve'
-      ? (cfg.emailjsApproveTemplateId || '')
-      : (cfg.emailjsRejectTemplateId  || '');
-    if (!publicKey || !serviceId || !templateId) return;
     try {
-      if (!_adminEmailjsReady) { emailjs.init({ publicKey }); _adminEmailjsReady = true; }
       const now = new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
       const params = type === 'approve'
         ? {
-            to_email:      orgData.contact_email,
-            to_name:       orgData.name,
-            club_name:     orgData.name,
-            approved_at:   now,
-            club_page_url: `${location.origin}/club.html?id=${orgData._id || ''}`,
+            toEmail:     orgData.contact_email,
+            toName:      orgData.name,
+            clubName:    orgData.name,
+            approvedAt:  now,
+            clubPageUrl: `${location.origin}/club.html?id=${orgData._id || ''}`,
           }
         : {
-            to_email:      orgData.contact_email,
-            to_name:       orgData.name,
-            club_name:     orgData.name,
-            reject_reason: rejectReason || '（理由の記載なし）',
+            toEmail:      orgData.contact_email,
+            toName:       orgData.name,
+            clubName:     orgData.name,
+            rejectReason: rejectReason || '',
           };
-      await emailjs.send(serviceId, templateId, params);
+      await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, params }),
+      });
     } catch(e) { console.warn('ステータスメール送信失敗:', e); }
   }
 
