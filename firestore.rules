@@ -39,6 +39,7 @@ service cloud.firestore {
       // 更新: 管理者はすべてのフィールドを変更可
       //       オーナーは指定フィールドのみ変更可 / statusは'pending'への変更（再申請）のみ許可
       // S-2 / M-4: hasOnly制限 + フィールド値バリデーション（サイズ・フォーマット）
+      // emailVerified は false→true の一方向更新のみオーナーに許可（メール確認完了時）
       allow update: if isAdmin()
                     || (isOwnerOf(orgId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -49,9 +50,18 @@ service cloud.firestore {
                         && request.resource.data.name.size() > 0
                         && request.resource.data.name.size() <= 100
                         && (request.resource.data.status == resource.data.status
-                            || request.resource.data.status == 'pending'));
+                            || request.resource.data.status == 'pending'))
+                    || (isAuth()
+                        && resource.data.owner_uid == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailVerified'])
+                        && request.resource.data.emailVerified == true
+                        && resource.data.emailVerified == false);
       // 削除: 管理者のみ
-      allow delete: if isAdmin();
+      //       例外: status=pending（未審査）のオーナーは申請取り下げ・タイムアウト削除が可能
+      allow delete: if isAdmin()
+                    || (isAuth()
+                        && resource.data.owner_uid == request.auth.uid
+                        && resource.data.status == 'pending');
     }
 
     // organizations/{orgId}/menus サブコレクション（支援メニュー）
