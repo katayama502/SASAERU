@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
   <title>SASAERU マイページ</title>
   <meta name="robots" content="noindex,nofollow">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -829,7 +830,8 @@
       const newCount = _myInquiries.filter(d => d.data().status === 'new').length;
       const badge = document.getElementById('badge-inquiries');
       if (badge) { badge.textContent = newCount; badge.classList.toggle('hidden', newCount === 0); }
-      renderMyInquiries();
+      // M-9: フィルターUI状態をデータ読み込み後に同期（タブ再表示後の不整合を防止）
+      filterMyInquiries(_myInqFilter);
     } catch(e) {
       el.innerHTML = `<div class="text-xs text-red-400 text-center py-10">読み込みエラー: ${esc(e.message)}</div>`;
     }
@@ -1377,13 +1379,15 @@
     );
   }
 
+  let _toastTimer = null;
   function showToast(msg, ok = true) {
     const t  = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
     ti.textContent = msg;
     ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
     t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3000);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
   }
 
   function fmtDate(val) {

@@ -2,6 +2,10 @@
   publish = "."
   command = "npm --prefix netlify/functions/send-email install"
 
+# H-4: functions ディレクトリを明示（Netlify の自動検出に頼らない）
+[functions]
+  directory = "netlify/functions"
+
 # admin.html は直接配信（SPAリダイレクト対象外）
 [[redirects]]
   from = "/admin.html"

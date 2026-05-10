@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
   <title>SASAERU 管理ダッシュボード</title>
   <meta name="robots" content="noindex,nofollow">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -409,7 +410,13 @@
     btn.disabled  = true;
     btn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> 確認中...';
 
-    if (!auth) { showDashboard({ email }); return; }
+    // H-1: Firebase未設定時はダッシュボードを表示せずエラーのみ表示
+    if (!auth) {
+      errEl.textContent = 'Firebase設定が読み込めません。管理者に連絡してください。';
+      btn.disabled = false;
+      btn.innerHTML = 'ログイン';
+      return;
+    }
     try {
       const cred = await auth.signInWithEmailAndPassword(email, password);
       await verifyAdminAndShow(cred.user, errEl);
@@ -529,13 +536,15 @@
       ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
     );
   }
+  let _toastTimer = null;
   function showToast(msg, ok = true) {
     const t  = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
     ti.textContent = msg;
     ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
     t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3000);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
   }
   function fmtDate(val) {
     if (!val) return '—';
@@ -548,6 +557,7 @@
       pending:  ['badge-pending',  '審査中'],
       public:   ['badge-public',   '公開中'],
       rejected: ['badge-rejected', '却下'],
+      private:  ['bg-slate-100 text-slate-500', '非公開'],  // M-6
       new:      ['badge-new',      '未対応'],
       done:     ['badge-done',     '対応済み'],
       unread:   ['badge-unread',   '未読'],
@@ -1157,7 +1167,16 @@
     closeRejectDialog();
   });
   document.getElementById('reject-dialog').addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeRejectDialog();
+    if (e.key === 'Escape') { closeRejectDialog(); return; }
+    // M-7: Tab キーのフォーカストラップ
+    if (e.key === 'Tab') {
+      const btns = document.getElementById('reject-dialog').querySelectorAll('button, textarea');
+      const focusable = [...btns].filter(el => !el.disabled);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
   });
 
   // ============================================================

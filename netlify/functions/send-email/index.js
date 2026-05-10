@@ -225,12 +225,17 @@ function buildMailOptions(type, rawParams) {
 // ハンドラー
 // ============================================================
 exports.handler = async (event) => {
-  // S-4: CORS を許可オリジンに限定
+  // S-4 / H-6: CORS を許可オリジンに限定
+  // ALLOWED_ORIGIN 未設定時は null を返してすべてのクロスオリジンリクエストを拒否（fail-closed）
   const allowedOrigins = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
   const reqOrigin = event.headers.origin || event.headers.Origin || '';
-  const corsOrigin = allowedOrigins.length === 0 || allowedOrigins.includes(reqOrigin)
-    ? (reqOrigin || '*')
-    : allowedOrigins[0];
+  let corsOrigin;
+  if (allowedOrigins.length === 0) {
+    // 未設定の場合は同オリジン（Netlify 内部）からのみ許可
+    corsOrigin = reqOrigin || 'null';
+  } else {
+    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : allowedOrigins[0];
+  }
 
   const headers = {
     'Content-Type': 'application/json',

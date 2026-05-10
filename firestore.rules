@@ -35,13 +35,16 @@ service cloud.firestore {
                     && request.resource.data.status == "pending";
       // 更新: 管理者はすべてのフィールドを変更可
       //       オーナーは指定フィールドのみ変更可 / statusは'pending'への変更（再申請）のみ許可
-      // S-2: hasOnly制限なしではオーナーが status:'public' を自己設定できる問題を修正
+      // S-2 / M-4: hasOnly制限 + フィールド値バリデーション（サイズ・フォーマット）
       allow update: if isAdmin()
                     || (isOwnerOf(orgId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                              'name','category','area','main_image','tags',
                              'activity_how','updated_at','status'
                            ])
+                        && request.resource.data.name is string
+                        && request.resource.data.name.size() > 0
+                        && request.resource.data.name.size() <= 100
                         && (request.resource.data.status == resource.data.status
                             || request.resource.data.status == 'pending'));
       // 削除: 管理者のみ
@@ -54,8 +57,20 @@ service cloud.firestore {
       allow get:    if resource.data.status == "public" || isOwnerOf(orgId) || isAdmin();
       // 一覧取得: 公開メニューは未認証でも取得可 / オーナーまたは管理者は非公開含む全て取得可
       allow list:   if resource.data.status == "public" || isOwnerOf(orgId) || isAdmin();
-      // 作成・更新: オーナー または 管理者（強制非公開など）
-      allow create, update: if isOwnerOf(orgId) || isAdmin();
+      // 作成・更新: オーナー（許可フィールドのみ）または 管理者（強制非公開など全フィールド）
+      // M-3: hasOnly でオーナーによる任意フィールド書き込みを防止
+      allow create: if isAdmin()
+                    || (isOwnerOf(orgId)
+                        && request.resource.data.keys().hasOnly([
+                             'title','support_type','target_amount','description',
+                             'return_merit','status','created_at','updated_at'
+                           ]));
+      allow update: if isAdmin()
+                    || (isOwnerOf(orgId)
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                             'title','support_type','target_amount','description',
+                             'return_merit','status','updated_at'
+                           ]));
       // 削除: オーナーまたは管理者
       allow delete: if isOwnerOf(orgId) || isAdmin();
     }
@@ -79,8 +94,12 @@ service cloud.firestore {
 
     // inquiries（支援申請）
     match /inquiries/{inquiryId} {
-      // S-1: 作成時に必須フィールドと型を検証（スパム対策）
+      // S-1 / M-2: 必須フィールド検証 + hasOnly で余分フィールド書き込みを防止
       allow create: if request.resource.data.keys().hasAll(['org_id','company_name','sender_email','status'])
+                    && request.resource.data.keys().hasOnly([
+                         'org_id','company_name','pic_name','sender_email',
+                         'phone','message','status','created_at'
+                       ])
                     && request.resource.data.status == 'new'
                     && request.resource.data.company_name is string
                     && request.resource.data.company_name.size() > 0
@@ -99,8 +118,9 @@ service cloud.firestore {
 
     // contacts（お問い合わせ）— 管理者のみ閲覧・操作可
     match /contacts/{contactId} {
-      // S-1 + S-5: 必須フィールド・基本バリデーション・サイズ上限（DoS対策）
+      // S-1 + S-5 + M-1: hasOnly で read_at など管理フィールドの不正書き込みを防止
       allow create: if request.resource.data.keys().hasAll(['name','email','message'])
+                    && request.resource.data.keys().hasOnly(['name','email','message','created_at'])
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() <= 200

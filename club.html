@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
   <title>クラブ詳細 - SASAERU</title>
   <meta name="description" content="地域クラブの活動紹介・支援メニューをご覧いただけます - SASAERU">
   <meta property="og:site_name" content="SASAERU">
   <meta property="og:type" content="website">
   <meta id="og-title" property="og:title" content="クラブ詳細 - SASAERU">
   <meta id="og-description" property="og:description" content="地域クラブの活動紹介・支援メニューをご覧ください">
-  <meta id="og-image" property="og:image" content="">
-  <meta id="og-url" property="og:url" content="">
+  <!-- L-4: 静的デフォルト値を設定（クローラーはJSを実行しないため） -->
+  <meta id="og-image" property="og:image" content="https://sasaeru.netlify.app/ogp.png">
+  <meta id="og-url" property="og:url" content="https://sasaeru.netlify.app/club.html">
   <meta name="twitter:card" content="summary_large_image">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -144,7 +146,9 @@
       <!-- ヒーローセクション -->
       <section id="hero-section" class="relative min-h-[520px] md:min-h-[600px] flex items-end overflow-hidden bg-[#0f0e2e]">
         <div class="absolute inset-0" id="hero-bg">
-          <img id="hero-img" src="" alt="" class="w-full h-full object-cover">
+          <!-- M-8: onerror でCDN障害時にグラデーション背景へフォールバック -->
+          <img id="hero-img" src="" alt="" class="w-full h-full object-cover"
+            onerror="document.getElementById('hero-bg').classList.add('hidden')">
           <div class="absolute inset-0 hero-overlay"></div>
         </div>
         <div id="hero-gradient" class="hidden absolute inset-0">
@@ -446,13 +450,15 @@
     );
   }
 
+  let _toastTimer = null;
   function showToast(msg, ok = true) {
     const t = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
     ti.textContent = msg;
     ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
     t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3500);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
   }
 
   function setBtnLoading(id, loading) {
@@ -967,6 +973,8 @@
         result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
+        // H-3: 成功時もボタンをリセット（ESCでモーダルを早期に閉じた場合の対策）
+        setBtnLoading('inq-submit-btn', false);
         setTimeout(closeInquiryModal, 2500);
         showToast('支援申請を受け付けました');
         return;

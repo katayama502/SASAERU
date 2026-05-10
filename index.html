@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- L-2: favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
   <title>SASAERU - 地域循環型マッチングプラットフォーム</title>
   <meta name="description" content="地域クラブと企業をつなぐマッチングプラットフォーム。島根県の子どもたちの活動を、企業の力で支えます。掲載無料。">
   <meta property="og:title" content="SASAERU - 地域循環型マッチングプラットフォーム">
@@ -599,7 +601,7 @@
           class="w-full bg-orange-400 hover:bg-orange-500 text-white font-black py-4 rounded-xl shadow-lg shadow-orange-400/20 transition-all text-sm flex items-center justify-center gap-2">
           登録申請する
         </button>
-        <p id="register-result" class="text-xs text-center min-h-[1rem]"></p>
+        <p id="register-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
       </form>
     </div>
   </div>
@@ -872,13 +874,16 @@
     );
   }
 
+  // L-5: clearTimeout で連続呼び出し時のタイマー積み上がりを防止
+  let _toastTimer = null;
   function showToast(msg, ok = true) {
     const t = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
     ti.textContent = msg;
     ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
     t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3500);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
   }
 
   function setBtnLoading(id, loading, label = '') {
@@ -893,9 +898,13 @@
     }
   }
 
+  // M-10: max を活用して上限近くで文字色を赤に変更
   function updateCounter(el, counterId, max) {
     const counter = document.getElementById(counterId);
-    if (counter) counter.textContent = el.value.length;
+    if (!counter) return;
+    const len = el.value.length;
+    counter.textContent = len;
+    counter.style.color = (max && len >= max * 0.9) ? '#ef4444' : '';
   }
 
   function previewImage(url, previewId) {
@@ -1252,6 +1261,8 @@
         result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
+        // H-3: 成功時もボタンをリセット（ESCでモーダルを早期に閉じた場合の対策）
+        setBtnLoading('inquiry-submit-btn', false);
         setTimeout(closeInquiryModal, 2500);
         showToast('支援申請を受け付けました');
         return;
@@ -1415,7 +1426,8 @@
       res.className = 'text-xs text-center text-green-600 font-bold';
       if (btn) { btn.disabled = false; btn.textContent = 'リセットメールを送信'; }
     } catch(err) {
-      res.textContent = '✗ メールの送信に失敗しました: ' + err.message;
+      // M-5: エラー詳細を隠してメールアドレスの存在確認に悪用されないよう汎用メッセージに変更
+      res.textContent = '✗ メールの送信に失敗しました。しばらく待ってから再試行してください。';
       res.className = 'text-xs text-center text-red-500';
       if (btn) { btn.disabled = false; btn.textContent = 'リセットメールを送信'; }
     }
