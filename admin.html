@@ -69,7 +69,7 @@
           class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl transition-all text-sm shadow-md mt-2 flex items-center justify-center gap-2">
           サインイン
         </button>
-        <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]"></p>
+        <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]" aria-live="assertive"></p>
       </form>
       <p class="text-center text-xs text-slate-400 mt-6">
         <a href="index.html" class="hover:text-indigo-700 underline underline-offset-2">← 公開サイトへ戻る</a>
@@ -298,7 +298,7 @@
 
   <!-- 確認ダイアログ -->
   <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true">
+    role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
       <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
@@ -311,11 +311,11 @@
 
   <!-- 否認理由ダイアログ（TASK-03） -->
   <div id="reject-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true">
+    role="dialog" aria-modal="true" aria-labelledby="reject-dialog-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <h3 id="reject-dialog-title" class="text-base font-black text-[#0f0e2e] mb-2">申請を却下しますか？</h3>
       <p class="text-sm text-slate-500 mb-3">ステータスを「却下」に変更します。後から変更することもできます。</p>
-      <label class="block text-xs font-bold text-slate-600 mb-1.5">否認理由（任意）</label>
+      <label for="reject-reason" class="block text-xs font-bold text-slate-600 mb-1.5">否認理由（任意）</label>
       <textarea id="reject-reason" rows="3" maxlength="500"
         placeholder="理由がある場合は入力してください。申請者へのメールに含まれます。"
         class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-red-300 outline-none text-sm resize-none transition-all mb-5"></textarea>
@@ -383,7 +383,11 @@
       const unsub = auth.onAuthStateChanged(user => { unsub(); resolve(user); });
     }).then(user => {
       if (!user) { showLogin(); return; }
-      verifyAdminAndShow(user, null);
+      // B-3: verifyAdminAndShow の Promise を return して rejection を伝播させる
+      return verifyAdminAndShow(user, null);
+    }).catch(err => {
+      console.error('Auth error:', err);
+      showLogin();
     });
   } else {
     // Firebase未設定の場合はログイン画面にエラーを表示（デモ動作を無効化）
@@ -581,7 +585,14 @@
     confirmCallback = null;
   }
   document.getElementById('confirm-ok').addEventListener('click', async () => {
-    if (confirmCallback) await confirmCallback();
+    // B-1: ダブルクリックによる二重実行防止 — 呼び出し前に null に設定
+    const cb = confirmCallback;
+    confirmCallback = null;
+    if (cb) {
+      const okBtn = document.getElementById('confirm-ok');
+      okBtn.disabled = true;
+      try { await cb(); } finally { okBtn.disabled = false; }
+    }
     closeConfirm();
   });
   document.getElementById('confirm-dialog').addEventListener('keydown', e => {
@@ -600,19 +611,20 @@
   async function loadOverview() {
     if (!db) { renderOverviewDemo(); return; }
     try {
-      const [pendSnap, pubSnap, inqSnap, conSnap] = await Promise.all([
+      // P-1: where フィルタをサーバー側で適用し全件取得を回避
+      const [pendSnap, pubSnap, inqNewSnap, conSnap] = await Promise.all([
         db.collection('organizations').where('status','==','pending').get(),
         db.collection('organizations').where('status','==','public').get(),
-        db.collection('inquiries').get(),
-        db.collection('contacts').get(),
+        db.collection('inquiries').where('status','==','new').get(),
+        db.collection('contacts').where('read_at','==',null).get(),
       ]);
       document.getElementById('ov-pending').textContent   = pendSnap.size;
       document.getElementById('ov-public').textContent    = pubSnap.size;
-      document.getElementById('ov-inquiries').textContent = inqSnap.docs.filter(d => d.data().status === 'new').length;
-      document.getElementById('ov-contacts').textContent  = conSnap.docs.filter(d => !d.data().read_at).length;
+      document.getElementById('ov-inquiries').textContent = inqNewSnap.size;
+      document.getElementById('ov-contacts').textContent  = conSnap.size;
       updateBadge('badge-pending',   pendSnap.size);
-      updateBadge('badge-inquiries', inqSnap.docs.filter(d => d.data().status === 'new').length);
-      updateBadge('badge-contacts',  conSnap.docs.filter(d => !d.data().read_at).length);
+      updateBadge('badge-inquiries', inqNewSnap.size);
+      updateBadge('badge-contacts',  conSnap.size);
       const pendingSorted = pendSnap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
       renderRecentPending(pendingSorted.slice(0, 5));
     } catch(e) {

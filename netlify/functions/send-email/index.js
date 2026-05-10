@@ -25,23 +25,31 @@ function isRateLimited(ip) {
 
 // ============================================================
 // S-2: 入力サニタイズ（改行注入・ヘッダーインジェクション防止）
+// S-9: lines フィールドは改行を保持（メール本文整形に使用するため）
 // ============================================================
-function sanitize(val, maxLen = 500) {
+function sanitize(val, maxLen = 500, keepNewlines = false) {
   if (val == null) return '';
-  return String(val)
-    .replace(/[\r\n]/g, ' ')   // 改行をスペースに置換
-    .replace(/[^\S ]/g, ' ')   // タブ等制御文字を除去
-    .trim()
-    .slice(0, maxLen);
+  let s = String(val);
+  if (keepNewlines) {
+    // ヘッダーインジェクションのみ防止（\r は除去、\n は保持）
+    s = s.replace(/\r/g, '').replace(/[^\S \n]/g, ' ');
+  } else {
+    s = s.replace(/[\r\n]/g, ' ').replace(/[^\S ]/g, ' ');
+  }
+  return s.trim().slice(0, maxLen);
 }
 
 // ============================================================
 // Gmail トランスポーター
+// S-8: SMTPタイムアウトを設定（Netlifyの10秒制限内に収める）
 // ============================================================
 function createTransporter() {
   return nodemailer.createTransport({
     service: 'gmail',
     auth: { user: GMAIL_USER, pass: GMAIL_PASSWORD },
+    connectionTimeout: 8000,  // 8秒（Netlify 10秒制限内）
+    greetingTimeout:   5000,
+    socketTimeout:     8000,
   });
 }
 
@@ -52,7 +60,9 @@ function buildMailOptions(type, rawParams) {
   // 全パラメータをサニタイズ
   const p = {};
   for (const [k, v] of Object.entries(rawParams || {})) {
-    p[k] = sanitize(v, k === 'message' || k === 'lines' ? 2000 : 500);
+    // lines は本文整形のため改行を保持、その他は改行除去（ヘッダーインジェクション防止）
+    const keepNl = (k === 'lines');
+    p[k] = sanitize(v, k === 'message' || k === 'lines' ? 2000 : 500, keepNl);
   }
 
   const from = `"SASAERU 運営事務局" <${GMAIL_USER}>`;
@@ -238,8 +248,10 @@ exports.handler = async (event) => {
   }
 
   // S-3: レート制限チェック
-  const clientIp = event.headers['x-forwarded-for']?.split(',')[0]?.trim()
-    || event.headers['x-nf-client-connection-ip']
+  // S-6: x-nf-client-connection-ip を優先（Netlify が付与する偽装不可の値）
+  //      x-forwarded-for はクライアントが偽装可能なため補助的に使用
+  const clientIp = event.headers['x-nf-client-connection-ip']
+    || event.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || 'unknown';
   if (isRateLimited(clientIp)) {
     return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too Many Requests' }) };
@@ -267,7 +279,8 @@ exports.handler = async (event) => {
     await transporter.sendMail(mailOptions);
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (e) {
+    // S-7: 内部エラー詳細をクライアントに漏洩させない
     console.error('Send email error:', e.message);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'メール送信に失敗しました' }) };
   }
 };

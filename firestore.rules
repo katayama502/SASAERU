@@ -21,18 +21,29 @@ service cloud.firestore {
 
     // organizations
     match /organizations/{orgId} {
-      // 公開中は誰でも1件取得可 / 認証済みなら取得可
-      allow get:    if resource.data.status == "public" || isAuth();
-      // リスト: 公開クラブは未認証でも取得可（トップページの一覧表示に必要）
-      //         認証済みはすべて取得可（マイページのowner_uid照合 + 管理者の全件取得）
-      //         ※ 未認証で pending/rejected 団体のメール等が漏洩しないよう isAuth() を要求
-      allow list:   if resource.data.status == "public" || isAuth();
+      // 公開中は誰でも1件取得可 / 管理者は全件取得可 / オーナーは自分の団体のみ取得可
+      // S-1: isAuth()だけでは審査中・却下団体のPIIが全認証ユーザーに漏洩するため修正
+      allow get:    if resource.data.status == "public" || isAdmin() || isOwnerOf(orgId);
+      // リスト: 公開クラブは未認証でも取得可 / 管理者は全件 / オーナーは自分のドキュメントのみ
+      //         resource.data.owner_uid を使うことで isOwnerOf の余分な get() を回避
+      allow list:   if resource.data.status == "public"
+                    || isAdmin()
+                    || (isAuth() && resource.data.owner_uid == request.auth.uid);
       // 作成: 認証済みユーザーが自分のowner_uidで、かつstatus=pendingのみ
       allow create: if isAuth()
                     && request.resource.data.owner_uid == request.auth.uid
                     && request.resource.data.status == "pending";
-      // 更新: 管理者 or 自分のオーナー
-      allow update: if isAdmin() || isOwnerOf(orgId);
+      // 更新: 管理者はすべてのフィールドを変更可
+      //       オーナーは指定フィールドのみ変更可 / statusは'pending'への変更（再申請）のみ許可
+      // S-2: hasOnly制限なしではオーナーが status:'public' を自己設定できる問題を修正
+      allow update: if isAdmin()
+                    || (isOwnerOf(orgId)
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                             'name','category','area','main_image','tags',
+                             'activity_how','updated_at','status'
+                           ])
+                        && (request.resource.data.status == resource.data.status
+                            || request.resource.data.status == 'pending'));
       // 削除: 管理者のみ
       allow delete: if isAdmin();
     }
@@ -56,9 +67,14 @@ service cloud.firestore {
       // 作成: 認証済みユーザーが自分のowner_uidで作成
       allow create:       if isAuth()
                           && request.resource.data.owner_uid == request.auth.uid;
-      // 更新・削除: 自分の投稿のみ
-      allow update, delete: if isAuth()
-                            && resource.data.owner_uid == request.auth.uid;
+      // 更新: 自分の投稿のみ / owner_uidは変更不可（乗っ取り防止）
+      // S-4: owner_uid の不変チェックを追加
+      allow update:       if isAuth()
+                          && resource.data.owner_uid == request.auth.uid
+                          && request.resource.data.owner_uid == resource.data.owner_uid;
+      // 削除: 自分の投稿のみ
+      allow delete:       if isAuth()
+                          && resource.data.owner_uid == request.auth.uid;
     }
 
     // inquiries（支援申請）
@@ -83,14 +99,16 @@ service cloud.firestore {
 
     // contacts（お問い合わせ）— 管理者のみ閲覧・操作可
     match /contacts/{contactId} {
-      // S-1: 必須フィールドと基本バリデーション
+      // S-1 + S-5: 必須フィールド・基本バリデーション・サイズ上限（DoS対策）
       allow create: if request.resource.data.keys().hasAll(['name','email','message'])
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 200
                     && request.resource.data.email is string
                     && request.resource.data.email.matches('.*@.*\\..*')
                     && request.resource.data.message is string
-                    && request.resource.data.message.size() > 0;
+                    && request.resource.data.message.size() > 0
+                    && request.resource.data.message.size() <= 5000;
       allow read, update, delete: if isAdmin();
     }
   }

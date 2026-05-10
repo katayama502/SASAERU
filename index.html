@@ -415,7 +415,7 @@
               class="w-full bg-[#0f0e2e] text-white font-bold py-3.5 rounded-xl hover:bg-indigo-900 transition-all text-sm shadow-lg shadow-[#0f0e2e]/10 flex items-center justify-center gap-2">
               送信する
             </button>
-            <p id="contact-result" class="text-xs text-center min-h-[1rem]"></p>
+            <p id="contact-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
           </form>
         </div>
       </div>
@@ -465,7 +465,7 @@
             class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm shadow-md transition-all flex items-center justify-center gap-2">
             ログイン
           </button>
-          <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]"></p>
+          <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]" aria-live="assertive"></p>
         </form>
         <div class="mt-4 flex items-center justify-between text-xs">
           <button onclick="showForgotView()" class="text-indigo-600 hover:underline">パスワードをお忘れの方</button>
@@ -480,12 +480,14 @@
         <h3 class="text-xl font-black text-[#0f0e2e] mb-1">パスワードをリセット</h3>
         <p class="text-xs text-slate-400 mb-5">登録済みのメールアドレスにリセットリンクを送信します</p>
         <form id="forgot-form" class="space-y-4">
-          <input type="email" name="email" required maxlength="200" placeholder="メールアドレス *"
+          <!-- U-1: スクリーンリーダー対応のため label を追加 -->
+          <label for="forgot-email" class="sr-only">メールアドレス</label>
+          <input type="email" id="forgot-email" name="email" required maxlength="200" placeholder="メールアドレス *"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
           <button type="submit" class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm shadow-md transition-all">
             リセットメールを送信
           </button>
-          <p id="forgot-result" class="text-xs text-center min-h-[1rem]"></p>
+          <p id="forgot-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
         </form>
       </div>
     </div>
@@ -647,7 +649,7 @@
           class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-black py-4 rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2">
           申請する
         </button>
-        <p id="inquiry-result" class="text-xs text-center min-h-[1rem]"></p>
+        <p id="inquiry-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
       </form>
     </div>
   </div>
@@ -1182,6 +1184,9 @@
     setTimeout(() => { document.getElementById('inq-company')?.focus(); _trapFocus(m); }, 50);
   }
   function closeInquiryModal() {
+    // B-2: モーダルを閉じる際にグローバル変数をリセット（次の団体で古い値が使われないよう）
+    _inquiryContactEmail = '';
+    _inquiryMenuTitle    = '';
     const m = document.getElementById('inquiry-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
@@ -1216,6 +1221,7 @@
         });
         // オーナー向け問い合わせ通知メール（基本設計書 4.1）
         if (_inquiryContactEmail) {
+          // B-4: res.ok チェックを追加（4xx/5xx を成功扱いにしない）
           fetch('/.netlify/functions/send-email', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'inquiry_owner', params: {
@@ -1228,7 +1234,8 @@
               phone:       data.phone || '',
               message:     data.message || '',
             }}),
-          }).catch(e => console.warn('オーナー通知メール失敗:', e));
+          }).then(res => { if (!res.ok) console.warn('オーナー通知メール失敗:', res.status); })
+            .catch(e => console.warn('オーナー通知メール失敗:', e));
         }
         // 申請企業向け自動返信メール（基本設計書 4.2）
         fetch('/.netlify/functions/send-email', {
@@ -1240,7 +1247,8 @@
             orgName:     document.getElementById('inquiry-target').textContent.replace('支援先: ', '').split('（')[0],
             menuTitle:   _inquiryMenuTitle,
           }}),
-        }).catch(e => console.warn('申請者自動返信メール失敗:', e));
+        }).then(res => { if (!res.ok) console.warn('申請者自動返信メール失敗:', res.status); })
+          .catch(e => console.warn('申請者自動返信メール失敗:', e));
         result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();

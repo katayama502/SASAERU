@@ -449,7 +449,7 @@
 
   <!-- 確認ダイアログ -->
   <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true">
+    role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
       <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
@@ -575,6 +575,10 @@
         return;
       }
       loadUserOrg(user.uid);
+    }).catch(err => {
+      // B-3: 認証チェーンの未処理rejectionを捕捉し、ログイン画面へ
+      console.error('Auth error:', err);
+      window.location.replace('index.html');
     });
   } else {
     document.getElementById('loading-screen').classList.add('hidden');
@@ -1409,7 +1413,14 @@
     confirmCallback = null;
   }
   document.getElementById('confirm-ok').addEventListener('click', async () => {
-    if (confirmCallback) await confirmCallback();
+    // B-1: ダブルクリックによる二重実行防止 — 呼び出し前に null に設定
+    const cb = confirmCallback;
+    confirmCallback = null;
+    if (cb) {
+      const okBtn = document.getElementById('confirm-ok');
+      okBtn.disabled = true;
+      try { await cb(); } finally { okBtn.disabled = false; }
+    }
     closeConfirm();
   });
   document.getElementById('confirm-dialog').addEventListener('keydown', e => {
