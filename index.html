@@ -949,6 +949,7 @@
     welfare: 'bg-green-50 text-green-700 border-green-100',
     other:   'bg-slate-50 text-slate-700 border-slate-100'
   };
+  const FALLBACK_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect fill="#0f0e2e" width="600" height="400"/><text fill="#3d3d6b" font-family="sans-serif" font-size="18" text-anchor="middle" x="300" y="208">No Image</text></svg>')}`;
 
   // ===================================================
   // 統計カウンター
@@ -1029,7 +1030,7 @@
       const tags = Array.isArray(o.tags)
         ? o.tags
         : (typeof o.tags === 'string' ? o.tags.split(',').map(t => t.trim()).filter(Boolean) : []);
-      const img = o.main_image || `https://placehold.co/600x400/0f0e2e/ffffff?text=${encodeURIComponent(o.name || 'CLUB')}`;
+      const img = o.main_image || FALLBACK_IMG;
       const desc = o.activity_how || '';
       const orgId = esc(o.id);
       const orgName = esc(o.name || '');
@@ -1037,7 +1038,7 @@
         <div class="card-hover bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 flex flex-col">
           <div class="h-48 relative overflow-hidden">
             <img src="${esc(img)}" alt="${orgName}" loading="lazy" class="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
-              onerror="this.src='https://placehold.co/600x400/0f0e2e/ffffff?text=${encodeURIComponent(o.name||'CLUB')}'">
+              onerror="this.onerror=null;this.src='${FALLBACK_IMG}'">
             <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
             <div class="absolute top-3 left-3">
               <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border ${catColor}">${esc(catLabel)}</span>
