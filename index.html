@@ -31,7 +31,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <!-- EmailJS SDK（メール通知に使用） -->
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <!-- 設定は Netlify Snippet Injection で window.SASAERU_CONFIG として注入済み -->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
@@ -730,23 +729,20 @@
   }
 
   // ===================================================
-  // 管理者通知（config.js から lazy 読み込み）
+  // 管理者通知（Slack + Nodemailer/Netlify Function）
   // ===================================================
-  let _emailjsReady = false;
   async function sendAdminNotification(type, params) {
     const cfg = getCfg();
-    const slackWebhook      = cfg.slackWebhook      || '';
-    const emailjsPublicKey  = cfg.emailjsPublicKey  || '';
-    const emailjsServiceId  = cfg.emailjsServiceId  || '';
-    const emailjsTemplateId = cfg.emailjsTemplateId || '';
+    const slackWebhook = cfg.slackWebhook || '';
 
     const labels = {
       club_apply: '🏃 新規クラブ申請',
       inquiry:    '📩 支援申請',
       contact:    '✉️ お問い合わせ',
     };
+    const label = labels[type] || type;
     const lines = Object.entries(params).map(([k,v]) => `${k}: ${v}`).join('\n');
-    const text  = `${labels[type] || type}\n\n${lines}\n\n🔗 管理画面: ${location.origin}/admin.html`;
+    const text  = `${label}\n\n${lines}\n\n🔗 管理画面: ${location.origin}/admin.html`;
 
     if (slackWebhook) {
       try {
@@ -756,15 +752,16 @@
         });
       } catch(e) { console.warn('Slack通知失敗:', e); }
     }
-    if (emailjsPublicKey && emailjsServiceId && emailjsTemplateId) {
-      try {
-        if (!_emailjsReady) { emailjs.init({ publicKey: emailjsPublicKey }); _emailjsReady = true; }
-        await emailjs.send(emailjsServiceId, emailjsTemplateId, {
-          notification_type: labels[type] || type,
-          message: lines,
-        });
-      } catch(e) { console.warn('Email通知失敗:', e); }
-    }
+    try {
+      await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'admin_notify',
+          params: { label, lines, origin: location.origin },
+        }),
+      });
+    } catch(e) { console.warn('管理者メール通知失敗:', e); }
   }
 
   // ===================================================
@@ -798,25 +795,17 @@
   }
 
   // ===================================================
-  // 申請者へのメール送信（TASK-02）
-  // EmailJS ダッシュボードで以下の変数を持つテンプレートを作成し、
-  // config.js の emailjsApplicantTemplateId に設定してください。
-  // 変数: to_email, to_name, club_name, category_jp, registered_at
+  // 申請者へのメール送信（TASK-02 / Nodemailer + Netlify Function）
   // ===================================================
   async function sendApplicantEmail({ toEmail, clubName, categoryJp, registeredAt }) {
-    const cfg = getCfg();
-    const publicKey  = cfg.emailjsPublicKey           || '';
-    const serviceId  = cfg.emailjsServiceId            || '';
-    const templateId = cfg.emailjsApplicantTemplateId  || '';
-    if (!publicKey || !serviceId || !templateId) return; // 未設定は静かにスキップ
     try {
-      if (!_emailjsReady) { emailjs.init({ publicKey }); _emailjsReady = true; }
-      await emailjs.send(serviceId, templateId, {
-        to_email:      toEmail,
-        to_name:       clubName,
-        club_name:     clubName,
-        category_jp:   categoryJp,
-        registered_at: registeredAt,
+      await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'applicant',
+          params: { toEmail, clubName, categoryJp, registeredAt },
+        }),
       });
     } catch(e) { console.warn('申請者メール送信失敗:', e); }
   }
