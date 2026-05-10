@@ -63,8 +63,14 @@ service cloud.firestore {
 
     // inquiries（支援申請）
     match /inquiries/{inquiryId} {
-      // 誰でも作成可（ログイン不要でフォーム送信）
-      allow create: if true;
+      // S-1: 作成時に必須フィールドと型を検証（スパム対策）
+      allow create: if request.resource.data.keys().hasAll(['org_id','company_name','sender_email','status'])
+                    && request.resource.data.status == 'new'
+                    && request.resource.data.company_name is string
+                    && request.resource.data.company_name.size() > 0
+                    && request.resource.data.company_name.size() <= 200
+                    && request.resource.data.sender_email is string
+                    && request.resource.data.sender_email.matches('.*@.*\\..*');
       // 読み取り: 管理者 または 問い合わせ先の団体オーナー
       allow get, list: if isAdmin()
                        || (isAuth() && isOwnerOf(resource.data.org_id));
@@ -77,7 +83,14 @@ service cloud.firestore {
 
     // contacts（お問い合わせ）— 管理者のみ閲覧・操作可
     match /contacts/{contactId} {
-      allow create:               if true;
+      // S-1: 必須フィールドと基本バリデーション
+      allow create: if request.resource.data.keys().hasAll(['name','email','message'])
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.email is string
+                    && request.resource.data.email.matches('.*@.*\\..*')
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() > 0;
       allow read, update, delete: if isAdmin();
     }
   }

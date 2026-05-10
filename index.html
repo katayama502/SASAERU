@@ -632,6 +632,7 @@
         <div>
           <label for="inq-phone" class="block text-xs font-bold text-slate-600 mb-1.5">電話番号</label>
           <input type="tel" id="inq-phone" name="phone" maxlength="20" placeholder="090-0000-0000"
+            pattern="^[\d\-\+\(\)\s]{7,20}$" title="半角数字・ハイフンで入力してください"
             class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
         </div>
         <div>
@@ -697,7 +698,9 @@
       { method: 'POST', body: form }
     );
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'アップロード失敗'); }
-    return (await res.json()).secure_url;
+    // P-4: Cloudinary 自動最適化（WebP変換・品質80・幅1200px上限）
+    const raw = (await res.json()).secure_url;
+    return raw.replace('/upload/', '/upload/f_auto,q_80,w_1200/');
   }
 
   async function handleImageUpload(fileInput, urlInputId, statusElId) {
@@ -1503,6 +1506,11 @@
       });
     }
   });
+
+  // P-2: 本番環境で console.log を無効化
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.log = () => {};
+  }
   </script>
 </body>
 </html>

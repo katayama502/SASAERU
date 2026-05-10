@@ -301,7 +301,7 @@
       <!-- 日記画像 -->
       <div id="post-modal-img-wrap" class="hidden">
         <img id="post-modal-img" src="" alt="" class="w-full max-h-72 object-cover rounded-t-2xl"
-          onerror="document.getElementById('post-modal-img-wrap').classList.add('hidden')">
+          loading="lazy" onerror="document.getElementById('post-modal-img-wrap').classList.add('hidden')">
       </div>
       <div class="p-6 sm:p-8 flex flex-col flex-grow">
         <!-- 日付 -->
@@ -355,6 +355,7 @@
         <div>
           <label for="inq-phone" class="block text-xs font-bold text-slate-600 mb-1.5">電話番号</label>
           <input type="tel" id="inq-phone" name="phone" maxlength="20" placeholder="090-0000-0000"
+            pattern="^[\d\-\+\(\)\s]{7,20}$" title="半角数字・ハイフンで入力してください"
             class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
         </div>
         <div>
@@ -1017,6 +1018,13 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
   });
+
+  // ===================================================
+  // P-2: 本番環境で console.log を無効化
+  // ===================================================
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.log = () => {};
+  }
 
   // ===================================================
   // 初期化

@@ -811,18 +811,35 @@
   }
 
   function deleteOrg(id, name) {
-    showConfirm(`「${name}」を削除しますか？`, 'この操作は取り消せません。団体情報と支援メニューがすべて削除されます。\n※ ログインアカウント（メール）は別途 Firebase Console から削除してください。',
-      '削除する', 'bg-red-500 hover:bg-red-600', async () => {
+    showConfirm(
+      `「${name}」を削除しますか？`,
+      'この操作は取り消せません。支援メニュー・問い合わせ履歴・活動日記もすべて削除されます。\n⚠️ ログインアカウント（メール）は別途 Firebase Console から削除してください。',
+      '削除する', 'bg-red-500 hover:bg-red-600',
+      async () => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
-          // menus サブコレクションを先に一括削除（Firestore は自動カスケード削除しない）
-          const menusSnap = await db.collection('organizations').doc(id).collection('menus').get();
-          if (!menusSnap.empty) {
-            const batch = db.batch();
-            menusSnap.docs.forEach(d => batch.delete(d.ref));
-            await batch.commit();
+          const orgRef = db.collection('organizations').doc(id);
+          const orgDoc = await orgRef.get();
+          const ownerUid = orgDoc.exists ? orgDoc.data().owner_uid : null;
+          const batch = db.batch();
+
+          // B-1: menus サブコレクション削除
+          const menusSnap = await orgRef.collection('menus').get();
+          menusSnap.docs.forEach(d => batch.delete(d.ref));
+
+          // B-1: inquiries（この団体宛）削除
+          const inqSnap = await db.collection('inquiries').where('org_id', '==', id).get();
+          inqSnap.docs.forEach(d => batch.delete(d.ref));
+
+          // B-1: posts（このオーナーの投稿）削除
+          if (ownerUid) {
+            const postsSnap = await db.collection('posts').where('owner_uid', '==', ownerUid).get();
+            postsSnap.docs.forEach(d => batch.delete(d.ref));
           }
-          await db.collection('organizations').doc(id).delete();
+
+          // 団体ドキュメント本体を削除
+          batch.delete(orgRef);
+          await batch.commit();
           showToast('削除しました'); loadTab(currentTab); loadOverview();
         } catch(e) { showToast('エラー: ' + e.message, false); }
       }
@@ -1167,6 +1184,13 @@
       showLogin();
     }
   });
+
+  // ============================================================
+  // P-2: 本番環境で console.log を無効化（warn/error は残す）
+  // ============================================================
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.log = () => {};
+  }
 
   // ============================================================
   // 初期化
