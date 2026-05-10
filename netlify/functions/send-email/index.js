@@ -90,6 +90,58 @@ function buildMailOptions(type, params) {
         ].join('\n'),
       };
 
+    // 問い合わせ通知（オーナー向け）
+    case 'inquiry_owner':
+      return {
+        from,
+        to: params.toEmail,
+        subject: `【SASAERU】「${params.menuTitle}」にお問い合わせがありました`,
+        text: [
+          `${params.orgName} 様`,
+          '',
+          '貴団体の支援メニューに対し、以下の企業様よりお問い合わせがありました。',
+          '内容をご確認の上、直接ご返信をお願いいたします。',
+          '',
+          '■ お問い合わせ企業情報',
+          `会社名：${params.companyName}`,
+          `担当者：${params.picName} 様`,
+          `メール：${params.senderEmail}`,
+          params.phone ? `電話番号：${params.phone}` : null,
+          '',
+          '■ メッセージ',
+          params.message || '（メッセージなし）',
+          '',
+          '─────────────────────────',
+          '※ 本メールは送信専用です。',
+          '─────────────────────────',
+          '',
+          'SASAERU 運営事務局',
+        ].filter(l => l !== null).join('\n'),
+      };
+
+    // 問い合わせ自動返信（申請企業向け）
+    case 'inquiry_reply':
+      return {
+        from,
+        to: params.toEmail,
+        subject: '【SASAERU】お問い合わせを受け付けました',
+        text: [
+          `${params.companyName}`,
+          `${params.picName} 様`,
+          '',
+          'SASAERUをご利用いただきありがとうございます。',
+          '以下の内容でお問い合わせを受け付けました。',
+          '',
+          `対象団体  ：${params.orgName}`,
+          `対象メニュー：${params.menuTitle}`,
+          '',
+          '近日中に、対象団体の担当者より本メールアドレス宛にご連絡がございます。',
+          '今しばらくお待ちください。',
+          '',
+          'SASAERU 運営事務局',
+        ].join('\n'),
+      };
+
     // 否認メール
     case 'reject': {
       const reasonBlock = params.rejectReason

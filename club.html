@@ -484,8 +484,10 @@
   // ===================================================
   // グローバル状態
   // ===================================================
-  let currentOrgId   = '';
-  let currentOrgName = '';
+  let currentOrgId           = '';
+  let currentOrgName         = '';
+  let currentOrgContactEmail = '';
+  let currentMenuTitle       = '';
 
   // ===================================================
   // 認証状態監視
@@ -604,8 +606,9 @@
         return;
       }
 
-      currentOrgId   = org.id;
-      currentOrgName = org.name || '';
+      currentOrgId           = org.id;
+      currentOrgName         = org.name || '';
+      currentOrgContactEmail = org.contact_email || '';
       document.title = `${org.name || 'クラブ詳細'} - SASAERU`;
       // OG tags
       const ogTitle = document.getElementById('og-title');
@@ -732,8 +735,8 @@
                 </p>
                 <p class="leading-relaxed">${esc(m.return_merit).replace(/\n/g,'<br>')}</p>
               </div>` : ''}
-            <button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}"
-              onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName)"
+            <button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}" data-menu-title="${esc(m.title||'')}"
+              onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName, this.dataset.menuTitle)"
               class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 mt-auto">
               <i data-lucide="mail" width="15" height="15"></i>支援・問い合わせ
             </button>
@@ -879,8 +882,11 @@
   // ===================================================
   // 支援申請モーダル
   // ===================================================
-  function openInquiryModal(orgId, orgName) {
-    document.getElementById('inquiry-target').textContent = `支援先: ${orgName}`;
+  function openInquiryModal(orgId, orgName, menuTitle) {
+    currentMenuTitle = menuTitle || orgName;
+    document.getElementById('inquiry-target').textContent = menuTitle
+      ? `支援先: ${orgName}（${menuTitle}）`
+      : `支援先: ${orgName}`;
     document.getElementById('inquiry-result').textContent = '';
     document.getElementById('inquiry-form').reset();
     document.getElementById('inquiry-org-id').value = orgId;
@@ -919,11 +925,39 @@
     if (db) {
       try {
         await db.collection('inquiries').add({ ...payload, created_at: firebase.firestore.FieldValue.serverTimestamp() });
+        // 管理者通知（Slack + 管理者メール）
         sendAdminNotification('inquiry', {
           クラブ: currentOrgName || orgId, 企業名: data.company_name,
           担当者: data.pic_name, メール: data.sender_email,
           内容: (data.message || '').slice(0, 100),
         });
+        // オーナー向け問い合わせ通知メール（基本設計書 4.1）
+        if (currentOrgContactEmail) {
+          fetch('/.netlify/functions/send-email', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'inquiry_owner', params: {
+              toEmail:     currentOrgContactEmail,
+              orgName:     currentOrgName,
+              menuTitle:   currentMenuTitle,
+              companyName: data.company_name,
+              picName:     data.pic_name,
+              senderEmail: data.sender_email,
+              phone:       data.phone || '',
+              message:     data.message || '',
+            }}),
+          }).catch(e => console.warn('オーナー通知メール失敗:', e));
+        }
+        // 申請企業向け自動返信メール（基本設計書 4.2）
+        fetch('/.netlify/functions/send-email', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'inquiry_reply', params: {
+            toEmail:     data.sender_email,
+            companyName: data.company_name,
+            picName:     data.pic_name,
+            orgName:     currentOrgName,
+            menuTitle:   currentMenuTitle,
+          }}),
+        }).catch(e => console.warn('申請者自動返信メール失敗:', e));
         result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
