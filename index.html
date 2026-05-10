@@ -811,7 +811,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'applicant',
-          params: { toEmail, clubName, categoryJp, registeredAt },
+          params: { toEmail, clubName, categoryJp, registeredAt, origin },
         }),
       });
     } catch(e) { console.warn('申請者メール送信失敗:', e); }
@@ -1144,6 +1144,7 @@
           clubName:    data.name,
           categoryJp:  CATEGORY_LABEL[data.category] ?? data.category,
           registeredAt,
+          origin:      window.location.origin,
         });
         result.textContent = '✓ 登録申請を受け付けました！確認メールをご確認ください。';
         result.className = 'text-xs text-center text-green-600 font-bold';
