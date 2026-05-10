@@ -23,7 +23,10 @@ service cloud.firestore {
     match /organizations/{orgId} {
       // 公開中は誰でも1件取得可 / 管理者は全件取得可 / オーナーは自分の団体のみ取得可
       // S-1: isAuth()だけでは審査中・却下団体のPIIが全認証ユーザーに漏洩するため修正
-      allow get:    if resource.data.status == "public" || isAdmin() || isOwnerOf(orgId);
+      // ※ isOwnerOf(orgId) を使わず resource.data で直接チェック（isOwnerOf は get() を呼ぶため
+      //   メニュールールから isOwnerOf→get→org_get_rule→isOwnerOf の循環が起きる可能性を排除）
+      allow get:    if resource.data.status == "public" || isAdmin()
+                    || (isAuth() && resource.data.owner_uid == request.auth.uid);
       // リスト: 公開クラブは未認証でも取得可 / 管理者は全件 / オーナーは自分のドキュメントのみ
       //         resource.data.owner_uid を使うことで isOwnerOf の余分な get() を回避
       allow list:   if resource.data.status == "public"
@@ -54,25 +57,41 @@ service cloud.firestore {
     // organizations/{orgId}/menus サブコレクション（支援メニュー）
     match /organizations/{orgId}/menus/{menuId} {
       // 1件取得: 公開メニューは誰でも / オーナーまたは管理者は全て
-      allow get:    if resource.data.status == "public" || isOwnerOf(orgId) || isAdmin();
+      // owner_uid が付いた新メニューは resource.data で直接判定、旧メニューは isOwnerOf フォールバック
+      allow get:    if resource.data.status == "public"
+                    || resource.data.owner_uid == request.auth.uid
+                    || isOwnerOf(orgId) || isAdmin();
       // 一覧取得: 公開メニューは未認証でも取得可 / オーナーまたは管理者は非公開含む全て取得可
-      allow list:   if resource.data.status == "public" || isOwnerOf(orgId) || isAdmin();
+      allow list:   if resource.data.status == "public"
+                    || resource.data.owner_uid == request.auth.uid
+                    || isOwnerOf(orgId) || isAdmin();
       // 作成・更新: オーナー（許可フィールドのみ）または 管理者（強制非公開など全フィールド）
       // M-3: hasOnly でオーナーによる任意フィールド書き込みを防止
+      // owner_uid をメニュードキュメントに保持することで、update/delete で get() 呼び出し不要にする
       allow create: if isAdmin()
                     || (isOwnerOf(orgId)
                         && request.resource.data.keys().hasOnly([
                              'title','support_type','target_amount','description',
-                             'return_merit','status','created_at','updated_at'
-                           ]));
+                             'return_merit','status','created_at','updated_at','owner_uid'
+                           ])
+                        && request.resource.data.owner_uid == request.auth.uid);
+      // update/delete: resource.data.owner_uid が一致すれば get() 不要で判定
+      //                owner_uid なし（旧メニュー）は isOwnerOf フォールバック
       allow update: if isAdmin()
+                    || (resource.data.owner_uid == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                             'title','support_type','target_amount','description',
+                             'return_merit','status','updated_at'
+                           ]))
                     || (isOwnerOf(orgId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                              'title','support_type','target_amount','description',
                              'return_merit','status','updated_at'
                            ]));
-      // 削除: オーナーまたは管理者
-      allow delete: if isOwnerOf(orgId) || isAdmin();
+      // 削除: resource.data.owner_uid が一致、または旧メニューは isOwnerOf フォールバック
+      allow delete: if isAdmin()
+                    || resource.data.owner_uid == request.auth.uid
+                    || isOwnerOf(orgId);
     }
 
     // posts（活動日記）

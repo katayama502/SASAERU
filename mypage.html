@@ -1161,6 +1161,7 @@
         showToast('メニューを更新しました');
       } else {
         data.created_at = firebase.firestore.FieldValue.serverTimestamp();
+        data.owner_uid  = currentUser.uid;
         await menusRef.add(data);
         showToast('メニューを追加しました');
       }
