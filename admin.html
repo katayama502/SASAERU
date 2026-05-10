@@ -1027,11 +1027,19 @@
                   <td class="px-5 py-3 text-xs text-slate-400 hidden sm:table-cell">${fmtDate(m.created_at)}</td>
                   <td class="px-5 py-3 hidden sm:table-cell">${statusBadge(m.status||'private')}</td>
                   <td class="px-5 py-3 text-right">
-                    <button data-org="${esc(m.orgId)}" data-menu="${esc(m.menuId)}" data-title="${esc(m.title||'メニュー')}"
-                      onclick="deleteAdminMenu(this.dataset.org, this.dataset.menu, this.dataset.title)"
-                      class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
-                      <i data-lucide="trash-2" width="12" height="12"></i>削除
-                    </button>
+                    <div class="flex items-center gap-2 justify-end">
+                      ${m.status !== 'private' ? `
+                      <button data-org="${esc(m.orgId)}" data-menu="${esc(m.menuId)}" data-title="${esc(m.title||'メニュー')}"
+                        onclick="forceHideMenu(this.dataset.org, this.dataset.menu, this.dataset.title)"
+                        class="flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 text-xs font-bold rounded-lg transition-all">
+                        <i data-lucide="eye-off" width="12" height="12"></i>非公開
+                      </button>` : ''}
+                      <button data-org="${esc(m.orgId)}" data-menu="${esc(m.menuId)}" data-title="${esc(m.title||'メニュー')}"
+                        onclick="deleteAdminMenu(this.dataset.org, this.dataset.menu, this.dataset.title)"
+                        class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all">
+                        <i data-lucide="trash-2" width="12" height="12"></i>削除
+                      </button>
+                    </div>
                   </td>
                 </tr>`).join('')}
             </tbody>
@@ -1051,6 +1059,22 @@
         try {
           await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).delete();
           showToast('支援メニューを削除しました');
+          loadAdminMenus();
+        } catch(e) { showToast('エラー: ' + e.message, false); }
+      }
+    );
+  }
+
+  function forceHideMenu(orgId, menuId, menuTitle) {
+    showConfirm(
+      `「${menuTitle}」を強制非公開にしますか？`,
+      'メニューはオーナーのマイページで再公開できます。不適切なコンテンツの場合は削除を使用してください。',
+      '非公開にする', 'bg-amber-500 hover:bg-amber-600',
+      async () => {
+        if (!db) { showToast('Firebase未設定です', false); return; }
+        try {
+          await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).update({ status: 'private' });
+          showToast('支援メニューを非公開にしました');
           loadAdminMenus();
         } catch(e) { showToast('エラー: ' + e.message, false); }
       }
