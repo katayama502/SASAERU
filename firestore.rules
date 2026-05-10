@@ -43,8 +43,8 @@ service cloud.firestore {
       allow get:    if resource.data.status == "public" || isOwnerOf(orgId) || isAdmin();
       // 一覧取得: 公開メニューは未認証でも取得可 / オーナーまたは管理者は非公開含む全て取得可
       allow list:   if resource.data.status == "public" || isOwnerOf(orgId) || isAdmin();
-      // 作成・更新: オーナーのみ
-      allow create, update: if isOwnerOf(orgId);
+      // 作成・更新: オーナー または 管理者（強制非公開など）
+      allow create, update: if isOwnerOf(orgId) || isAdmin();
       // 削除: オーナーまたは管理者
       allow delete: if isOwnerOf(orgId) || isAdmin();
     }
@@ -61,10 +61,18 @@ service cloud.firestore {
                             && resource.data.owner_uid == request.auth.uid;
     }
 
-    // inquiries（支援申請）— 管理者のみ閲覧・操作可
+    // inquiries（支援申請）
     match /inquiries/{inquiryId} {
-      allow create:               if true;
-      allow read, update, delete: if isAdmin();
+      // 誰でも作成可（ログイン不要でフォーム送信）
+      allow create: if true;
+      // 読み取り: 管理者 または 問い合わせ先の団体オーナー
+      allow get, list: if isAdmin()
+                       || (isAuth() && isOwnerOf(resource.data.org_id));
+      // 更新（対応ステータス変更）: 管理者 または 問い合わせ先の団体オーナー
+      allow update: if isAdmin()
+                    || (isAuth() && isOwnerOf(resource.data.org_id));
+      // 削除: 管理者のみ
+      allow delete: if isAdmin();
     }
 
     // contacts（お問い合わせ）— 管理者のみ閲覧・操作可
