@@ -1,5 +1,6 @@
 [build]
   publish = "."
+  command = "npm --prefix netlify/functions/send-email install"
 
 # admin.html は直接配信（SPAリダイレクト対象外）
 [[redirects]]
