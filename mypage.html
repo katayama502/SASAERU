@@ -75,9 +75,11 @@
         登録したメールアドレスに確認メールをお送りしました。
       </p>
       <p id="verify-email-addr" class="text-sm font-bold text-indigo-600 mb-5"></p>
-      <p class="text-xs text-slate-400 mb-6 leading-relaxed">
+      <p class="text-xs text-slate-400 mb-3 leading-relaxed">
         メール内の「確認する」リンクをクリックした後、<br>下のボタンを押してください。
       </p>
+      <!-- 確認期限カウントダウン -->
+      <p id="verify-countdown" class="text-xs text-center font-bold text-slate-400 mb-4"></p>
       <!-- ステータスメッセージ -->
       <p id="verify-status" class="text-xs text-center min-h-[1.2rem] mb-4"></p>
       <!-- 確認済みチェックボタン -->
@@ -596,6 +598,68 @@
     const addrEl = document.getElementById('verify-email-addr');
     if (addrEl) addrEl.textContent = email || '';
     lucide.createIcons();
+    startVerifyCountdown();
+  }
+
+  // ============================================================
+  // 確認期限カウントダウン（10分）
+  // ============================================================
+  const VERIFY_TIMEOUT_MS = 10 * 60 * 1000; // 10分
+  let _verifyTimer = null;
+
+  function startVerifyCountdown() {
+    if (_verifyTimer) { clearInterval(_verifyTimer); _verifyTimer = null; }
+    const createdAt = currentUser && currentUser.metadata && currentUser.metadata.creationTime
+      ? new Date(currentUser.metadata.creationTime).getTime()
+      : Date.now();
+    const expiresAt = createdAt + VERIFY_TIMEOUT_MS;
+
+    function tick() {
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        clearInterval(_verifyTimer); _verifyTimer = null;
+        handleVerificationExpired();
+        return;
+      }
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      const el = document.getElementById('verify-countdown');
+      if (el) {
+        el.textContent = `確認期限まで ${mins}分 ${String(secs).padStart(2,'0')}秒`;
+        el.className = `text-xs text-center font-bold mb-4 ${remaining < 2 * 60 * 1000 ? 'text-red-500' : 'text-slate-400'}`;
+      }
+    }
+    tick();
+    _verifyTimer = setInterval(tick, 1000);
+  }
+
+  async function handleVerificationExpired() {
+    if (_verifyTimer) { clearInterval(_verifyTimer); _verifyTimer = null; }
+    const countEl = document.getElementById('verify-countdown');
+    if (countEl) { countEl.textContent = '確認期限が切れました'; countEl.className = 'text-xs text-center font-bold mb-4 text-red-500'; }
+    const statusEl = document.getElementById('verify-status');
+    statusEl.textContent = '登録から10分が経過したため、登録情報を削除します。再度お申し込みください。';
+    statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
+    document.getElementById('verify-check-btn').disabled = true;
+    document.getElementById('resend-btn').disabled = true;
+
+    // Firestoreの申請データを削除（status=pending のもののみ）
+    try {
+      if (db && currentUser) {
+        const snap = await db.collection('organizations')
+          .where('owner_uid', '==', currentUser.uid)
+          .where('status', '==', 'pending')
+          .limit(1).get();
+        if (!snap.empty) await snap.docs[0].ref.delete();
+      }
+    } catch(e) { console.warn('期限切れorg削除失敗:', e); }
+
+    // Firebase Authアカウントを削除（登録直後のため recent login 条件を満たす）
+    try {
+      if (currentUser) await currentUser.delete();
+    } catch(e) { console.warn('期限切れアカウント削除失敗:', e); }
+
+    setTimeout(() => { window.location.replace('index.html'); }, 3000);
   }
 
   async function checkEmailVerified() {
@@ -609,8 +673,17 @@
       await currentUser.reload();
       const refreshed = auth.currentUser;
       if (refreshed && refreshed.emailVerified) {
-        // 確認済み → ダッシュボードへ
+        // 確認済み → カウントダウン停止 → Firestore を更新 → ダッシュボードへ
+        if (_verifyTimer) { clearInterval(_verifyTimer); _verifyTimer = null; }
         currentUser = refreshed;
+        // Firestore の emailVerified を true に更新（セキュリティルールで許可済み）
+        if (db) {
+          try {
+            const snap = await db.collection('organizations')
+              .where('owner_uid', '==', currentUser.uid).limit(1).get();
+            if (!snap.empty) await snap.docs[0].ref.update({ emailVerified: true });
+          } catch(e) { console.warn('emailVerified更新失敗:', e); }
+        }
         document.getElementById('email-verify-screen').classList.add('hidden');
         document.getElementById('loading-screen').classList.remove('hidden');
         loadUserOrg(currentUser.uid);
