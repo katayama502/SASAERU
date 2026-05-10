@@ -804,7 +804,7 @@
   // ===================================================
   // 申請者へのメール送信（TASK-02 / Nodemailer + Netlify Function）
   // ===================================================
-  async function sendApplicantEmail({ toEmail, clubName, categoryJp, registeredAt }) {
+  async function sendApplicantEmail({ toEmail, clubName, categoryJp, registeredAt, origin }) {
     try {
       await fetch('/.netlify/functions/send-email', {
         method: 'POST',
@@ -1304,7 +1304,6 @@
       try {
         await db.collection('contacts').add({
           name: data.name, email: data.email, message: data.message,
-          read_at: null,
           created_at: firebase.firestore.FieldValue.serverTimestamp()
         });
         sendAdminNotification('contact', {
@@ -1430,7 +1429,9 @@
     if (!auth) { res.textContent = 'Firebase未設定です'; return; }
     if (btn) { btn.disabled = true; btn.textContent = '送信中...'; }
     try {
-      await auth.sendPasswordResetEmail(email);
+      await auth.sendPasswordResetEmail(email, {
+        url: `${window.location.origin}/index.html`,
+      });
       res.textContent = '✓ リセットメールを送信しました。メールをご確認ください。';
       res.className = 'text-xs text-center text-green-600 font-bold';
       if (btn) { btn.disabled = false; btn.textContent = 'リセットメールを送信'; }
