@@ -1134,8 +1134,15 @@
           カテゴリ: CATEGORY_LABEL[data.category] ?? data.category,
           エリア: data.area || '未記入', メール: data.contact_email,
         });
-        // ③ メールアドレス確認メールを送信
-        try { await cred.user.sendEmailVerification(); } catch(e) { console.warn('確認メール送信失敗:', e); }
+        // ③ メールアドレス確認メールを送信（確認後 mypage.html へ戻るよう continueUrl を指定）
+        try {
+          await cred.user.sendEmailVerification({
+            url: `${window.location.origin}/mypage.html`,
+          });
+        } catch(e) {
+          // 送信失敗をコンソールに記録（登録自体は完了しているため処理は続行）
+          console.warn('確認メール送信失敗:', e);
+        }
         // 申請者に登録受付メール送信（TASK-02）
         const now = new Date();
         const registeredAt = now.toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
