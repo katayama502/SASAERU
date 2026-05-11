@@ -108,14 +108,21 @@ service cloud.firestore {
     match /posts/{postId} {
       // 誰でも読める（公開コンテンツ）
       allow read:         if true;
-      // 作成: 認証済みユーザーが自分のowner_uidで作成
+      // 作成: 認証済みユーザーが自分のowner_uidで / 許可フィールドのみ
       allow create:       if isAuth()
-                          && request.resource.data.owner_uid == request.auth.uid;
-      // 更新: 自分の投稿のみ / owner_uidは変更不可（乗っ取り防止）
+                          && request.resource.data.owner_uid == request.auth.uid
+                          && request.resource.data.keys().hasOnly([
+                               'title','content','image_url',
+                               'org_id','owner_uid','created_at'
+                             ]);
+      // 更新: 自分の投稿のみ / owner_uidは変更不可（乗っ取り防止）/ 許可フィールドのみ
       // S-4: owner_uid の不変チェックを追加
       allow update:       if isAuth()
                           && resource.data.owner_uid == request.auth.uid
-                          && request.resource.data.owner_uid == resource.data.owner_uid;
+                          && request.resource.data.owner_uid == resource.data.owner_uid
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                               'title','content','image_url','updated_at'
+                             ]);
       // 削除: 自分の投稿のみ
       allow delete:       if isAuth()
                           && resource.data.owner_uid == request.auth.uid;

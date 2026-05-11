@@ -760,7 +760,7 @@
       } catch(e) { console.warn('Slack通知失敗:', e); }
     }
     try {
-      await fetch('/.netlify/functions/send-email', {
+      const res = await fetch('/.netlify/functions/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -768,6 +768,7 @@
           params: { label, lines, origin: location.origin },
         }),
       });
+      if (!res.ok) console.warn('管理者メール通知失敗:', res.status);
     } catch(e) { console.warn('管理者メール通知失敗:', e); }
   }
 
@@ -806,7 +807,7 @@
   // ===================================================
   async function sendApplicantEmail({ toEmail, clubName, categoryJp, registeredAt, origin }) {
     try {
-      await fetch('/.netlify/functions/send-email', {
+      const res = await fetch('/.netlify/functions/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -814,6 +815,7 @@
           params: { toEmail, clubName, categoryJp, registeredAt, origin },
         }),
       });
+      if (!res.ok) console.warn('申請者メール送信失敗:', res.status);
     } catch(e) { console.warn('申請者メール送信失敗:', e); }
   }
 
