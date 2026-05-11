@@ -1166,7 +1166,6 @@
         try {
           await cred.user.sendEmailVerification({
             url: `${window.location.origin}/mypage.html`,
-            handleCodeInApp: true,
           });
         } catch(e) {
           // 送信失敗をコンソールに記録（登録自体は完了しているため処理は続行）
