@@ -1288,17 +1288,21 @@
         data.owner_uid  = currentUser.uid;
         await menusRef.add(data);
         showToast('メニューを追加しました');
-        // 新規作成時のみ Slack 通知（非同期・エラーは無視）
-        fetch('/.netlify/functions/notify-slack', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orgName:      currentOrg?.name || '',
-            menuTitle:    data.title,
-            targetAmount: data.target_amount || '',
-            origin:       window.location.origin,
-          }),
-        }).catch(() => {});
+        // 新規作成時のみ Slack 通知（既存 slackWebhook を使用・エラーは無視）
+        const _slackUrl = getCfg().slackWebhook || '';
+        if (_slackUrl) {
+          const _lines = [
+            ':new: *新規支援メニューが登録されました*',
+            `*団体名*：${currentOrg?.name || '—'}`,
+            `*メニュー名*：${data.title || '—'}`,
+            data.target_amount ? `*希望金額・数量*：${data.target_amount}` : null,
+            `*管理画面*：${window.location.origin}/admin.html`,
+          ].filter(Boolean).join('\n');
+          fetch(_slackUrl, {
+            method: 'POST', mode: 'no-cors',
+            body: new URLSearchParams({ payload: JSON.stringify({ text: _lines }) }),
+          }).catch(() => {});
+        }
       }
       cancelMenuForm();
       loadMenus();
