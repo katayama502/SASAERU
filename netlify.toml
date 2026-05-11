@@ -1,6 +1,6 @@
 [build]
   publish = "."
-  command = "npm --prefix netlify/functions/send-email install"
+  command = "npm --prefix netlify/functions/send-email install && npm --prefix netlify/functions/send-verify-email install"
 
 # H-4: functions ディレクトリを明示（Netlify の自動検出に頼らない）
 [functions]
