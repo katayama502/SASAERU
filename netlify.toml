@@ -1,6 +1,7 @@
 [build]
   publish = "."
   command = "npm --prefix netlify/functions/send-email install && npm --prefix netlify/functions/send-verify-email install"
+  # notify-slack は組み込みモジュールのみ使用するため install 不要
 
 # H-4: functions ディレクトリを明示（Netlify の自動検出に頼らない）
 [functions]

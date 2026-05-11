@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23f97316'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23ffffff'>♥</text></svg>">
   <title>SASAERU 管理ダッシュボード</title>
   <meta name="robots" content="noindex,nofollow">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } } }
+    tailwind.config = { theme: { extend: { colors: { brand: { DEFAULT: '#f97316', dark: '#ea580c' } } } } }
   </script>
   <script src="https://unpkg.com/lucide@0.344.0"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -43,23 +43,23 @@
           <i data-lucide="heart" class="text-white fill-white" width="22" height="22"></i>
         </div>
         <div>
-          <p class="text-lg font-black text-[#0f0e2e] leading-none">SASAERU</p>
+          <p class="text-lg font-black text-slate-900 leading-none">SASAERU</p>
           <p class="text-[10px] text-slate-400 mt-0.5">管理ダッシュボード</p>
         </div>
       </div>
-      <h1 class="text-xl font-black text-[#0f0e2e] mb-1">ログイン</h1>
+      <h1 class="text-xl font-black text-slate-900 mb-1">ログイン</h1>
       <p class="text-xs text-slate-400 mb-6">管理者アカウントでサインインしてください</p>
       <form id="login-form" class="space-y-4">
         <div>
           <label for="login-email" class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス</label>
           <input type="email" id="login-email" required maxlength="200" autocomplete="email"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
         </div>
         <div>
           <label for="login-password" class="block text-xs font-bold text-slate-600 mb-1.5">パスワード</label>
           <div class="relative">
             <input type="password" id="login-password" required maxlength="200" autocomplete="current-password"
-              class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
+              class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
             <button type="button" onclick="toggleAdminPwd()"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               <i id="admin-eye" data-lucide="eye" width="16" height="16"></i>
@@ -67,7 +67,7 @@
           </div>
         </div>
         <button type="submit" id="login-submit-btn"
-          class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl transition-all text-sm shadow-md mt-2 flex items-center justify-center gap-2">
+          class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-all text-sm shadow-md mt-2 flex items-center justify-center gap-2">
           サインイン
         </button>
         <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]" aria-live="assertive"></p>
@@ -84,7 +84,7 @@
 
     <div class="flex h-screen overflow-hidden">
       <!-- サイドバー -->
-      <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-[#0f0e2e] flex flex-col shrink-0 -translate-x-full md:translate-x-0">
+      <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-slate-900 flex flex-col shrink-0 -translate-x-full md:translate-x-0">
         <div class="px-5 py-5 border-b border-white/10">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 bg-orange-400 rounded-lg flex items-center justify-center shadow-md shadow-orange-400/30">
@@ -154,7 +154,7 @@
               <i data-lucide="menu" width="18" height="18"></i>
             </button>
             <div>
-              <h1 id="page-title" class="text-base sm:text-lg font-black text-[#0f0e2e]">概要</h1>
+              <h1 id="page-title" class="text-base sm:text-lg font-black text-slate-900">概要</h1>
               <p id="page-subtitle" class="text-xs text-slate-400 mt-0.5 hidden sm:block">ダッシュボード</p>
             </div>
           </div>
@@ -177,7 +177,7 @@
                     <i data-lucide="clock" class="text-orange-500" width="16" height="16"></i>
                   </div>
                 </div>
-                <p id="ov-pending" class="text-3xl font-black text-[#0f0e2e]">—</p>
+                <p id="ov-pending" class="text-3xl font-black text-slate-900">—</p>
               </div>
               <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                 <div class="flex items-center justify-between mb-3">
@@ -186,7 +186,7 @@
                     <i data-lucide="building-2" class="text-green-600" width="16" height="16"></i>
                   </div>
                 </div>
-                <p id="ov-public" class="text-3xl font-black text-[#0f0e2e]">—</p>
+                <p id="ov-public" class="text-3xl font-black text-slate-900">—</p>
               </div>
               <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                 <div class="flex items-center justify-between mb-3">
@@ -195,7 +195,7 @@
                     <i data-lucide="mail" class="text-blue-600" width="16" height="16"></i>
                   </div>
                 </div>
-                <p id="ov-inquiries" class="text-3xl font-black text-[#0f0e2e]">—</p>
+                <p id="ov-inquiries" class="text-3xl font-black text-slate-900">—</p>
               </div>
               <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                 <div class="flex items-center justify-between mb-3">
@@ -204,13 +204,13 @@
                     <i data-lucide="message-square" class="text-purple-600" width="16" height="16"></i>
                   </div>
                 </div>
-                <p id="ov-contacts" class="text-3xl font-black text-[#0f0e2e]">—</p>
+                <p id="ov-contacts" class="text-3xl font-black text-slate-900">—</p>
               </div>
             </div>
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm">
               <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h2 class="text-sm font-black text-[#0f0e2e]">最近の審査待ち団体</h2>
-                <button onclick="switchTab('pending')" class="text-xs text-indigo-600 font-bold hover:underline">すべて見る</button>
+                <h2 class="text-sm font-black text-slate-900">最近の審査待ち団体</h2>
+                <button onclick="switchTab('pending')" class="text-xs text-orange-600 font-bold hover:underline">すべて見る</button>
               </div>
               <div id="ov-recent-list" class="divide-y divide-slate-50">
                 <div class="px-6 py-4 text-xs text-slate-400 text-center">読み込み中...</div>
@@ -233,11 +233,11 @@
                 <i data-lucide="search" width="15" height="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 <input type="text" id="org-search" placeholder="団体名・メールで検索..." maxlength="100"
                   oninput="renderFilteredOrgs()"
-                  class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-400 outline-none transition-all">
+                  class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-orange-400 outline-none transition-all">
               </div>
               <div class="flex gap-2 flex-wrap">
                 <button onclick="filterOrgs('all')" data-filter="all"
-                  class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-[#0f0e2e] text-white">すべて</button>
+                  class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
                 <button onclick="filterOrgs('public')" data-filter="public"
                   class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">公開中</button>
                 <button onclick="filterOrgs('pending')" data-filter="pending"
@@ -255,7 +255,7 @@
           <div id="tab-inquiries" class="hidden fade-in">
             <div class="flex gap-2 mb-4 flex-wrap items-center">
               <button onclick="filterInquiries('all')" data-inq-filter="all"
-                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-[#0f0e2e] text-white">すべて</button>
+                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
               <button onclick="filterInquiries('new')" data-inq-filter="new"
                 class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">未対応</button>
               <button onclick="filterInquiries('done')" data-inq-filter="done"
@@ -301,7 +301,7 @@
   <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
     role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-      <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
+      <h3 id="confirm-title" class="text-base font-black text-slate-900 mb-2"></h3>
       <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
       <div class="flex gap-3">
         <button onclick="closeConfirm()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
@@ -314,7 +314,7 @@
   <div id="reject-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
     role="dialog" aria-modal="true" aria-labelledby="reject-dialog-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-      <h3 id="reject-dialog-title" class="text-base font-black text-[#0f0e2e] mb-2">申請を却下しますか？</h3>
+      <h3 id="reject-dialog-title" class="text-base font-black text-slate-900 mb-2">申請を却下しますか？</h3>
       <p class="text-sm text-slate-500 mb-3">ステータスを「却下」に変更します。後から変更することもできます。</p>
       <label for="reject-reason" class="block text-xs font-bold text-slate-600 mb-1.5">否認理由（任意）</label>
       <textarea id="reject-reason" rows="3" maxlength="500"
@@ -661,7 +661,7 @@
       return `
         <div class="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold text-[#0f0e2e] truncate">${esc(o.name)}</p>
+            <p class="text-sm font-bold text-slate-900 truncate">${esc(o.name)}</p>
             <p class="text-xs text-slate-400 mt-0.5">${esc(CAT[o.category]||o.category||'—')} · ${esc(o.area||'—')}</p>
           </div>
           <div class="flex items-center gap-2 shrink-0">
@@ -720,7 +720,7 @@
     orgFilter = f;
     document.querySelectorAll('.filter-btn').forEach(btn => {
       const active = btn.dataset.filter === f;
-      btn.classList.toggle('bg-[#0f0e2e]', active); btn.classList.toggle('text-white', active);
+      btn.classList.toggle('bg-orange-500', active); btn.classList.toggle('text-white', active);
       btn.classList.toggle('bg-white', !active);     btn.classList.toggle('text-slate-500', !active);
     });
     renderFilteredOrgs();
@@ -759,7 +759,7 @@
                   <i data-lucide="image" class="text-slate-300" width="24" height="24"></i></div>`}
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1 flex-wrap">
-                <h3 class="text-sm font-black text-[#0f0e2e]">${esc(o.name)}</h3>
+                <h3 class="text-sm font-black text-slate-900">${esc(o.name)}</h3>
                 ${statusBadge(o.status)}
                 ${!o.emailVerified ? `<span class="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-600 border border-amber-200 rounded-full flex items-center gap-1"><i data-lucide="mail-warning" width="10" height="10"></i>メール未確認</span>` : ''}
               </div>
@@ -900,7 +900,7 @@
     inquiryFilter = f;
     document.querySelectorAll('.inq-filter-btn').forEach(btn => {
       const active = btn.dataset.inqFilter === f;
-      btn.classList.toggle('bg-[#0f0e2e]', active); btn.classList.toggle('text-white', active);
+      btn.classList.toggle('bg-orange-500', active); btn.classList.toggle('text-white', active);
       btn.classList.toggle('bg-white',      !active); btn.classList.toggle('text-slate-500', !active);
       btn.classList.toggle('border',        !active); btn.classList.toggle('border-slate-200', !active);
     });
@@ -924,7 +924,7 @@
           <div class="flex items-start justify-between gap-4 mb-3">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1 flex-wrap">
-                <p class="text-sm font-black text-[#0f0e2e]">${esc(q.company_name||'—')}</p>
+                <p class="text-sm font-black text-slate-900">${esc(q.company_name||'—')}</p>
                 ${statusBadge(q.status||'new')}
               </div>
               <div class="flex flex-wrap gap-3 text-xs text-slate-400">
@@ -986,7 +986,7 @@
             <div class="flex items-start justify-between gap-4 mb-2">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1 flex-wrap">
-                  <p class="text-sm font-black text-[#0f0e2e]">${esc(c.name||'—')}</p>
+                  <p class="text-sm font-black text-slate-900">${esc(c.name||'—')}</p>
                   ${statusBadge(isRead ? 'read' : 'unread')}
                 </div>
                 <div class="flex flex-wrap gap-3 text-xs text-slate-400">
@@ -1075,7 +1075,7 @@
               ${allMenus.map(m => `
                 <tr class="hover:bg-slate-50 transition-colors">
                   <td class="px-5 py-3 text-xs font-bold text-slate-700">${esc(m.orgName)}</td>
-                  <td class="px-5 py-3 text-xs text-[#0f0e2e] font-bold">${esc(m.title||'—')}</td>
+                  <td class="px-5 py-3 text-xs text-slate-900 font-bold">${esc(m.title||'—')}</td>
                   <td class="px-5 py-3 text-xs text-slate-400 hidden sm:table-cell">${fmtDate(m.created_at)}</td>
                   <td class="px-5 py-3 hidden sm:table-cell">${statusBadge(m.status||'private')}</td>
                   <td class="px-5 py-3 text-right">

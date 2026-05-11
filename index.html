@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- L-2: favicon -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23f97316'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23ffffff'>♥</text></svg>">
   <title>SASAERU - 地域循環型マッチングプラットフォーム</title>
   <meta name="description" content="地域クラブと企業をつなぐマッチングプラットフォーム。島根県の子どもたちの活動を、企業の力で支えます。掲載無料。">
   <meta property="og:title" content="SASAERU - 地域循環型マッチングプラットフォーム">
@@ -22,7 +22,9 @@
     tailwind.config = {
       theme: {
         extend: {
-          colors: { indigo: { 950: '#0f0e2e' } }
+          colors: {
+            brand: { DEFAULT: '#f97316', dark: '#ea580c' },
+          }
         }
       }
     }
@@ -38,15 +40,21 @@
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     body { font-family: 'Noto Sans JP', sans-serif; }
     .card-hover { transition: transform 0.25s ease, box-shadow 0.25s ease; }
-    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(15,14,46,0.18); }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(249,115,22,0.15); }
     .hero-grid {
-      background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-image: linear-gradient(rgba(249,115,22,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(249,115,22,0.05) 1px, transparent 1px);
       background-size: 60px 60px;
     }
     .radial-glow {
-      background: radial-gradient(ellipse 70% 60% at 60% 40%, rgba(251,146,60,0.12) 0%, transparent 70%);
+      background: radial-gradient(ellipse 70% 60% at 60% 40%, rgba(249,115,22,0.18) 0%, transparent 70%);
     }
+    /* 地域マルチセレクト */
+    .area-dropdown { position:absolute; top:100%; left:0; right:0; z-index:50; background:#fff; border:1px solid #e2e8f0; border-top:none; border-radius:0 0 0.75rem 0.75rem; max-height:200px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.08); }
+    .area-dropdown li { padding:0.5rem 1rem; font-size:0.8125rem; cursor:pointer; color:#334155; }
+    .area-dropdown li:hover, .area-dropdown li.active { background:#fff7ed; color:#ea580c; }
+    .area-chip { display:inline-flex; align-items:center; gap:0.25rem; background:#fff7ed; color:#ea580c; border:1px solid #fed7aa; border-radius:9999px; padding:0.15rem 0.6rem; font-size:0.75rem; font-weight:700; }
+    .area-chip button { background:none; border:none; cursor:pointer; color:#f97316; padding:0; line-height:1; font-size:0.875rem; }
     .stat-counter { font-variant-numeric: tabular-nums; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -75,34 +83,34 @@
 <body class="min-h-screen bg-slate-50 text-slate-900">
 
   <!-- ===== NAVIGATION ===== -->
-  <nav class="sticky top-0 z-50 bg-[#0f0e2e]/95 backdrop-blur-md border-b border-white/10">
+  <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16 items-center">
         <!-- Logo -->
         <a href="#" class="flex items-center gap-2.5">
-          <div class="w-9 h-9 bg-orange-400 rounded-lg flex items-center justify-center shadow-lg shadow-orange-400/30">
+          <div class="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center shadow-md shadow-orange-500/30">
             <i data-lucide="heart" class="text-white fill-white" width="20" height="20"></i>
           </div>
           <div>
-            <span class="text-xl font-black tracking-tighter text-white">SASAERU</span>
+            <span class="text-xl font-black tracking-tighter text-slate-900">SASAERU</span>
             <p class="text-[9px] text-slate-400 font-medium leading-none mt-0.5">地域クラブ活動支援プラットフォーム</p>
           </div>
         </a>
         <!-- Desktop Links -->
-        <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-          <a href="#about" class="nav-link hover:text-white transition-colors">SASAERUとは</a>
-          <a href="#clubs" class="nav-link hover:text-white transition-colors">クラブを探す</a>
-          <a href="#for-company" class="nav-link hover:text-white transition-colors">企業の方へ</a>
-          <a href="#contact" class="nav-link hover:text-white transition-colors">お問い合わせ</a>
+        <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+          <a href="#about" class="nav-link hover:text-slate-900 transition-colors">SASAERUとは</a>
+          <a href="#clubs" class="nav-link hover:text-slate-900 transition-colors">クラブを探す</a>
+          <a href="#for-company" class="nav-link hover:text-slate-900 transition-colors">企業の方へ</a>
+          <a href="#contact" class="nav-link hover:text-slate-900 transition-colors">お問い合わせ</a>
           <div id="header-guest" class="flex items-center gap-2">
-            <button onclick="openLoginModal()" class="px-4 py-2 rounded-full text-sm font-bold text-white/80 hover:bg-white/10 transition-all border border-white/20">ログイン</button>
-            <button onclick="openRegisterModal()" class="bg-orange-400 hover:bg-orange-500 text-white px-5 py-2 rounded-full text-[13px] font-bold shadow-md shadow-orange-400/30 flex items-center gap-1.5">
+            <button onclick="openLoginModal()" class="px-4 py-2 rounded-full text-sm font-bold text-slate-700 hover:bg-slate-100 transition-all border border-slate-300">ログイン</button>
+            <button onclick="openRegisterModal()" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-full text-[13px] font-bold shadow-md shadow-orange-500/30 flex items-center gap-1.5">
               <i data-lucide="plus-circle" width="15" height="15"></i>団体登録（無料）
             </button>
           </div>
           <div id="header-user" class="hidden items-center gap-2">
-            <span id="header-email" class="text-xs text-white/50 truncate max-w-[120px]"></span>
-            <a id="header-user-link" href="mypage.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-[13px] font-bold transition-all flex items-center gap-1.5 border border-white/20">
+            <span id="header-email" class="text-xs text-slate-400 truncate max-w-[120px]"></span>
+            <a id="header-user-link" href="mypage.html" class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2 rounded-full text-[13px] font-bold transition-all flex items-center gap-1.5 border border-slate-200">
               <i data-lucide="layout-dashboard" width="14" height="14"></i>マイページ
             </a>
           </div>
@@ -110,24 +118,24 @@
         <!-- Mobile hamburger -->
         <button id="mobile-menu-btn" onclick="toggleMobileMenu()"
           aria-expanded="false" aria-controls="mobile-menu" aria-label="メニューを開く"
-          class="md:hidden w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+          class="md:hidden w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 hover:bg-slate-200 transition-colors">
           <i data-lucide="menu" width="20" height="20" id="menu-icon"></i>
         </button>
       </div>
     </div>
     <!-- Mobile Menu -->
-    <div id="mobile-menu" class="hidden md:hidden bg-[#0f0e2e] border-t border-white/10 pb-4">
-      <div class="px-4 pt-3 space-y-1 text-sm font-medium text-slate-300">
-        <a href="#about" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">SASAERUとは</a>
-        <a href="#clubs" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">クラブを探す</a>
-        <a href="#for-company" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">企業の方へ</a>
-        <a href="#contact" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors">お問い合わせ</a>
+    <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-slate-200 pb-4">
+      <div class="px-4 pt-3 space-y-1 text-sm font-medium text-slate-600">
+        <a href="#about" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">SASAERUとは</a>
+        <a href="#clubs" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">クラブを探す</a>
+        <a href="#for-company" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">企業の方へ</a>
+        <a href="#contact" onclick="closeMobileMenu()" class="block py-2.5 px-3 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">お問い合わせ</a>
         <div id="mobile-guest">
-          <button onclick="openLoginModal(); closeMobileMenu();" class="w-full py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-white text-slate-300 font-bold text-sm text-left transition-colors">ログイン</button>
-          <button onclick="openRegisterModal(); closeMobileMenu();" class="w-full bg-orange-400 text-white py-3 rounded-full font-bold text-sm mt-1">団体登録（無料）</button>
+          <button onclick="openLoginModal(); closeMobileMenu();" class="w-full py-2.5 px-3 rounded-lg hover:bg-slate-100 hover:text-slate-900 text-slate-700 font-bold text-sm text-left transition-colors">ログイン</button>
+          <button onclick="openRegisterModal(); closeMobileMenu();" class="w-full bg-orange-500 text-white py-3 rounded-full font-bold text-sm mt-1">団体登録（無料）</button>
         </div>
         <div id="mobile-user" class="hidden">
-          <a id="mobile-user-link" href="mypage.html" class="w-full bg-white/10 text-white py-3 rounded-full font-bold text-sm flex items-center justify-center gap-2 border border-white/20">
+          <a id="mobile-user-link" href="mypage.html" class="w-full bg-slate-100 text-slate-800 py-3 rounded-full font-bold text-sm flex items-center justify-center gap-2 border border-slate-200">
             <i data-lucide="layout-dashboard" width="14" height="14"></i>マイページ
           </a>
         </div>
@@ -136,34 +144,35 @@
   </nav>
 
   <!-- ===== HERO ===== -->
-  <section class="relative min-h-[640px] flex flex-col justify-center overflow-hidden bg-[#0f0e2e]">
+  <section class="relative min-h-[640px] flex flex-col justify-center overflow-hidden bg-gradient-to-br from-orange-50 via-white to-amber-50">
     <div class="absolute inset-0 hero-grid"></div>
     <div class="absolute inset-0 radial-glow"></div>
     <div class="absolute inset-0">
+      <!-- トップ画像：別途提供画像に差し替えてください -->
       <img src="https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=1600"
-        alt="Children smiling" class="w-full h-full object-cover opacity-20">
-      <div class="absolute inset-0 bg-gradient-to-r from-[#0f0e2e] via-[#0f0e2e]/80 to-[#0f0e2e]/20"></div>
+        alt="Children smiling" class="w-full h-full object-cover opacity-15">
+      <div class="absolute inset-0 bg-gradient-to-r from-white/80 via-white/50 to-transparent"></div>
     </div>
     <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
       <div class="max-w-2xl">
-        <div class="inline-flex items-center gap-2 bg-orange-400/10 border border-orange-400/30 text-orange-300 text-xs font-bold px-4 py-1.5 rounded-full mb-6">
+        <div class="inline-flex items-center gap-2 bg-orange-100 border border-orange-300 text-orange-600 text-xs font-bold px-4 py-1.5 rounded-full mb-6">
           <i data-lucide="zap" width="12" height="12"></i>
           島根県発・地域支援マッチングプラットフォーム
         </div>
-        <h1 class="text-4xl md:text-6xl font-black text-white leading-[1.1] mb-6 tracking-tight">
+        <h1 class="text-4xl md:text-6xl font-black text-slate-900 leading-[1.1] mb-6 tracking-tight">
           地域の未来を、<br>
-          企業の力で<span class="text-orange-400">支える。</span>
+          企業の力で<span class="text-orange-500">支える。</span>
         </h1>
-        <p class="text-base md:text-lg text-slate-300 mb-10 leading-relaxed">
+        <p class="text-base md:text-lg text-slate-600 mb-10 leading-relaxed">
           資金やコーチ不足に悩む地域クラブと、<br class="hidden sm:block">
           社会貢献を志す企業をつなぐマッチングプラットフォーム。
         </p>
         <div class="flex flex-col sm:flex-row gap-4">
-          <a href="#clubs" class="bg-white text-[#0f0e2e] px-8 py-4 rounded-xl font-black text-base hover:bg-orange-400 hover:text-white transition-all flex items-center justify-center gap-2 shadow-xl">
+          <a href="#clubs" class="bg-orange-500 text-white px-8 py-4 rounded-xl font-black text-base hover:bg-orange-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30">
             支援したいクラブを探す
             <i data-lucide="arrow-right" width="18" height="18"></i>
           </a>
-          <button onclick="openRegisterModal()" class="bg-white/10 border border-white/20 text-white px-8 py-4 rounded-xl font-bold text-base hover:bg-white/20 transition-all flex items-center justify-center gap-2 backdrop-blur-sm">
+          <button onclick="openRegisterModal()" class="bg-white border border-slate-300 text-slate-700 px-8 py-4 rounded-xl font-bold text-base hover:bg-slate-50 hover:border-orange-400 transition-all flex items-center justify-center gap-2 shadow-sm">
             <i data-lucide="plus-circle" width="18" height="18"></i>
             活動内容を掲載する
           </button>
@@ -171,24 +180,24 @@
       </div>
     </div>
     <!-- Stats Bar -->
-    <div class="relative z-10 bg-white/5 border-t border-white/10 backdrop-blur-sm">
+    <div class="relative z-10 bg-white border-t border-slate-200 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-2 md:grid-cols-4 md:divide-x divide-white/10">
-          <div class="py-5 px-4 sm:px-6 text-center border-b border-white/10 md:border-b-0">
-            <p class="text-2xl font-black text-orange-400 stat-counter" id="stat-orgs">--</p>
-            <p class="text-xs text-slate-400 mt-0.5">登録クラブ数</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 md:divide-x divide-slate-200">
+          <div class="py-5 px-4 sm:px-6 text-center border-b border-slate-200 md:border-b-0">
+            <p class="text-2xl font-black text-orange-500 stat-counter" id="stat-orgs">--</p>
+            <p class="text-xs text-slate-500 mt-0.5">登録クラブ数</p>
           </div>
-          <div class="py-5 px-4 sm:px-6 text-center border-b border-l border-white/10 md:border-l-0 md:border-b-0">
-            <p class="text-2xl font-black text-orange-400">島根県</p>
-            <p class="text-xs text-slate-400 mt-0.5">対応エリア</p>
+          <div class="py-5 px-4 sm:px-6 text-center border-b border-l border-slate-200 md:border-l-0 md:border-b-0">
+            <p class="text-2xl font-black text-orange-500">島根県</p>
+            <p class="text-xs text-slate-500 mt-0.5">対応エリア</p>
           </div>
           <div class="py-5 px-4 sm:px-6 text-center">
-            <p class="text-2xl font-black text-orange-400">3</p>
-            <p class="text-xs text-slate-400 mt-0.5">対応カテゴリ</p>
+            <p class="text-2xl font-black text-orange-500">3</p>
+            <p class="text-xs text-slate-500 mt-0.5">対応カテゴリ</p>
           </div>
-          <div class="py-5 px-4 sm:px-6 text-center border-l border-white/10 md:border-l-0">
-            <p class="text-2xl font-black text-orange-400">無料</p>
-            <p class="text-xs text-slate-400 mt-0.5">掲載費用</p>
+          <div class="py-5 px-4 sm:px-6 text-center border-l border-slate-200 md:border-l-0">
+            <p class="text-2xl font-black text-orange-500">無料</p>
+            <p class="text-xs text-slate-500 mt-0.5">掲載費用</p>
           </div>
         </div>
       </div>
@@ -200,37 +209,37 @@
     <div class="max-w-7xl mx-auto px-4">
       <div class="text-center mb-16">
         <span class="text-xs font-bold text-orange-400 tracking-widest uppercase">Why SASAERU</span>
-        <h2 class="text-3xl md:text-4xl font-black text-[#0f0e2e] mt-2 mb-4">なぜ「SASAERU」なのか</h2>
+        <h2 class="text-3xl md:text-4xl font-black text-slate-900 mt-2 mb-4">なぜ「SASAERU」なのか</h2>
         <p class="text-slate-500 max-w-md mx-auto">地域・企業・子どもたちの「三方良し」を実現します</p>
       </div>
       <div class="grid md:grid-cols-3 gap-6">
         <div class="card-hover p-8 rounded-2xl bg-slate-50 border border-slate-100">
-          <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-6">
-            <i data-lucide="users" class="text-[#0f0e2e]" width="24" height="24"></i>
+          <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-6">
+            <i data-lucide="users" class="text-orange-600" width="24" height="24"></i>
           </div>
-          <h3 class="text-lg font-black mb-4 text-[#0f0e2e]">地域クラブ</h3>
+          <h3 class="text-lg font-black mb-4 text-slate-900">地域クラブ</h3>
           <ul class="space-y-3 text-sm text-slate-600">
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>資金難・コーチ不足の解消</li>
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>安定した運営基盤の構築</li>
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>広報活動の負担軽減</li>
           </ul>
         </div>
-        <div class="card-hover p-8 rounded-2xl bg-[#0f0e2e] text-white shadow-2xl shadow-[#0f0e2e]/30 scale-105 border border-indigo-800">
-          <div class="w-12 h-12 bg-orange-400/20 rounded-xl flex items-center justify-center mb-6">
-            <i data-lucide="building-2" class="text-orange-400" width="24" height="24"></i>
+        <div class="card-hover p-8 rounded-2xl bg-orange-500 text-white shadow-2xl shadow-orange-500/30 scale-105 border border-orange-400">
+          <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-6">
+            <i data-lucide="building-2" class="text-white" width="24" height="24"></i>
           </div>
           <h3 class="text-lg font-black mb-4">企業・法人</h3>
-          <ul class="space-y-3 text-sm text-indigo-200">
-            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-orange-400 shrink-0 mt-0.5" width="16" height="16"></i>効果的なSCR・CSR活動</li>
-            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-orange-400 shrink-0 mt-0.5" width="16" height="16"></i>内部留保の有効活用</li>
-            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-orange-400 shrink-0 mt-0.5" width="16" height="16"></i>地域の認知度・ブランド向上</li>
+          <ul class="space-y-3 text-sm text-orange-50">
+            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-white shrink-0 mt-0.5" width="16" height="16"></i>効果的なSCR・CSR活動</li>
+            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-white shrink-0 mt-0.5" width="16" height="16"></i>内部留保の有効活用</li>
+            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-white shrink-0 mt-0.5" width="16" height="16"></i>地域の認知度・ブランド向上</li>
           </ul>
         </div>
         <div class="card-hover p-8 rounded-2xl bg-slate-50 border border-slate-100">
-          <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-6">
-            <i data-lucide="school" class="text-[#0f0e2e]" width="24" height="24"></i>
+          <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-6">
+            <i data-lucide="school" class="text-orange-600" width="24" height="24"></i>
           </div>
-          <h3 class="text-lg font-black mb-4 text-[#0f0e2e]">学校・子ども</h3>
+          <h3 class="text-lg font-black mb-4 text-slate-900">学校・子ども</h3>
           <ul class="space-y-3 text-sm text-slate-600">
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>部活動の地域移行を加速</li>
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>多様な体験機会の確保</li>
@@ -247,11 +256,11 @@
       <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
         <div>
           <span class="text-xs font-bold text-orange-400 tracking-widest uppercase">Find Clubs</span>
-          <h2 class="text-3xl font-black text-[#0f0e2e] mt-2 mb-2">支援を待っているクラブ</h2>
+          <h2 class="text-3xl font-black text-slate-900 mt-2 mb-2">支援を待っているクラブ</h2>
           <p class="text-slate-500 text-sm">あなたの企業の力が、子どもたちの夢を支えます。</p>
         </div>
         <div class="flex bg-white p-1 rounded-full shadow-sm border border-slate-200 flex-wrap gap-1" id="tab-container">
-          <button data-tab="all" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all bg-[#0f0e2e] text-white">すべて</button>
+          <button data-tab="all" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
           <button data-tab="sports" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">スポーツ</button>
           <button data-tab="culture" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">文化・芸術</button>
           <button data-tab="welfare" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">福祉</button>
@@ -259,12 +268,12 @@
       </div>
       <div class="grid md:grid-cols-3 gap-7" id="clubs-container">
         <div class="col-span-3 text-center py-20 text-slate-400">
-          <i data-lucide="loader-2" width="32" height="32" class="mx-auto mb-3 animate-spin text-indigo-400"></i>
+          <i data-lucide="loader-2" width="32" height="32" class="mx-auto mb-3 animate-spin text-orange-400"></i>
           <p class="text-sm">読み込み中...</p>
         </div>
       </div>
       <div class="mt-16 text-center">
-        <button onclick="openRegisterModal()" class="inline-flex items-center gap-2 text-[#0f0e2e] font-bold border border-[#0f0e2e]/20 hover:border-[#0f0e2e] px-8 py-3 rounded-full text-sm transition-all hover:bg-[#0f0e2e] hover:text-white">
+        <button onclick="openRegisterModal()" class="inline-flex items-center gap-2 text-orange-600 font-bold border border-orange-300 hover:border-orange-500 px-8 py-3 rounded-full text-sm transition-all hover:bg-orange-500 hover:text-white">
           クラブを登録する
           <i data-lucide="plus" width="16" height="16"></i>
         </button>
@@ -288,80 +297,80 @@
   </section>
 
   <!-- ===== 企業向けセクション ===== -->
-  <section id="for-company" class="py-24 bg-[#0f0e2e] text-white overflow-hidden relative">
-    <div class="absolute inset-0 hero-grid opacity-50"></div>
-    <div class="absolute right-0 top-0 w-96 h-96 rounded-full bg-orange-400/5 blur-3xl pointer-events-none"></div>
+  <section id="for-company" class="py-24 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white overflow-hidden relative">
+    <div class="absolute inset-0 hero-grid opacity-30"></div>
+    <div class="absolute right-0 top-0 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
     <div class="max-w-7xl mx-auto px-4 relative z-10">
       <div class="grid md:grid-cols-2 gap-16 items-center">
         <div>
-          <span class="text-xs font-bold text-orange-400 tracking-widest uppercase">For Companies</span>
+          <span class="text-xs font-bold text-white/70 tracking-widest uppercase">For Companies</span>
           <h2 class="text-3xl md:text-4xl font-black mt-2 mb-8 leading-tight">
-            企業の内部留保を、<br>地域の<span class="text-orange-400">「笑顔」</span>へ投資しませんか？
+            企業の内部留保を、<br>地域の<span class="text-white underline decoration-white/40">「笑顔」</span>へ投資しませんか？
           </h2>
           <div class="space-y-6">
             <div class="flex gap-4">
-              <div class="w-11 h-11 shrink-0 bg-orange-400/10 border border-orange-400/20 rounded-xl flex items-center justify-center text-orange-400">
+              <div class="w-11 h-11 shrink-0 bg-white/20 border border-white/30 rounded-xl flex items-center justify-center text-white">
                 <i data-lucide="coins" width="20" height="20"></i>
               </div>
               <div>
-                <h4 class="font-bold text-base mb-1 text-orange-300">利益の有効活用</h4>
-                <p class="text-slate-400 text-sm leading-relaxed">余剰利益を地域活動へ支援することで、効果的な節税対策と社会貢献を両立できます。</p>
+                <h4 class="font-bold text-base mb-1 text-white">利益の有効活用</h4>
+                <p class="text-orange-100 text-sm leading-relaxed">余剰利益を地域活動へ支援することで、効果的な節税対策と社会貢献を両立できます。</p>
               </div>
             </div>
             <div class="flex gap-4">
-              <div class="w-11 h-11 shrink-0 bg-orange-400/10 border border-orange-400/20 rounded-xl flex items-center justify-center text-orange-400">
+              <div class="w-11 h-11 shrink-0 bg-white/20 border border-white/30 rounded-xl flex items-center justify-center text-white">
                 <i data-lucide="megaphone" width="20" height="20"></i>
               </div>
               <div>
-                <h4 class="font-bold text-base mb-1 text-orange-300">企業PRの場として</h4>
-                <p class="text-slate-400 text-sm leading-relaxed">支援先クラブのウェアや看板に企業ロゴを掲載。地域住民への好感度を向上させます。</p>
+                <h4 class="font-bold text-base mb-1 text-white">企業PRの場として</h4>
+                <p class="text-orange-100 text-sm leading-relaxed">支援先クラブのウェアや看板に企業ロゴを掲載。地域住民への好感度を向上させます。</p>
               </div>
             </div>
             <div class="flex gap-4">
-              <div class="w-11 h-11 shrink-0 bg-orange-400/10 border border-orange-400/20 rounded-xl flex items-center justify-center text-orange-400">
+              <div class="w-11 h-11 shrink-0 bg-white/20 border border-white/30 rounded-xl flex items-center justify-center text-white">
                 <i data-lucide="heart-handshake" width="20" height="20"></i>
               </div>
               <div>
-                <h4 class="font-bold text-base mb-1 text-orange-300">地域への貢献</h4>
-                <p class="text-slate-400 text-sm leading-relaxed">部活動の地域移行を支えることで、地域社会の持続的な発展に貢献できます。</p>
+                <h4 class="font-bold text-base mb-1 text-white">地域への貢献</h4>
+                <p class="text-orange-100 text-sm leading-relaxed">部活動の地域移行を支えることで、地域社会の持続的な発展に貢献できます。</p>
               </div>
             </div>
           </div>
         </div>
-        <div class="bg-white/5 backdrop-blur-md p-10 rounded-3xl border border-white/10">
+        <div class="bg-white/15 backdrop-blur-md p-10 rounded-3xl border border-white/20">
           <h3 class="text-xl font-black mb-8 text-white">支援開始までのステップ</h3>
           <div class="space-y-8">
             <div class="flex gap-5 items-start">
-              <div class="w-10 h-10 shrink-0 rounded-xl bg-orange-400/20 flex items-center justify-center">
-                <span class="text-orange-400 font-black text-sm">01</span>
+              <div class="w-10 h-10 shrink-0 rounded-xl bg-white/20 flex items-center justify-center">
+                <span class="text-white font-black text-sm">01</span>
               </div>
               <div>
                 <h4 class="font-bold text-base mb-1">クラブを探す</h4>
-                <p class="text-slate-400 text-sm">支援を必要としているクラブを検索・選択。カテゴリで絞り込めます。</p>
+                <p class="text-orange-100 text-sm">支援を必要としているクラブを検索・選択。カテゴリで絞り込めます。</p>
               </div>
             </div>
-            <div class="w-px h-6 bg-white/10 ml-5"></div>
+            <div class="w-px h-6 bg-white/20 ml-5"></div>
             <div class="flex gap-5 items-start">
-              <div class="w-10 h-10 shrink-0 rounded-xl bg-orange-400/20 flex items-center justify-center">
-                <span class="text-orange-400 font-black text-sm">02</span>
+              <div class="w-10 h-10 shrink-0 rounded-xl bg-white/20 flex items-center justify-center">
+                <span class="text-white font-black text-sm">02</span>
               </div>
               <div>
                 <h4 class="font-bold text-base mb-1">申請・問い合わせ</h4>
-                <p class="text-slate-400 text-sm">興味のあるクラブへ支援の意思を送信。フォームから簡単に申し込めます。</p>
+                <p class="text-orange-100 text-sm">興味のあるクラブへ支援の意思を送信。フォームから簡単に申し込めます。</p>
               </div>
             </div>
-            <div class="w-px h-6 bg-white/10 ml-5"></div>
+            <div class="w-px h-6 bg-white/20 ml-5"></div>
             <div class="flex gap-5 items-start">
-              <div class="w-10 h-10 shrink-0 rounded-xl bg-orange-400/20 flex items-center justify-center">
-                <span class="text-orange-400 font-black text-sm">03</span>
+              <div class="w-10 h-10 shrink-0 rounded-xl bg-white/20 flex items-center justify-center">
+                <span class="text-white font-black text-sm">03</span>
               </div>
               <div>
                 <h4 class="font-bold text-base mb-1">マッチング・支援開始</h4>
-                <p class="text-slate-400 text-sm">事務局が仲介し、具体的な支援内容を決定。安心してスタートできます。</p>
+                <p class="text-orange-100 text-sm">事務局が仲介し、具体的な支援内容を決定。安心してスタートできます。</p>
               </div>
             </div>
           </div>
-          <a href="#clubs" class="mt-8 flex items-center justify-center gap-2 bg-orange-400 hover:bg-orange-500 text-white font-bold py-3.5 px-6 rounded-xl text-sm transition-all shadow-lg shadow-orange-400/20">
+          <a href="#clubs" class="mt-8 flex items-center justify-center gap-2 bg-white text-orange-600 hover:bg-orange-50 font-bold py-3.5 px-6 rounded-xl text-sm transition-all shadow-lg shadow-black/10">
             クラブを探してみる
             <i data-lucide="arrow-right" width="16" height="16"></i>
           </a>
@@ -376,10 +385,10 @@
       <div class="grid md:grid-cols-2 gap-16 mb-16">
         <div>
           <a href="#" class="flex items-center gap-2.5 mb-6">
-            <div class="w-9 h-9 bg-[#0f0e2e] rounded-lg flex items-center justify-center">
-              <i data-lucide="heart" class="text-orange-400 fill-orange-400" width="20" height="20"></i>
+            <div class="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center">
+              <i data-lucide="heart" class="text-white fill-white" width="20" height="20"></i>
             </div>
-            <span class="text-xl font-black tracking-tighter text-[#0f0e2e]">SASAERU</span>
+            <span class="text-xl font-black tracking-tighter text-slate-900">SASAERU</span>
           </a>
           <p class="text-slate-500 text-sm leading-relaxed mb-6 max-w-xs">
             地域の子どもたちが夢を追いかけられる環境を、地域の企業と共に創り上げます。掲載料は無料です。まずはお気軽にご登録ください。
@@ -391,7 +400,7 @@
         </div>
         <!-- Contact Form -->
         <div class="bg-slate-50 p-8 rounded-2xl border border-slate-200">
-          <h3 class="text-lg font-black mb-6 flex items-center gap-2 text-[#0f0e2e]">
+          <h3 class="text-lg font-black mb-6 flex items-center gap-2 text-slate-900">
             <i data-lucide="mail" class="text-orange-400" width="18" height="18"></i>
             お問い合わせ・ご相談
           </h3>
@@ -414,7 +423,7 @@
               <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="contact-msg-counter">0</span>/2000</p>
             </div>
             <button type="submit" id="contact-submit-btn"
-              class="w-full bg-[#0f0e2e] text-white font-bold py-3.5 rounded-xl hover:bg-indigo-900 transition-all text-sm shadow-lg shadow-[#0f0e2e]/10 flex items-center justify-center gap-2">
+              class="w-full bg-orange-500 text-white font-bold py-3.5 rounded-xl hover:bg-orange-600 transition-all text-sm shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
               送信する
             </button>
             <p id="contact-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
@@ -424,9 +433,9 @@
       <div class="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-400">
         <p>&copy; 2026 SASAERU Project All Rights Reserved.</p>
         <div class="flex gap-6">
-          <a href="terms.html" class="hover:text-[#0f0e2e] transition-colors">利用規約</a>
-          <a href="privacy.html" class="hover:text-[#0f0e2e] transition-colors">プライバシーポリシー</a>
-          <a href="https://www.scl.or.jp/" target="_blank" rel="noopener noreferrer" class="hover:text-[#0f0e2e] transition-colors">運営団体について</a>
+          <a href="terms.html" class="hover:text-slate-900 transition-colors">利用規約</a>
+          <a href="privacy.html" class="hover:text-slate-900 transition-colors">プライバシーポリシー</a>
+          <a href="https://www.scl.or.jp/" target="_blank" rel="noopener noreferrer" class="hover:text-slate-900 transition-colors">運営団体について</a>
         </div>
       </div>
     </div>
@@ -442,21 +451,21 @@
       </button>
       <!-- ログインフォーム -->
       <div id="login-form-view">
-        <h3 id="login-modal-title" class="text-xl font-black text-[#0f0e2e] mb-1">ログイン</h3>
+        <h3 id="login-modal-title" class="text-xl font-black text-slate-900 mb-1">ログイン</h3>
         <p class="text-xs text-slate-400 mb-5">団体アカウントでサインインしてください</p>
         <form id="login-form" class="space-y-4">
           <div>
             <label for="login-email-input" class="block text-xs font-bold text-slate-600 mb-1">メールアドレス</label>
             <input type="email" id="login-email-input" name="email" required maxlength="200"
               autocomplete="email" placeholder="example@email.com"
-              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
           </div>
           <div>
             <label for="login-pass-input" class="block text-xs font-bold text-slate-600 mb-1">パスワード</label>
             <div class="relative">
               <input type="password" id="login-pass-input" name="password" required maxlength="200"
                 autocomplete="current-password"
-                class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
+                class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
               <button type="button" onclick="togglePwd('login-pass-input','login-eye')"
                 class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                 <i id="login-eye" data-lucide="eye" width="16" height="16"></i>
@@ -464,7 +473,7 @@
             </div>
           </div>
           <button type="submit" id="login-submit-btn"
-            class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm shadow-md transition-all flex items-center justify-center gap-2">
+            class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-sm shadow-md transition-all flex items-center justify-center gap-2">
             ログイン
           </button>
           <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]" aria-live="assertive"></p>
@@ -479,14 +488,14 @@
         <button onclick="showLoginView()" class="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 mb-4">
           <i data-lucide="arrow-left" width="12" height="12"></i>戻る
         </button>
-        <h3 class="text-xl font-black text-[#0f0e2e] mb-1">パスワードをリセット</h3>
+        <h3 class="text-xl font-black text-slate-900 mb-1">パスワードをリセット</h3>
         <p class="text-xs text-slate-400 mb-5">登録済みのメールアドレスにリセットリンクを送信します</p>
         <form id="forgot-form" class="space-y-4">
           <!-- U-1: スクリーンリーダー対応のため label を追加 -->
           <label for="forgot-email" class="sr-only">メールアドレス</label>
           <input type="email" id="forgot-email" name="email" required maxlength="200" placeholder="メールアドレス *"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
-          <button type="submit" class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm shadow-md transition-all">
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
+          <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-sm shadow-md transition-all">
             リセットメールを送信
           </button>
           <p id="forgot-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
@@ -496,14 +505,14 @@
   </div>
 
   <!-- ===== クラブ登録モーダル ===== -->
-  <div id="register-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-[#0f0e2e]/80 backdrop-blur-sm p-4"
+  <div id="register-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4"
     role="dialog" aria-modal="true" aria-labelledby="register-modal-title">
     <div class="modal-inner bg-white rounded-2xl max-w-2xl w-full p-5 sm:p-8 relative max-h-[90vh] overflow-y-auto shadow-2xl">
       <button onclick="closeRegisterModal()" aria-label="モーダルを閉じる"
         class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
         <i data-lucide="x" width="16" height="16"></i>
       </button>
-      <h3 id="register-modal-title" class="text-2xl font-black text-[#0f0e2e] mb-1">クラブを登録する</h3>
+      <h3 id="register-modal-title" class="text-2xl font-black text-slate-900 mb-1">クラブを登録する</h3>
       <p class="text-xs text-slate-500 mb-6">必須項目を入力してください。運営事務局による確認後、公開されます。</p>
       <form id="register-form" class="space-y-4">
         <div>
@@ -524,9 +533,23 @@
             </select>
           </div>
           <div>
-            <label for="reg-area" class="block text-xs font-bold text-slate-600 mb-1.5">地域 <span class="text-red-500">*</span></label>
-            <input type="text" id="reg-area" name="area" required maxlength="100" placeholder="例：島根県松江市"
-              class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm">
+            <label class="block text-xs font-bold text-slate-600 mb-1.5">地域 <span class="text-red-500">*</span>（複数選択可）</label>
+            <div class="relative" id="area-widget">
+              <div id="area-input-box"
+                class="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 bg-white flex flex-wrap gap-1.5 items-center cursor-text"
+                onclick="document.getElementById('area-search').focus()">
+                <div id="area-chips" class="contents"></div>
+                <input type="text" id="area-search" autocomplete="off"
+                  placeholder="市区町村名を入力..."
+                  class="flex-1 min-w-[120px] outline-none text-sm bg-transparent py-0.5"
+                  oninput="filterAreaOptions(this.value)"
+                  onfocus="showAreaDropdown()"
+                  onkeydown="handleAreaKey(event)">
+              </div>
+              <ul id="area-dropdown" class="area-dropdown hidden"></ul>
+            </div>
+            <input type="hidden" id="reg-area" name="area">
+            <p class="text-[10px] text-slate-400 mt-1">島根県内の市区町村を選択してください（複数可）。</p>
           </div>
         </div>
         <div>
@@ -541,7 +564,7 @@
             <input type="password" id="reg-pass" name="password" required minlength="8" maxlength="200"
               autocomplete="new-password" placeholder="8文字以上・英数字記号すべて含む"
               oninput="updatePwRequirements(this.value)"
-              class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all">
+              class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
             <button type="button" onclick="togglePwd('reg-pass','reg-eye')"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               <i id="reg-eye" data-lucide="eye" width="16" height="16"></i>
@@ -576,18 +599,19 @@
           </div>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1.5">支援を求めている内容</label>
-          <div id="reg-tags-container"
-            class="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 bg-white flex flex-wrap gap-1.5 items-center cursor-text"
-            onclick="document.getElementById('reg-tags-input').focus()">
-            <div id="reg-tags-display" class="contents"></div>
-            <input type="text" id="reg-tags-input" maxlength="50"
-              placeholder="例：遠征費"
-              class="flex-1 min-w-[120px] outline-none text-sm bg-transparent py-0.5"
-              onkeydown="handleRegTagKey(event)">
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">支援を求めている内容（複数選択可）</label>
+          <div class="flex flex-wrap gap-2" id="support-category-btns">
+            <!-- JS で生成 -->
+          </div>
+          <!-- 「その他」選択時のみ表示する自由入力 -->
+          <div id="support-other-wrap" class="hidden mt-2">
+            <input type="text" id="support-other-input" maxlength="100"
+              placeholder="その他の支援内容を入力..."
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm"
+              oninput="updateSupportOtherTag(this.value)">
           </div>
           <input type="hidden" id="reg-tags" name="tags">
-          <p class="text-[10px] text-slate-400 mt-1">Enterキーで追加。×で個別削除できます。</p>
+          <p class="text-[10px] text-slate-400 mt-1.5">クリックで選択・解除できます。</p>
         </div>
         <div>
           <label for="reg-activity" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介・現状 <span class="text-red-500">*</span></label>
@@ -607,14 +631,14 @@
   </div>
 
   <!-- ===== 支援申請モーダル ===== -->
-  <div id="inquiry-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-[#0f0e2e]/80 backdrop-blur-sm p-4"
+  <div id="inquiry-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4"
     role="dialog" aria-modal="true" aria-labelledby="inquiry-modal-title">
     <div class="modal-inner bg-white rounded-2xl max-w-lg w-full p-5 sm:p-8 relative max-h-[90vh] overflow-y-auto shadow-2xl">
       <button onclick="closeInquiryModal()" aria-label="モーダルを閉じる"
         class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
         <i data-lucide="x" width="16" height="16"></i>
       </button>
-      <h3 id="inquiry-modal-title" class="text-2xl font-black text-[#0f0e2e] mb-1">支援申請・問い合わせ</h3>
+      <h3 id="inquiry-modal-title" class="text-2xl font-black text-slate-900 mb-1">支援申請・問い合わせ</h3>
       <p id="inquiry-target" class="text-xs text-slate-500 mb-6"></p>
       <form id="inquiry-form" class="space-y-4">
         <input type="hidden" id="inquiry-org-id">
@@ -648,7 +672,7 @@
           <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="inq-msg-counter">0</span>/2000</p>
         </div>
         <button type="submit" id="inquiry-submit-btn"
-          class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-black py-4 rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2">
+          class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-4 rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2">
           申請する
         </button>
         <p id="inquiry-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
@@ -663,7 +687,7 @@
 
   <!-- Back to Top -->
   <button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})"
-    class="fixed bottom-6 left-6 z-[150] w-10 h-10 bg-[#0f0e2e] hover:bg-indigo-800 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 translate-y-4 pointer-events-none transition-all"
+    class="fixed bottom-6 left-6 z-[150] w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 translate-y-4 pointer-events-none transition-all"
     aria-label="ページトップへ戻る">
     <i data-lucide="chevron-up" width="18" height="18"></i>
   </button>
@@ -773,34 +797,124 @@
   }
 
   // ===================================================
-  // 登録フォーム：タグUI（TASK-06）
+  // 修正2: 地域マルチセレクト
   // ===================================================
-  function handleRegTagKey(e) {
-    if (e.key === 'Enter' || e.key === ',') {
+  const SHIMANE_AREAS = [
+    '松江市','浜田市','出雲市','益田市','大田市','安来市','江津市','雲南市',
+    '奥出雲町','飯南町','川本町','美郷町','邑南町','津和野町','吉賀町',
+    '海士町','西ノ島町','知夫村','隠岐の島町',
+  ];
+  let _selectedAreas = [];
+  let _areaDropdownIndex = -1;
+
+  function renderAreaChips() {
+    const chips = document.getElementById('area-chips');
+    const hidden = document.getElementById('reg-area');
+    if (!chips) return;
+    chips.innerHTML = _selectedAreas.map((a, i) =>
+      `<span class="area-chip">${esc(a)}<button type="button" onclick="removeArea(${i})" aria-label="削除">×</button></span>`
+    ).join('');
+    if (hidden) hidden.value = JSON.stringify(_selectedAreas);
+  }
+  function removeArea(i) {
+    _selectedAreas.splice(i, 1);
+    renderAreaChips();
+  }
+  function showAreaDropdown() {
+    filterAreaOptions(document.getElementById('area-search').value);
+  }
+  function filterAreaOptions(query) {
+    const dd = document.getElementById('area-dropdown');
+    if (!dd) return;
+    const q = query.trim().toLowerCase();
+    const filtered = SHIMANE_AREAS.filter(a => !_selectedAreas.includes(a) && (!q || a.includes(query.trim())));
+    if (filtered.length === 0) { dd.classList.add('hidden'); return; }
+    _areaDropdownIndex = -1;
+    dd.innerHTML = filtered.map((a, i) =>
+      `<li data-name="${esc(a)}" onclick="selectArea('${esc(a)}')">${esc(a)}</li>`
+    ).join('');
+    dd.classList.remove('hidden');
+  }
+  function selectArea(name) {
+    if (!_selectedAreas.includes(name)) _selectedAreas.push(name);
+    renderAreaChips();
+    const s = document.getElementById('area-search');
+    if (s) { s.value = ''; }
+    document.getElementById('area-dropdown').classList.add('hidden');
+  }
+  function handleAreaKey(e) {
+    const dd = document.getElementById('area-dropdown');
+    const items = dd ? dd.querySelectorAll('li') : [];
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
-      const val = e.target.value.trim().replace(/,/g, '');
-      if (val && !_regTags.includes(val)) {
-        _regTags.push(val);
-        renderRegTags();
+      _areaDropdownIndex = Math.min(_areaDropdownIndex + 1, items.length - 1);
+      items.forEach((li, i) => li.classList.toggle('active', i === _areaDropdownIndex));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      _areaDropdownIndex = Math.max(_areaDropdownIndex - 1, 0);
+      items.forEach((li, i) => li.classList.toggle('active', i === _areaDropdownIndex));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (_areaDropdownIndex >= 0 && items[_areaDropdownIndex]) {
+        selectArea(items[_areaDropdownIndex].dataset.name);
       }
-      e.target.value = '';
+    } else if (e.key === 'Escape') {
+      dd && dd.classList.add('hidden');
     }
   }
-  function removeRegTag(i) {
-    _regTags.splice(i, 1);
-    renderRegTags();
-  }
-  function renderRegTags() {
-    const display = document.getElementById('reg-tags-display');
-    const hidden  = document.getElementById('reg-tags');
-    if (!display) return;
-    display.innerHTML = _regTags.map((t, i) =>
-      `<span class="inline-flex items-center gap-1 text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200 px-2 py-0.5 rounded-full">
-        ${esc(t)}<button type="button" onclick="removeRegTag(${i})" class="ml-0.5 hover:text-red-500 transition-colors leading-none text-base">×</button>
-      </span>`
+  // ドロップダウン外クリックで閉じる
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#area-widget')) {
+      const dd = document.getElementById('area-dropdown');
+      if (dd) dd.classList.add('hidden');
+    }
+  });
+
+  // ===================================================
+  // 修正3: 支援内容 定義済みカテゴリ
+  // ===================================================
+  const SUPPORT_CATEGORIES = ['遠征費','大会参加費','ユニフォーム代','備品・用具費','グラウンド使用料','指導者謝礼','活動運営費','その他'];
+  let _selectedSupportCats = [];
+  let _supportOtherText = '';
+
+  function initSupportCategoryBtns() {
+    const wrap = document.getElementById('support-category-btns');
+    if (!wrap) return;
+    wrap.innerHTML = SUPPORT_CATEGORIES.map(cat =>
+      `<button type="button" data-cat="${esc(cat)}" onclick="toggleSupportCat('${esc(cat)}')"
+        class="support-cat-btn px-3 py-1.5 rounded-full text-xs font-bold border transition-all border-slate-200 bg-white text-slate-600 hover:border-orange-400 hover:text-orange-600">
+        ${esc(cat)}</button>`
     ).join('');
-    if (hidden) hidden.value = _regTags.join(',');
   }
+  function toggleSupportCat(cat) {
+    const btn = document.querySelector(`[data-cat="${CSS.escape(cat)}"]`);
+    if (_selectedSupportCats.includes(cat)) {
+      _selectedSupportCats = _selectedSupportCats.filter(c => c !== cat);
+      if (btn) { btn.classList.remove('bg-orange-500','text-white','border-orange-500'); btn.classList.add('border-slate-200','bg-white','text-slate-600'); }
+    } else {
+      _selectedSupportCats.push(cat);
+      if (btn) { btn.classList.add('bg-orange-500','text-white','border-orange-500'); btn.classList.remove('border-slate-200','bg-white','text-slate-600'); }
+    }
+    // 「その他」制御
+    const otherWrap = document.getElementById('support-other-wrap');
+    if (otherWrap) otherWrap.classList.toggle('hidden', !_selectedSupportCats.includes('その他'));
+    updateSupportTagsHidden();
+  }
+  function updateSupportOtherTag(val) {
+    _supportOtherText = val.trim();
+    updateSupportTagsHidden();
+  }
+  function updateSupportTagsHidden() {
+    const hidden = document.getElementById('reg-tags');
+    if (!hidden) return;
+    let tags = _selectedSupportCats.filter(c => c !== 'その他');
+    if (_selectedSupportCats.includes('その他') && _supportOtherText) tags.push(_supportOtherText);
+    else if (_selectedSupportCats.includes('その他')) tags.push('その他');
+    hidden.value = tags.join(',');
+  }
+  // 後方互換: 旧コードが参照する _regTags
+  const _regTags = { get length() { return _selectedSupportCats.length; } };
+  function renderRegTags() { /* 新UIでは不要 */ }
 
   // ===================================================
   // 申請者へのメール送信（TASK-02 / Nodemailer + Netlify Function）
@@ -865,7 +979,7 @@
   let allOrgs = [];
   let _unsubStats = null;
   let _unsubOrgs  = null;
-  let _regTags    = [];
+  // _regTags / _selectedAreas / _selectedSupportCats は上部で定義済み
 
   // ===================================================
   // ユーティリティ
@@ -951,7 +1065,7 @@
     welfare: 'bg-green-50 text-green-700 border-green-100',
     other:   'bg-slate-50 text-slate-700 border-slate-100'
   };
-  const FALLBACK_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect fill="#0f0e2e" width="600" height="400"/><text fill="#3d3d6b" font-family="sans-serif" font-size="18" text-anchor="middle" x="300" y="208">No Image</text></svg>')}`;
+  const FALLBACK_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect fill="#f8fafc" width="600" height="400"/><text fill="#94a3b8" font-family="sans-serif" font-size="18" text-anchor="middle" x="300" y="208">No Image</text></svg>')}`;
 
   // ===================================================
   // 統計カウンター
@@ -1005,7 +1119,7 @@
                 <i data-lucide="wifi-off" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
                 <p class="text-sm font-medium">データの取得に失敗しました</p>
                 <p class="text-xs mt-1 text-red-400">${err.code || err.message || '不明なエラー'}</p>
-                <button onclick="loadOrgs()" class="mt-4 px-4 py-2 bg-[#0f0e2e] text-white text-xs font-bold rounded-xl hover:bg-indigo-900 transition-all">再試行</button>
+                <button onclick="loadOrgs()" class="mt-4 px-4 py-2 bg-orange-500 text-white text-xs font-bold rounded-xl hover:bg-orange-600 transition-all">再試行</button>
               </div>`;
             lucide.createIcons();
           }
@@ -1046,18 +1160,18 @@
               <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border ${catColor}">${esc(catLabel)}</span>
             </div>
             ${o.area ? `<div class="absolute bottom-3 left-3 flex items-center gap-1 text-white text-[10px]">
-              <i data-lucide="map-pin" width="10" height="10"></i>${esc(o.area)}
+              <i data-lucide="map-pin" width="10" height="10"></i>${esc(Array.isArray(o.area) ? o.area.join('・') : o.area)}
             </div>` : ''}
           </div>
           <div class="p-5 flex-grow">
-            <h3 class="text-base font-black text-[#0f0e2e] mb-3">${orgName}</h3>
+            <h3 class="text-base font-black text-slate-900 mb-3">${orgName}</h3>
             ${tags.length ? `<div class="flex flex-wrap gap-1.5 mb-3">
               ${tags.map(t => `<span class="text-[10px] font-bold bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-100">${esc(t)}</span>`).join('')}
             </div>` : ''}
             <p class="text-xs text-slate-500 leading-relaxed line-clamp-3">${esc(desc)}</p>
           </div>
           <div class="px-5 pb-5 mt-auto">
-            <a href="club.html?id=${orgId}" class="w-full bg-slate-50 hover:bg-[#0f0e2e] hover:text-white border border-slate-200 hover:border-[#0f0e2e] text-[#0f0e2e] font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
+            <a href="club.html?id=${orgId}" class="w-full bg-slate-50 hover:bg-orange-500 hover:text-white border border-slate-200 hover:border-orange-500 text-slate-900 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
               詳細を見る
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
@@ -1075,7 +1189,16 @@
     document.getElementById('register-form').reset();
     document.getElementById('reg-img-preview').classList.add('hidden');
     document.getElementById('reg-activity-counter').textContent = '0';
-    _regTags = []; renderRegTags();
+    // 地域マルチセレクトをリセット
+    _selectedAreas = [];
+    renderAreaChips();
+    document.getElementById('area-dropdown')?.classList.add('hidden');
+    // 支援カテゴリをリセット
+    _selectedSupportCats = [];
+    _supportOtherText = '';
+    document.getElementById('support-other-wrap')?.classList.add('hidden');
+    initSupportCategoryBtns();
+    updateSupportTagsHidden();
     const m = document.getElementById('register-modal');
     m.classList.remove('hidden'); m.classList.add('flex');
     document.body.style.overflow = 'hidden';
@@ -1108,9 +1231,19 @@
       return;
     }
 
-    const tags = [..._regTags];
+    // 地域バリデーション（1件以上必須）
+    if (_selectedAreas.length === 0) {
+      result.textContent = '✗ 地域を1つ以上選択してください';
+      result.className = 'text-xs text-center text-red-500';
+      setBtnLoading('register-submit-btn', false);
+      return;
+    }
+
+    // area は配列、tags はカンマ区切り文字列から配列に変換
+    const areaValue = [..._selectedAreas];
+    const tags = (data.tags || '').split(',').map(t => t.trim()).filter(Boolean);
     const payload = {
-      name: data.name, category: data.category, area: data.area,
+      name: data.name, category: data.category, area: areaValue,
       contact_email: data.contact_email, main_image: data.main_image || null,
       tags, activity_how: data.activity_how, status: 'pending',
     };
@@ -1160,7 +1293,7 @@
         sendAdminNotification('club_apply', {
           クラブ名: data.name,
           カテゴリ: CATEGORY_LABEL[data.category] ?? data.category,
-          エリア: data.area || '未記入', メール: data.contact_email,
+          エリア: Array.isArray(areaValue) ? areaValue.join('・') : (areaValue || '未記入'), メール: data.contact_email,
         });
         // ③ メールアドレス確認メールを送信（Firebase Admin SDK 経由で Gmail 送信）
         try {
@@ -1190,7 +1323,8 @@
         result.textContent = '✓ 登録申請を受け付けました！確認メールをご確認ください。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
-        _regTags = []; renderRegTags();
+        _selectedAreas = []; renderAreaChips();
+        _selectedSupportCats = []; _supportOtherText = ''; initSupportCategoryBtns(); updateSupportTagsHidden();
         setTimeout(() => { closeRegisterModal(); window.location.href = 'mypage.html'; }, 2500);
       } catch(err) {
         // Firestore保存失敗など、Authアカウント作成後にエラーが起きた場合はアカウントを削除してロールバック
@@ -1371,11 +1505,11 @@
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.remove('bg-[#0f0e2e]', 'text-white');
+        b.classList.remove('bg-orange-500', 'text-white');
         b.classList.add('text-slate-500', 'hover:bg-slate-100');
       });
       btn.classList.remove('text-slate-500', 'hover:bg-slate-100');
-      btn.classList.add('bg-[#0f0e2e]', 'text-white');
+      btn.classList.add('bg-orange-500', 'text-white');
       currentFilter = btn.getAttribute('data-tab');
       renderOrgs();
     });
@@ -1518,6 +1652,7 @@
     lucide.createIcons();
     loadOrgs();
     loadStats();
+    initSupportCategoryBtns(); // 修正3: 支援カテゴリボタン初期描画
 
     // メール確認完了後のリダイレクト対応（mypage.html から ?emailverified=1 で飛んでくる）
     if (new URLSearchParams(location.search).get('emailverified') === '1') {

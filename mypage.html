@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23f97316'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23ffffff'>♥</text></svg>">
   <title>SASAERU マイページ</title>
   <meta name="robots" content="noindex,nofollow">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } } }
+    tailwind.config = { theme: { extend: { colors: { brand: { DEFAULT: '#f97316', dark: '#ea580c' } } } } }
   </script>
   <script src="https://unpkg.com/lucide@0.344.0"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -54,11 +54,11 @@
       <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
         <i data-lucide="building-2" class="text-orange-400" width="32" height="32"></i>
       </div>
-      <h1 class="text-xl font-black text-[#0f0e2e] mb-2">団体が見つかりません</h1>
+      <h1 class="text-xl font-black text-slate-900 mb-2">団体が見つかりません</h1>
       <p class="text-sm text-slate-500 mb-6 leading-relaxed">
         このアカウントに紐づいた団体情報が見つかりませんでした。<br>まずは団体登録を行ってください。
       </p>
-      <a href="index.html" class="inline-flex items-center gap-2 px-6 py-3 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+      <a href="index.html" class="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all text-sm">
         <i data-lucide="arrow-left" width="16" height="16"></i>トップページへ
       </a>
     </div>
@@ -70,11 +70,11 @@
       <div class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
         <i data-lucide="mail-check" class="text-indigo-500" width="32" height="32"></i>
       </div>
-      <h1 class="text-xl font-black text-[#0f0e2e] mb-2">メールアドレスを確認してください</h1>
+      <h1 class="text-xl font-black text-slate-900 mb-2">メールアドレスを確認してください</h1>
       <p class="text-sm text-slate-500 mb-1 leading-relaxed">
         登録したメールアドレスに確認メールをお送りしました。
       </p>
-      <p id="verify-email-addr" class="text-sm font-bold text-indigo-600 mb-5"></p>
+      <p id="verify-email-addr" class="text-sm font-bold text-orange-600 mb-5"></p>
       <p class="text-xs text-slate-400 mb-3 leading-relaxed">
         メール内の「確認する」リンクをクリックした後、<br>下のボタンを押してください。
       </p>
@@ -84,7 +84,7 @@
       <p id="verify-status" class="text-xs text-center min-h-[1.2rem] mb-4"></p>
       <!-- 確認済みチェックボタン -->
       <button id="verify-check-btn" onclick="checkEmailVerified()"
-        class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl transition-all text-sm mb-3 flex items-center justify-center gap-2">
+        class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-all text-sm mb-3 flex items-center justify-center gap-2">
         <i data-lucide="check-circle" width="16" height="16"></i>
         確認しました
       </button>
@@ -107,7 +107,7 @@
 
     <div class="flex h-screen overflow-hidden">
       <!-- サイドバー -->
-      <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-[#0f0e2e] flex flex-col shrink-0 -translate-x-full md:translate-x-0">
+      <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-slate-900 flex flex-col shrink-0 -translate-x-full md:translate-x-0">
         <div class="px-5 py-5 border-b border-white/10">
           <a href="index.html" class="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div class="w-8 h-8 bg-orange-400 rounded-lg flex items-center justify-center shadow-md shadow-orange-400/30">
@@ -175,7 +175,7 @@
               <i data-lucide="menu" width="18" height="18"></i>
             </button>
             <div>
-              <h1 id="page-title" class="text-base sm:text-lg font-black text-[#0f0e2e]">プロフィール</h1>
+              <h1 id="page-title" class="text-base sm:text-lg font-black text-slate-900">プロフィール</h1>
               <p id="page-subtitle" class="text-xs text-slate-400 mt-0.5 hidden sm:block">団体情報の編集</p>
             </div>
           </div>
@@ -190,20 +190,20 @@
           <div id="tab-profile" class="hidden fade-in">
             <div id="status-banner" class="mb-6 hidden"></div>
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 class="text-base font-black text-[#0f0e2e] mb-5">団体情報の編集</h2>
+              <h2 class="text-base font-black text-slate-900 mb-5">団体情報の編集</h2>
               <form id="profile-form" class="space-y-5">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label for="f-name" class="block text-xs font-bold text-slate-600 mb-1.5">団体名 <span class="text-red-400">*</span></label>
                     <input type="text" id="f-name" required maxlength="100"
                       oninput="markUnsaved()"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="例: 〇〇フットボールクラブ">
                   </div>
                   <div>
                     <label for="f-category" class="block text-xs font-bold text-slate-600 mb-1.5">カテゴリ</label>
                     <select id="f-category" onchange="markUnsaved()"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white">
                       <option value="">選択してください</option>
                       <option value="sports">スポーツ</option>
                       <option value="culture">文化・芸術</option>
@@ -216,14 +216,14 @@
                   <div>
                     <label for="f-area" class="block text-xs font-bold text-slate-600 mb-1.5">エリア</label>
                     <input type="text" id="f-area" maxlength="100" oninput="markUnsaved()"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="例: 島根県松江市">
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">メイン画像</label>
                     <div class="flex items-center gap-2 mb-2">
                       <label for="f-main-image-file"
-                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-600 transition-all">
+                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-orange-600 transition-all">
                         <i data-lucide="upload" width="14" height="14"></i>画像をアップロード
                       </label>
                       <input type="file" id="f-main-image-file" accept="image/*" class="hidden"
@@ -234,7 +234,7 @@
                     </div>
                     <input type="url" id="f-main-image" maxlength="500"
                       oninput="markUnsaved(); previewProfileImage(this.value)"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="https://... またはURLを直接入力">
                     <p class="text-[10px] text-slate-400 mt-1">推奨：横 1200px × 縦 630px（16:9）／JPG・PNG／5MB以下</p>
                     <div id="profile-img-preview" class="hidden mt-2">
@@ -261,7 +261,7 @@
                   <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">活動内容・現状</label>
                   <textarea id="f-activity-how" rows="5" maxlength="2000"
                     oninput="markUnsaved(); document.getElementById('profile-char-counter').textContent=this.value.length"
-                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none leading-relaxed"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
                     placeholder="団体の活動内容や現在の状況を詳しく説明してください..."></textarea>
                   <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="profile-char-counter">0</span>/2000</p>
                 </div>
@@ -271,7 +271,7 @@
                   </p>
                   <p class="text-[10px] text-slate-400 hidden sm:block">Ctrl+S でも保存できます</p>
                   <button type="submit" id="save-profile-btn"
-                    class="flex items-center gap-2 px-6 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm shadow-sm ml-auto">
+                    class="flex items-center gap-2 px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all text-sm shadow-sm ml-auto">
                     <i data-lucide="save" width="14" height="14"></i>変更を保存
                   </button>
                 </div>
@@ -282,7 +282,7 @@
           <!-- 支援メニュータブ -->
           <div id="tab-menus" class="hidden fade-in">
             <div class="flex items-center justify-between mb-5">
-              <h2 class="text-sm font-black text-[#0f0e2e]">支援メニュー一覧</h2>
+              <h2 class="text-sm font-black text-slate-900">支援メニュー一覧</h2>
               <button onclick="toggleMenuForm()"
                 class="flex items-center gap-2 px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
                 <i data-lucide="plus" width="14" height="14"></i>新規メニューを追加
@@ -290,20 +290,20 @@
             </div>
             <div id="menu-form-wrap" class="hidden mb-5">
               <div class="bg-white rounded-2xl border border-orange-200 shadow-sm p-6 slide-down">
-                <h3 class="text-sm font-black text-[#0f0e2e] mb-4"><span id="menu-form-title">新規メニューを追加</span></h3>
+                <h3 class="text-sm font-black text-slate-900 mb-4"><span id="menu-form-title">新規メニューを追加</span></h3>
                 <form id="menu-form" class="space-y-4">
                   <input type="hidden" id="mf-id">
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label for="mf-title" class="block text-xs font-bold text-slate-600 mb-1.5">メニュータイトル <span class="text-red-400">*</span></label>
                       <input type="text" id="mf-title" required maxlength="100"
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                         placeholder="例: ユニフォームスポンサー">
                     </div>
                     <div>
                       <label for="mf-support-type" class="block text-xs font-bold text-slate-600 mb-1.5">支援タイプ</label>
                       <select id="mf-support-type"
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white">
                         <option value="資金">資金</option>
                         <option value="物品">物品</option>
                         <option value="人材">人材</option>
@@ -316,13 +316,13 @@
                     <div>
                       <label for="mf-target-amount" class="block text-xs font-bold text-slate-600 mb-1.5">希望金額・数量</label>
                       <input type="text" id="mf-target-amount" maxlength="100"
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                         placeholder="例: 50,000円 / ボール10個">
                     </div>
                     <div>
                       <label for="mf-status" class="block text-xs font-bold text-slate-600 mb-1.5">公開設定</label>
                       <select id="mf-status"
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white">
                         <option value="public">公開</option>
                         <option value="private">非公開</option>
                       </select>
@@ -332,7 +332,7 @@
                     <label for="mf-description" class="block text-xs font-bold text-slate-600 mb-1.5">詳細説明</label>
                     <textarea id="mf-description" rows="3" maxlength="1000"
                       oninput="document.getElementById('mf-desc-counter').textContent=this.value.length"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none"
                       placeholder="支援内容の詳細を記述してください..."></textarea>
                     <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="mf-desc-counter">0</span>/1000</p>
                   </div>
@@ -340,7 +340,7 @@
                     <label for="mf-return-merit" class="block text-xs font-bold text-slate-600 mb-1.5">支援してくれた方へのリターン</label>
                     <textarea id="mf-return-merit" rows="3" maxlength="1000"
                       oninput="document.getElementById('mf-ret-counter').textContent=this.value.length"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none"
                       placeholder="例: ユニフォームへのロゴ掲載、SNS告知、試合招待など..."></textarea>
                     <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="mf-ret-counter">0</span>/1000</p>
                   </div>
@@ -348,7 +348,7 @@
                     <button type="button" onclick="cancelMenuForm()"
                       class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">キャンセル</button>
                     <button type="submit" id="menu-save-btn"
-                      class="flex items-center gap-2 px-5 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+                      class="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all text-sm">
                       <i data-lucide="save" width="14" height="14"></i>保存する
                     </button>
                   </div>
@@ -363,7 +363,7 @@
           <!-- 活動日記タブ -->
           <div id="tab-diary" class="hidden fade-in">
             <div class="flex items-center justify-between mb-5">
-              <h2 class="text-sm font-black text-[#0f0e2e]">活動日記</h2>
+              <h2 class="text-sm font-black text-slate-900">活動日記</h2>
               <button onclick="toggleDiaryForm()"
                 class="flex items-center gap-2 px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
                 <i data-lucide="pen-line" width="14" height="14"></i>新しい活動を投稿
@@ -371,20 +371,20 @@
             </div>
             <div id="diary-form-wrap" class="hidden mb-5">
               <div class="bg-white rounded-2xl border border-orange-200 shadow-sm p-6 slide-down">
-                <h3 class="text-sm font-black text-[#0f0e2e] mb-4"><span id="diary-form-title">新しい活動を投稿</span></h3>
+                <h3 class="text-sm font-black text-slate-900 mb-4"><span id="diary-form-title">新しい活動を投稿</span></h3>
                 <form id="diary-form" class="space-y-4">
                   <input type="hidden" id="df-id">
                   <div>
                     <label for="df-title" class="block text-xs font-bold text-slate-600 mb-1.5">タイトル <span class="text-red-400">*</span></label>
                     <input type="text" id="df-title" required maxlength="100"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="例: 秋季大会に参加しました！">
                   </div>
                   <div>
                     <label for="df-content" class="block text-xs font-bold text-slate-600 mb-1.5">本文 <span class="text-red-400">*</span></label>
                     <textarea id="df-content" rows="8" required maxlength="5000"
                       oninput="document.getElementById('df-content-counter').textContent=this.value.length"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none leading-relaxed"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
                       placeholder="活動の内容を詳しく記入してください..."></textarea>
                     <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="df-content-counter">0</span>/5000</p>
                   </div>
@@ -392,7 +392,7 @@
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">画像（任意）</label>
                     <div class="flex items-center gap-2 mb-2">
                       <label for="df-image-file"
-                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-600 transition-all">
+                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-orange-600 transition-all">
                         <i data-lucide="upload" width="14" height="14"></i>画像をアップロード
                       </label>
                       <input type="file" id="df-image-file" accept="image/*" class="hidden"
@@ -403,7 +403,7 @@
                     </div>
                     <input type="url" id="df-image-url" maxlength="500"
                       oninput="previewDiaryImage(this.value)"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="https://... またはURLを直接入力">
                     <p class="text-[10px] text-slate-400 mt-1">JPG・PNG／5MB以下</p>
                     <div id="diary-img-preview" class="hidden mt-2">
@@ -415,7 +415,7 @@
                     <button type="button" onclick="cancelDiaryForm()"
                       class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">キャンセル</button>
                     <button type="submit" id="diary-save-btn"
-                      class="flex items-center gap-2 px-5 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+                      class="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all text-sm">
                       <i data-lucide="send" width="14" height="14"></i>投稿する
                     </button>
                   </div>
@@ -430,10 +430,10 @@
           <!-- 問い合わせ履歴タブ（B-04） -->
           <div id="tab-inquiries" class="hidden fade-in">
             <div class="flex items-center justify-between mb-5">
-              <h2 class="text-sm font-black text-[#0f0e2e]">問い合わせ履歴</h2>
+              <h2 class="text-sm font-black text-slate-900">問い合わせ履歴</h2>
               <div class="flex gap-2">
                 <button onclick="filterMyInquiries('all')" data-inq="all"
-                  class="my-inq-btn px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-[#0f0e2e] text-white">すべて</button>
+                  class="my-inq-btn px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
                 <button onclick="filterMyInquiries('new')" data-inq="new"
                   class="my-inq-btn px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">未対応</button>
                 <button onclick="filterMyInquiries('done')" data-inq="done"
@@ -454,7 +454,7 @@
   <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
     role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-      <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
+      <h3 id="confirm-title" class="text-base font-black text-slate-900 mb-2"></h3>
       <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
       <div class="flex gap-3">
         <button onclick="closeConfirm()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
@@ -965,7 +965,7 @@
     _myInqFilter = f;
     document.querySelectorAll('.my-inq-btn').forEach(btn => {
       const active = btn.dataset.inq === f;
-      btn.classList.toggle('bg-[#0f0e2e]', active); btn.classList.toggle('text-white', active);
+      btn.classList.toggle('bg-orange-500', active); btn.classList.toggle('text-white', active);
       btn.classList.toggle('bg-white',      !active); btn.classList.toggle('text-slate-500', !active);
       btn.classList.toggle('border',        !active); btn.classList.toggle('border-slate-200', !active);
     });
@@ -989,7 +989,7 @@
       <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div>
-            <p class="text-sm font-bold text-[#0f0e2e]">${esc(d.company_name || '—')}</p>
+            <p class="text-sm font-bold text-slate-900">${esc(d.company_name || '—')}</p>
             <p class="text-xs text-slate-400 mt-0.5">${esc(d.pic_name || '')}　${dt}</p>
           </div>
           <span class="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${isDone ? 'bg-slate-100 text-slate-400' : 'bg-red-50 text-red-500 border border-red-200'}">
@@ -998,7 +998,7 @@
         </div>
         ${d.message ? `<p class="text-sm text-slate-600 leading-relaxed mb-3 bg-slate-50 rounded-xl px-4 py-3">${esc(d.message).replace(/\n/g,'<br>')}</p>` : ''}
         <div class="flex items-center gap-3 flex-wrap text-xs text-slate-500">
-          <a href="mailto:${esc(d.sender_email||'')}" class="flex items-center gap-1 hover:text-indigo-600 transition-colors">
+          <a href="mailto:${esc(d.sender_email||'')}" class="flex items-center gap-1 hover:text-orange-600 transition-colors">
             <i data-lucide="mail" width="12" height="12"></i>${esc(d.sender_email||'—')}
           </a>
           ${d.phone ? `<span class="flex items-center gap-1"><i data-lucide="phone" width="12" height="12"></i>${esc(d.phone)}</span>` : ''}
@@ -1190,7 +1190,7 @@
           <div class="flex items-start justify-between gap-3 mb-3">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1 flex-wrap">
-                <h3 class="text-sm font-black text-[#0f0e2e]">${esc(m.title)}</h3>
+                <h3 class="text-sm font-black text-slate-900">${esc(m.title)}</h3>
                 <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${m.status === 'public' ? 'badge-public border border-green-200' : 'bg-slate-100 text-slate-500'}">
                   ${m.status === 'public' ? '公開中' : '非公開'}
                 </span>
@@ -1288,6 +1288,17 @@
         data.owner_uid  = currentUser.uid;
         await menusRef.add(data);
         showToast('メニューを追加しました');
+        // 新規作成時のみ Slack 通知（非同期・エラーは無視）
+        fetch('/.netlify/functions/notify-slack', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orgName:      currentOrg?.name || '',
+            menuTitle:    data.title,
+            targetAmount: data.target_amount || '',
+            origin:       window.location.origin,
+          }),
+        }).catch(() => {});
       }
       cancelMenuForm();
       loadMenus();
@@ -1368,7 +1379,7 @@
           onerror="this.style.display='none'">` : ''}
         <div class="p-5">
           <p class="text-[10px] text-slate-400 font-bold mb-1.5">${fmtDate(p.created_at)}</p>
-          <h3 class="text-sm font-black text-[#0f0e2e] mb-2">${esc(p.title)}</h3>
+          <h3 class="text-sm font-black text-slate-900 mb-2">${esc(p.title)}</h3>
           <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${esc(p.content)}</p>
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
@@ -1491,7 +1502,7 @@
     const hidden  = document.getElementById('f-tags');
     if (!display) return;
     display.innerHTML = _profileTags.map((t, i) =>
-      `<span class="inline-flex items-center gap-1 text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-0.5 rounded-full">
+      `<span class="inline-flex items-center gap-1 text-xs font-bold bg-indigo-50 text-orange-600 border border-indigo-200 px-2 py-0.5 rounded-full">
         ${esc(t)}<button type="button" onclick="removeProfileTag(${i})" class="ml-0.5 hover:text-red-500 transition-colors leading-none text-base">×</button>
       </span>`
     ).join('');
