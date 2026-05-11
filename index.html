@@ -1166,6 +1166,7 @@
         try {
           await cred.user.sendEmailVerification({
             url: `${window.location.origin}/mypage.html`,
+            handleCodeInApp: true,
           });
         } catch(e) {
           // 送信失敗をコンソールに記録（登録自体は完了しているため処理は続行）
@@ -1512,6 +1513,17 @@
     lucide.createIcons();
     loadOrgs();
     loadStats();
+
+    // メール確認完了後のリダイレクト対応（mypage.html から ?emailverified=1 で飛んでくる）
+    if (new URLSearchParams(location.search).get('emailverified') === '1') {
+      window.history.replaceState({}, '', location.pathname);
+      // ログインモーダルを開き、確認完了メッセージを表示
+      openLoginModal();
+      const subtitle = document.querySelector('#login-form-view p.text-xs.text-slate-400');
+      if (subtitle) {
+        subtitle.innerHTML = '<span class="inline-flex items-center gap-1 text-green-600 font-bold"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>メールアドレスを確認しました</span><br><span class="text-slate-400">ログインしてマイページへお進みください</span>';
+      }
+    }
 
     if (auth) {
       auth.onAuthStateChanged(async user => {
