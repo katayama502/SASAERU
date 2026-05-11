@@ -1273,7 +1273,10 @@
     if (!db) { showToast('Firebase未接続のため変更できません', false); return; }
     const newStatus = currentStatus === 'public' ? 'private' : 'public';
     try {
-      await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).update({ status: newStatus });
+      await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).update({
+        status: newStatus,
+        updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+      });
       showToast(newStatus === 'public' ? '公開しました' : '非公開にしました');
       loadMenus();
     } catch(err) { showToast('エラー: ' + err.message, false); }

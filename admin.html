@@ -666,7 +666,10 @@
           </div>
           <div class="flex items-center gap-2 shrink-0">
             ${statusBadge('pending')}
-            <button onclick="approveOrg('${d.id}')" class="text-[10px] font-bold px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-full transition-all">承認</button>
+            ${!o.emailVerified ? `<span class="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-600 border border-amber-200 rounded-full">未確認</span>` : ''}
+            ${o.emailVerified
+              ? `<button onclick="approveOrg('${d.id}')" class="text-[10px] font-bold px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-full transition-all">承認</button>`
+              : `<span class="text-[10px] font-bold px-3 py-1 bg-amber-50 text-amber-400 border border-amber-200 rounded-full cursor-not-allowed" title="メール未確認">承認不可</span>`}
             <button data-id="${esc(d.id)}" data-name="${esc(o.name)}"
               onclick="rejectOrg(this.dataset.id, this.dataset.name)"
               class="text-[10px] font-bold px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-all">却下</button>
@@ -758,6 +761,7 @@
               <div class="flex items-center gap-2 mb-1 flex-wrap">
                 <h3 class="text-sm font-black text-[#0f0e2e]">${esc(o.name)}</h3>
                 ${statusBadge(o.status)}
+                ${!o.emailVerified ? `<span class="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-600 border border-amber-200 rounded-full flex items-center gap-1"><i data-lucide="mail-warning" width="10" height="10"></i>メール未確認</span>` : ''}
               </div>
               <div class="flex flex-wrap gap-3 text-xs text-slate-400 mb-2">
                 <span class="flex items-center gap-1"><i data-lucide="tag" width="11" height="11"></i>${esc(CAT[o.category]||o.category||'—')}</span>
@@ -774,9 +778,12 @@
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-wrap">
           ${showApproveActions || o.status === 'pending' ? `
-            <button onclick="approveOrg('${id}')"
-              class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
-              <i data-lucide="check" width="12" height="12"></i>承認・公開</button>
+            ${o.emailVerified
+              ? `<button onclick="approveOrg('${id}')"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
+                  <i data-lucide="check" width="12" height="12"></i>承認・公開</button>`
+              : `<span class="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-500 border border-amber-200 text-xs font-bold rounded-lg cursor-not-allowed select-none" title="メールアドレスが未確認のため承認できません">
+                  <i data-lucide="lock" width="12" height="12"></i>承認不可</span>`}
             <button data-id="${esc(id)}" data-name="${esc(o.name)}"
               onclick="rejectOrg(this.dataset.id, this.dataset.name)"
               class="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-all">
@@ -799,22 +806,28 @@
   // ============================================================
   // 団体ステータス変更
   // ============================================================
-  function approveOrg(id) {
-    showConfirm('この団体を承認・公開しますか？', '承認するとサイト上に公開されます。', '承認・公開する', 'bg-green-500 hover:bg-green-600',
-      async () => {
-        if (!db) { showToast('Firebase未設定です', false); return; }
-        try {
-          await db.collection('organizations').doc(id).update({ status:'public', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
-          showToast('承認・公開しました');
-          loadTab(currentTab); loadOverview();
-          // 承認メール送信（TASK-03）
-          const orgSnap = await db.collection('organizations').doc(id).get();
-          if (orgSnap.exists) {
-            sendOrgStatusEmail('approve', { ...orgSnap.data(), _id: id });
-          }
-        } catch(e) { showToast('エラー: ' + e.message, false); }
+  async function approveOrg(id) {
+    if (!db) { showToast('Firebase未設定です', false); return; }
+    try {
+      // 承認前に最新のorgデータを取得してメール確認状態をチェック
+      const orgSnap = await db.collection('organizations').doc(id).get();
+      if (!orgSnap.exists) { showToast('団体が見つかりません', false); return; }
+      const orgData = orgSnap.data();
+      if (!orgData.emailVerified) {
+        showToast('メールアドレスが未確認のため承認できません。申請者のメール確認完了後に再度お試しください。', false);
+        return;
       }
-    );
+      showConfirm('この団体を承認・公開しますか？', '承認するとサイト上に公開されます。', '承認・公開する', 'bg-green-500 hover:bg-green-600',
+        async () => {
+          try {
+            await db.collection('organizations').doc(id).update({ status:'public', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
+            showToast('承認・公開しました');
+            loadTab(currentTab); loadOverview();
+            sendOrgStatusEmail('approve', { ...orgData, _id: id });
+          } catch(e) { showToast('エラー: ' + e.message, false); }
+        }
+      );
+    } catch(e) { showToast('エラー: ' + e.message, false); }
   }
 
   function rejectOrg(id, name) {
@@ -1199,11 +1212,12 @@
             clubName:     orgData.name,
             rejectReason: rejectReason || '',
           };
-      await fetch('/.netlify/functions/send-email', {
+      const res = await fetch('/.netlify/functions/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, params }),
       });
+      if (!res.ok) console.warn('ステータスメール送信失敗:', res.status);
     } catch(e) { console.warn('ステータスメール送信失敗:', e); }
   }
 
