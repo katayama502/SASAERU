@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23f97316'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23ffffff'>♥</text></svg>">
   <title>SASAERU マイページ</title>
   <meta name="robots" content="noindex,nofollow">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } } }
+    tailwind.config = { theme: { extend: { colors: { brand: { DEFAULT: '#f97316', dark: '#ea580c' } } } } }
   </script>
   <script src="https://unpkg.com/lucide@0.344.0"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -53,13 +54,49 @@
       <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
         <i data-lucide="building-2" class="text-orange-400" width="32" height="32"></i>
       </div>
-      <h1 class="text-xl font-black text-[#0f0e2e] mb-2">団体が見つかりません</h1>
+      <h1 class="text-xl font-black text-slate-900 mb-2">団体が見つかりません</h1>
       <p class="text-sm text-slate-500 mb-6 leading-relaxed">
         このアカウントに紐づいた団体情報が見つかりませんでした。<br>まずは団体登録を行ってください。
       </p>
-      <a href="index.html" class="inline-flex items-center gap-2 px-6 py-3 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+      <a href="index.html" class="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all text-sm">
         <i data-lucide="arrow-left" width="16" height="16"></i>トップページへ
       </a>
+    </div>
+  </div>
+
+  <!-- メールアドレス確認待ち画面 -->
+  <div id="email-verify-screen" class="hidden min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
+      <div class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+        <i data-lucide="mail-check" class="text-indigo-500" width="32" height="32"></i>
+      </div>
+      <h1 class="text-xl font-black text-slate-900 mb-2">メールアドレスを確認してください</h1>
+      <p class="text-sm text-slate-500 mb-1 leading-relaxed">
+        登録したメールアドレスに確認メールをお送りしました。
+      </p>
+      <p id="verify-email-addr" class="text-sm font-bold text-orange-600 mb-5"></p>
+      <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+        メール内の「確認する」リンクをクリックした後、<br>下のボタンを押してください。
+      </p>
+      <!-- 確認期限カウントダウン -->
+      <p id="verify-countdown" class="text-xs text-center font-bold text-slate-400 mb-4"></p>
+      <!-- ステータスメッセージ -->
+      <p id="verify-status" class="text-xs text-center min-h-[1.2rem] mb-4"></p>
+      <!-- 確認済みチェックボタン -->
+      <button id="verify-check-btn" onclick="checkEmailVerified()"
+        class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-all text-sm mb-3 flex items-center justify-center gap-2">
+        <i data-lucide="check-circle" width="16" height="16"></i>
+        確認しました
+      </button>
+      <!-- 再送ボタン -->
+      <button id="resend-btn" onclick="resendVerificationEmail()"
+        class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl transition-all text-sm mb-4">
+        確認メールを再送する
+      </button>
+      <button onclick="doSignOutFromVerify()"
+        class="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2">
+        別のアカウントでログインする
+      </button>
     </div>
   </div>
 
@@ -70,7 +107,7 @@
 
     <div class="flex h-screen overflow-hidden">
       <!-- サイドバー -->
-      <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-[#0f0e2e] flex flex-col shrink-0 -translate-x-full md:translate-x-0">
+      <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-slate-900 flex flex-col shrink-0 -translate-x-full md:translate-x-0">
         <div class="px-5 py-5 border-b border-white/10">
           <a href="index.html" class="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div class="w-8 h-8 bg-orange-400 rounded-lg flex items-center justify-center shadow-md shadow-orange-400/30">
@@ -100,6 +137,12 @@
             <i data-lucide="notebook-pen" width="16" height="16"></i>
             活動日記
             <span id="badge-diary" class="ml-auto bg-orange-400/80 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
+          </button>
+          <button onclick="switchTab('inquiries')" data-tab="inquiries"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="mail" width="16" height="16"></i>
+            問い合わせ履歴
+            <span id="badge-inquiries" class="ml-auto bg-red-500/90 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
         </nav>
         <div class="px-4 py-4 border-t border-white/10">
@@ -132,7 +175,7 @@
               <i data-lucide="menu" width="18" height="18"></i>
             </button>
             <div>
-              <h1 id="page-title" class="text-base sm:text-lg font-black text-[#0f0e2e]">プロフィール</h1>
+              <h1 id="page-title" class="text-base sm:text-lg font-black text-slate-900">プロフィール</h1>
               <p id="page-subtitle" class="text-xs text-slate-400 mt-0.5 hidden sm:block">団体情報の編集</p>
             </div>
           </div>
@@ -147,20 +190,20 @@
           <div id="tab-profile" class="hidden fade-in">
             <div id="status-banner" class="mb-6 hidden"></div>
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 class="text-base font-black text-[#0f0e2e] mb-5">団体情報の編集</h2>
+              <h2 class="text-base font-black text-slate-900 mb-5">団体情報の編集</h2>
               <form id="profile-form" class="space-y-5">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label for="f-name" class="block text-xs font-bold text-slate-600 mb-1.5">団体名 <span class="text-red-400">*</span></label>
                     <input type="text" id="f-name" required maxlength="100"
                       oninput="markUnsaved()"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="例: 〇〇フットボールクラブ">
                   </div>
                   <div>
                     <label for="f-category" class="block text-xs font-bold text-slate-600 mb-1.5">カテゴリ</label>
                     <select id="f-category" onchange="markUnsaved()"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white">
                       <option value="">選択してください</option>
                       <option value="sports">スポーツ</option>
                       <option value="culture">文化・芸術</option>
@@ -173,14 +216,14 @@
                   <div>
                     <label for="f-area" class="block text-xs font-bold text-slate-600 mb-1.5">エリア</label>
                     <input type="text" id="f-area" maxlength="100" oninput="markUnsaved()"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="例: 島根県松江市">
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">メイン画像</label>
                     <div class="flex items-center gap-2 mb-2">
                       <label for="f-main-image-file"
-                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-600 transition-all">
+                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-orange-600 transition-all">
                         <i data-lucide="upload" width="14" height="14"></i>画像をアップロード
                       </label>
                       <input type="file" id="f-main-image-file" accept="image/*" class="hidden"
@@ -191,8 +234,9 @@
                     </div>
                     <input type="url" id="f-main-image" maxlength="500"
                       oninput="markUnsaved(); previewProfileImage(this.value)"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="https://... またはURLを直接入力">
+                    <p class="text-[10px] text-slate-400 mt-1">推奨：横 1200px × 縦 630px（16:9）／JPG・PNG／5MB以下</p>
                     <div id="profile-img-preview" class="hidden mt-2">
                       <img src="" alt="プレビュー" class="h-20 rounded-xl object-cover border border-slate-200 w-full"
                         onerror="this.parentElement.classList.add('hidden')">
@@ -200,17 +244,24 @@
                   </div>
                 </div>
                 <div>
-                  <label for="f-tags" class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ（カンマ区切り）</label>
-                  <input type="text" id="f-tags" maxlength="300" oninput="markUnsaved()"
-                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
-                    placeholder="例: 練習用具, ユニフォーム, 資金援助">
-                  <p class="text-[10px] text-slate-400 mt-1">複数タグはカンマ（,）で区切って入力してください</p>
+                  <label class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ</label>
+                  <div id="f-tags-container"
+                    class="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-400 bg-white flex flex-wrap gap-1.5 items-center cursor-text"
+                    onclick="document.getElementById('f-tags-input').focus()">
+                    <div id="f-tags-display" class="contents"></div>
+                    <input type="text" id="f-tags-input" maxlength="50"
+                      placeholder="例：練習用具"
+                      class="flex-1 min-w-[120px] outline-none text-sm bg-transparent py-0.5"
+                      onkeydown="handleProfileTagKey(event)">
+                  </div>
+                  <input type="hidden" id="f-tags">
+                  <p class="text-[10px] text-slate-400 mt-1">Enterキーで追加。×で個別削除できます。</p>
                 </div>
                 <div>
                   <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">活動内容・現状</label>
                   <textarea id="f-activity-how" rows="5" maxlength="2000"
                     oninput="markUnsaved(); document.getElementById('profile-char-counter').textContent=this.value.length"
-                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none leading-relaxed"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
                     placeholder="団体の活動内容や現在の状況を詳しく説明してください..."></textarea>
                   <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="profile-char-counter">0</span>/2000</p>
                 </div>
@@ -220,7 +271,7 @@
                   </p>
                   <p class="text-[10px] text-slate-400 hidden sm:block">Ctrl+S でも保存できます</p>
                   <button type="submit" id="save-profile-btn"
-                    class="flex items-center gap-2 px-6 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm shadow-sm ml-auto">
+                    class="flex items-center gap-2 px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all text-sm shadow-sm ml-auto">
                     <i data-lucide="save" width="14" height="14"></i>変更を保存
                   </button>
                 </div>
@@ -231,7 +282,7 @@
           <!-- 支援メニュータブ -->
           <div id="tab-menus" class="hidden fade-in">
             <div class="flex items-center justify-between mb-5">
-              <h2 class="text-sm font-black text-[#0f0e2e]">支援メニュー一覧</h2>
+              <h2 class="text-sm font-black text-slate-900">支援メニュー一覧</h2>
               <button onclick="toggleMenuForm()"
                 class="flex items-center gap-2 px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
                 <i data-lucide="plus" width="14" height="14"></i>新規メニューを追加
@@ -239,20 +290,20 @@
             </div>
             <div id="menu-form-wrap" class="hidden mb-5">
               <div class="bg-white rounded-2xl border border-orange-200 shadow-sm p-6 slide-down">
-                <h3 class="text-sm font-black text-[#0f0e2e] mb-4"><span id="menu-form-title">新規メニューを追加</span></h3>
+                <h3 class="text-sm font-black text-slate-900 mb-4"><span id="menu-form-title">新規メニューを追加</span></h3>
                 <form id="menu-form" class="space-y-4">
                   <input type="hidden" id="mf-id">
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label for="mf-title" class="block text-xs font-bold text-slate-600 mb-1.5">メニュータイトル <span class="text-red-400">*</span></label>
                       <input type="text" id="mf-title" required maxlength="100"
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                         placeholder="例: ユニフォームスポンサー">
                     </div>
                     <div>
                       <label for="mf-support-type" class="block text-xs font-bold text-slate-600 mb-1.5">支援タイプ</label>
                       <select id="mf-support-type"
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white">
                         <option value="資金">資金</option>
                         <option value="物品">物品</option>
                         <option value="人材">人材</option>
@@ -265,13 +316,13 @@
                     <div>
                       <label for="mf-target-amount" class="block text-xs font-bold text-slate-600 mb-1.5">希望金額・数量</label>
                       <input type="text" id="mf-target-amount" maxlength="100"
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                         placeholder="例: 50,000円 / ボール10個">
                     </div>
                     <div>
                       <label for="mf-status" class="block text-xs font-bold text-slate-600 mb-1.5">公開設定</label>
                       <select id="mf-status"
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all bg-white">
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white">
                         <option value="public">公開</option>
                         <option value="private">非公開</option>
                       </select>
@@ -281,7 +332,7 @@
                     <label for="mf-description" class="block text-xs font-bold text-slate-600 mb-1.5">詳細説明</label>
                     <textarea id="mf-description" rows="3" maxlength="1000"
                       oninput="document.getElementById('mf-desc-counter').textContent=this.value.length"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none"
                       placeholder="支援内容の詳細を記述してください..."></textarea>
                     <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="mf-desc-counter">0</span>/1000</p>
                   </div>
@@ -289,7 +340,7 @@
                     <label for="mf-return-merit" class="block text-xs font-bold text-slate-600 mb-1.5">支援してくれた方へのリターン</label>
                     <textarea id="mf-return-merit" rows="3" maxlength="1000"
                       oninput="document.getElementById('mf-ret-counter').textContent=this.value.length"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none"
                       placeholder="例: ユニフォームへのロゴ掲載、SNS告知、試合招待など..."></textarea>
                     <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="mf-ret-counter">0</span>/1000</p>
                   </div>
@@ -297,7 +348,7 @@
                     <button type="button" onclick="cancelMenuForm()"
                       class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">キャンセル</button>
                     <button type="submit" id="menu-save-btn"
-                      class="flex items-center gap-2 px-5 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+                      class="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all text-sm">
                       <i data-lucide="save" width="14" height="14"></i>保存する
                     </button>
                   </div>
@@ -312,7 +363,7 @@
           <!-- 活動日記タブ -->
           <div id="tab-diary" class="hidden fade-in">
             <div class="flex items-center justify-between mb-5">
-              <h2 class="text-sm font-black text-[#0f0e2e]">活動日記</h2>
+              <h2 class="text-sm font-black text-slate-900">活動日記</h2>
               <button onclick="toggleDiaryForm()"
                 class="flex items-center gap-2 px-4 py-2 bg-orange-400 hover:bg-orange-500 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
                 <i data-lucide="pen-line" width="14" height="14"></i>新しい活動を投稿
@@ -320,20 +371,20 @@
             </div>
             <div id="diary-form-wrap" class="hidden mb-5">
               <div class="bg-white rounded-2xl border border-orange-200 shadow-sm p-6 slide-down">
-                <h3 class="text-sm font-black text-[#0f0e2e] mb-4"><span id="diary-form-title">新しい活動を投稿</span></h3>
+                <h3 class="text-sm font-black text-slate-900 mb-4"><span id="diary-form-title">新しい活動を投稿</span></h3>
                 <form id="diary-form" class="space-y-4">
                   <input type="hidden" id="df-id">
                   <div>
                     <label for="df-title" class="block text-xs font-bold text-slate-600 mb-1.5">タイトル <span class="text-red-400">*</span></label>
                     <input type="text" id="df-title" required maxlength="100"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="例: 秋季大会に参加しました！">
                   </div>
                   <div>
                     <label for="df-content" class="block text-xs font-bold text-slate-600 mb-1.5">本文 <span class="text-red-400">*</span></label>
                     <textarea id="df-content" rows="8" required maxlength="5000"
                       oninput="document.getElementById('df-content-counter').textContent=this.value.length"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all resize-none leading-relaxed"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
                       placeholder="活動の内容を詳しく記入してください..."></textarea>
                     <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="df-content-counter">0</span>/5000</p>
                   </div>
@@ -341,7 +392,7 @@
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">画像（任意）</label>
                     <div class="flex items-center gap-2 mb-2">
                       <label for="df-image-file"
-                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-600 transition-all">
+                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-orange-600 transition-all">
                         <i data-lucide="upload" width="14" height="14"></i>画像をアップロード
                       </label>
                       <input type="file" id="df-image-file" accept="image/*" class="hidden"
@@ -352,8 +403,9 @@
                     </div>
                     <input type="url" id="df-image-url" maxlength="500"
                       oninput="previewDiaryImage(this.value)"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-400 outline-none text-sm transition-all"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="https://... またはURLを直接入力">
+                    <p class="text-[10px] text-slate-400 mt-1">JPG・PNG／5MB以下</p>
                     <div id="diary-img-preview" class="hidden mt-2">
                       <img src="" alt="プレビュー" class="h-32 rounded-xl object-cover border border-slate-200 w-full"
                         onerror="this.parentElement.classList.add('hidden')">
@@ -363,7 +415,7 @@
                     <button type="button" onclick="cancelDiaryForm()"
                       class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all">キャンセル</button>
                     <button type="submit" id="diary-save-btn"
-                      class="flex items-center gap-2 px-5 py-2.5 bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold rounded-xl transition-all text-sm">
+                      class="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all text-sm">
                       <i data-lucide="send" width="14" height="14"></i>投稿する
                     </button>
                   </div>
@@ -375,6 +427,24 @@
             </div>
           </div>
 
+          <!-- 問い合わせ履歴タブ（B-04） -->
+          <div id="tab-inquiries" class="hidden fade-in">
+            <div class="flex items-center justify-between mb-5">
+              <h2 class="text-sm font-black text-slate-900">問い合わせ履歴</h2>
+              <div class="flex gap-2">
+                <button onclick="filterMyInquiries('all')" data-inq="all"
+                  class="my-inq-btn px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
+                <button onclick="filterMyInquiries('new')" data-inq="new"
+                  class="my-inq-btn px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">未対応</button>
+                <button onclick="filterMyInquiries('done')" data-inq="done"
+                  class="my-inq-btn px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">対応済み</button>
+              </div>
+            </div>
+            <div id="my-inquiries-list" class="space-y-3">
+              <div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>
+            </div>
+          </div>
+
         </div>
       </main>
     </div>
@@ -382,9 +452,9 @@
 
   <!-- 確認ダイアログ -->
   <div id="confirm-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true">
+    role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-      <h3 id="confirm-title" class="text-base font-black text-[#0f0e2e] mb-2"></h3>
+      <h3 id="confirm-title" class="text-base font-black text-slate-900 mb-2"></h3>
       <p id="confirm-body" class="text-sm text-slate-500 mb-6"></p>
       <div class="flex gap-3">
         <button onclick="closeConfirm()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
@@ -432,12 +502,24 @@
       { method: 'POST', body: form }
     );
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'アップロード失敗'); }
-    return (await res.json()).secure_url;
+    // P-4: Cloudinary 自動最適化（WebP変換・品質80・幅1200px上限）
+    const raw = (await res.json()).secure_url;
+    return raw.replace('/upload/', '/upload/f_auto,q_80,w_1200/');
   }
 
   async function handleImageUpload(fileInput, urlInputId, statusElId) {
     const file = fileInput.files[0];
     if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      showToast('JPG・PNG形式のファイルを選択してください', false);
+      fileInput.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('画像は5MB以下にしてください', false);
+      fileInput.value = '';
+      return;
+    }
     const statusEl = document.getElementById(statusElId);
     if (statusEl) statusEl.classList.remove('hidden');
     try {
@@ -472,6 +554,7 @@
   let editingMenuId  = null;
   let editingDiaryId = null;
   let profileDirty   = false;
+  let _profileTags   = [];
   const _menuCache  = new Map();
   const _diaryCache = new Map();
 
@@ -482,6 +565,25 @@
     new Promise(resolve => {
       const unsub = auth.onAuthStateChanged(user => { unsub(); resolve(user); });
     }).then(async user => {
+      // ── メール確認アクションコード処理（handleCodeInApp: true）────────────────
+      // メール内リンクが直接 mypage.html に飛んでくる場合（?mode=verifyEmail&oobCode=...）
+      const _p = new URLSearchParams(window.location.search);
+      if (_p.get('mode') === 'verifyEmail' && _p.get('oobCode') && auth) {
+        const _code = _p.get('oobCode');
+        // URLからパラメータを除去（リロード・ブックマーク対策）
+        window.history.replaceState({}, '', window.location.pathname);
+        try {
+          await auth.applyActionCode(_code); // メールを確認済みにする（未サインインでも可）
+        } catch(e) { console.warn('applyActionCode:', e.code); }
+        // サインインしていない場合 → index.html でログインを促す
+        if (!user) {
+          window.location.href = 'index.html?emailverified=1';
+          return;
+        }
+        // サインイン済みの場合 → reload して最新状態を反映してから通常フローへ
+        try { await user.reload(); user = auth.currentUser; } catch(e) {}
+      }
+      // ────────────────────────────────────────────────────────────────────────
       if (!user) { window.location.href = 'index.html'; return; }
       // 管理者は admin.html へリダイレクト
       try {
@@ -489,12 +591,201 @@
         if (token.claims.admin === true) { window.location.href = 'admin.html'; return; }
       } catch(e) { /* claims取得失敗時はそのまま進む */ }
       currentUser = user;
+      // メールアドレス未確認の場合 → まず reload() で最新状態を取得
+      // （メールリンクから戻った直後は Firebase SDK がキャッシュを持つため）
+      if (!user.emailVerified) {
+        try {
+          await user.reload();
+          const fresh = auth.currentUser;
+          if (fresh && fresh.emailVerified) {
+            // 確認済みになっていた → Firestore も更新してダッシュボードへ
+            currentUser = fresh;
+            if (db) {
+              try {
+                const snap = await db.collection('organizations')
+                  .where('owner_uid', '==', fresh.uid).limit(1).get();
+                if (!snap.empty) await snap.docs[0].ref.update({ emailVerified: true });
+              } catch(e) { /* 更新失敗は無視 */ }
+            }
+            loadUserOrg(fresh.uid);
+            return;
+          }
+        } catch(e) { /* reload失敗時はそのまま確認待ち画面へ */ }
+        showEmailVerify(user.email);
+        return;
+      }
       loadUserOrg(user.uid);
+    }).catch(err => {
+      // B-3: 認証チェーンの未処理rejectionを捕捉し、ログイン画面へ
+      console.error('Auth error:', err);
+      window.location.replace('index.html');
     });
   } else {
     document.getElementById('loading-screen').classList.add('hidden');
     document.getElementById('no-org-screen').classList.remove('hidden');
     lucide.createIcons();
+  }
+
+  // ============================================================
+  // メールアドレス確認フロー
+  // ============================================================
+  function showEmailVerify(email) {
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('email-verify-screen').classList.remove('hidden');
+    const addrEl = document.getElementById('verify-email-addr');
+    if (addrEl) addrEl.textContent = email || '';
+    lucide.createIcons();
+    startVerifyCountdown();
+  }
+
+  // ============================================================
+  // 確認期限カウントダウン（10分）
+  // ============================================================
+  const VERIFY_TIMEOUT_MS = 10 * 60 * 1000; // 10分
+  let _verifyTimer = null;
+
+  function startVerifyCountdown() {
+    if (_verifyTimer) { clearInterval(_verifyTimer); _verifyTimer = null; }
+    const createdAt = currentUser && currentUser.metadata && currentUser.metadata.creationTime
+      ? new Date(currentUser.metadata.creationTime).getTime()
+      : Date.now();
+    const expiresAt = createdAt + VERIFY_TIMEOUT_MS;
+
+    function tick() {
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        clearInterval(_verifyTimer); _verifyTimer = null;
+        handleVerificationExpired();
+        return;
+      }
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      const el = document.getElementById('verify-countdown');
+      if (el) {
+        el.textContent = `確認期限まで ${mins}分 ${String(secs).padStart(2,'0')}秒`;
+        el.className = `text-xs text-center font-bold mb-4 ${remaining < 2 * 60 * 1000 ? 'text-red-500' : 'text-slate-400'}`;
+      }
+    }
+    tick();
+    _verifyTimer = setInterval(tick, 1000);
+  }
+
+  async function handleVerificationExpired() {
+    if (_verifyTimer) { clearInterval(_verifyTimer); _verifyTimer = null; }
+    const countEl = document.getElementById('verify-countdown');
+    if (countEl) { countEl.textContent = '確認期限が切れました'; countEl.className = 'text-xs text-center font-bold mb-4 text-red-500'; }
+    const statusEl = document.getElementById('verify-status');
+    statusEl.textContent = '登録から10分が経過したため、登録情報を削除します。再度お申し込みください。';
+    statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
+    document.getElementById('verify-check-btn').disabled = true;
+    document.getElementById('resend-btn').disabled = true;
+
+    // Firestoreの申請データを削除（status=pending のもののみ）
+    try {
+      if (db && currentUser) {
+        const snap = await db.collection('organizations')
+          .where('owner_uid', '==', currentUser.uid)
+          .where('status', '==', 'pending')
+          .limit(1).get();
+        if (!snap.empty) await snap.docs[0].ref.delete();
+      }
+    } catch(e) { console.warn('期限切れorg削除失敗:', e); }
+
+    // Firebase Authアカウントを削除（登録直後のため recent login 条件を満たす）
+    try {
+      if (currentUser) await currentUser.delete();
+    } catch(e) { console.warn('期限切れアカウント削除失敗:', e); }
+
+    setTimeout(() => { window.location.replace('index.html'); }, 3000);
+  }
+
+  async function checkEmailVerified() {
+    const btn      = document.getElementById('verify-check-btn');
+    const statusEl = document.getElementById('verify-status');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> 確認中...';
+    statusEl.textContent = '';
+    statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4';
+    try {
+      await currentUser.reload();
+      const refreshed = auth.currentUser;
+      if (refreshed && refreshed.emailVerified) {
+        // 確認済み → カウントダウン停止 → Firestore を更新 → ダッシュボードへ
+        if (_verifyTimer) { clearInterval(_verifyTimer); _verifyTimer = null; }
+        currentUser = refreshed;
+        // Firestore の emailVerified を true に更新（セキュリティルールで許可済み）
+        if (db) {
+          try {
+            const snap = await db.collection('organizations')
+              .where('owner_uid', '==', currentUser.uid).limit(1).get();
+            if (!snap.empty) await snap.docs[0].ref.update({ emailVerified: true });
+          } catch(e) { console.warn('emailVerified更新失敗:', e); }
+        }
+        document.getElementById('email-verify-screen').classList.add('hidden');
+        document.getElementById('loading-screen').classList.remove('hidden');
+        loadUserOrg(currentUser.uid);
+      } else {
+        statusEl.textContent = 'まだ確認されていません。メール内のリンクをクリックしてから再度お試しください。';
+        statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-amber-500';
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="check-circle" width="16" height="16"></i> 確認しました';
+        lucide.createIcons();
+      }
+    } catch(e) {
+      statusEl.textContent = 'エラーが発生しました。しばらく待ってから再試行してください。';
+      statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="check-circle" width="16" height="16"></i> 確認しました';
+      lucide.createIcons();
+    }
+  }
+
+  async function resendVerificationEmail() {
+    const btn      = document.getElementById('resend-btn');
+    const statusEl = document.getElementById('verify-status');
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+    statusEl.textContent = '';
+    statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4';
+    try {
+      const verifyRes = await fetch('/.netlify/functions/send-verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email:  currentUser.email,
+          origin: window.location.origin,
+        }),
+      });
+      if (verifyRes.ok) {
+        statusEl.textContent = '確認メールを再送しました。受信トレイをご確認ください。';
+        statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-green-600';
+        // 60秒間は再送不可
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = '確認メールを再送する';
+        }, 60000);
+        btn.textContent = '再送しました（60秒後に再試行可能）';
+      } else {
+        const errData = await verifyRes.json().catch(() => ({}));
+        if (verifyRes.status === 429) {
+          statusEl.textContent = '送信回数が多すぎます。しばらく待ってから再試行してください。';
+        } else {
+          statusEl.textContent = '送信に失敗しました。しばらく待ってから再試行してください。';
+        }
+        statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
+        btn.disabled = false;
+      }
+    } catch(e) {
+      statusEl.textContent = '送信に失敗しました。しばらく待ってから再試行してください。';
+      statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
+      btn.disabled = false;
+      btn.textContent = '確認メールを再送する';
+    }
+  }
+
+  async function doSignOutFromVerify() {
+    if (auth) await auth.signOut();
+    window.location.replace('index.html');
   }
 
   async function loadUserOrg(uid) {
@@ -525,12 +816,23 @@
     } catch(err) { showToast('エラー: ' + err.message, false); }
   }
 
-  async function doSignOut() {
+  function doSignOut() {
     if (profileDirty) {
-      if (!confirm('未保存の変更があります。ログアウトしますか？')) return;
+      showConfirm(
+        '未保存の変更があります',
+        'ログアウトすると変更内容が失われます。ログアウトしますか？',
+        'ログアウト', 'bg-red-500 hover:bg-red-600',
+        async () => {
+          if (auth) await auth.signOut();
+          window.location.replace('index.html');
+        }
+      );
+      return;
     }
-    if (auth) await auth.signOut();
-    window.location.replace('index.html');
+    (async () => {
+      if (auth) await auth.signOut();
+      window.location.replace('index.html');
+    })();
   }
 
   // ============================================================
@@ -545,6 +847,14 @@
     if (orgNameEl) { orgNameEl.textContent = currentOrg.name || ''; orgNameEl.classList.remove('hidden'); }
     lucide.createIcons();
     switchTab('profile');
+    // 未対応問い合わせのバッジを初期表示
+    if (db && currentOrg) {
+      db.collection('inquiries').where('org_id', '==', currentOrg.id).where('status', '==', 'new').get()
+        .then(snap => {
+          const badge = document.getElementById('badge-inquiries');
+          if (badge && snap.size > 0) { badge.textContent = snap.size; badge.classList.remove('hidden'); }
+        }).catch(() => {});
+    }
   }
 
   // ============================================================
@@ -581,19 +891,29 @@
   // タブ切り替え
   // ============================================================
   const TAB_TITLES = {
-    profile: { title: 'プロフィール', subtitle: '団体情報の編集' },
-    menus:   { title: '支援メニュー', subtitle: 'サポートメニューの管理' },
-    diary:   { title: '活動日記',     subtitle: '活動投稿の管理' },
+    profile:   { title: 'プロフィール', subtitle: '団体情報の編集' },
+    menus:     { title: '支援メニュー', subtitle: 'サポートメニューの管理' },
+    diary:     { title: '活動日記',     subtitle: '活動投稿の管理' },
+    inquiries: { title: '問い合わせ履歴', subtitle: '企業からの支援申請一覧' },
   };
 
   function switchTab(name) {
     if (name !== 'profile' && profileDirty) {
-      if (!confirm('プロフィールに未保存の変更があります。タブを切り替えますか？')) return;
-      clearUnsaved();
+      showConfirm(
+        '未保存の変更があります',
+        'プロフィールの変更を保存せずにタブを切り替えますか？',
+        '切り替える', 'bg-orange-500 hover:bg-orange-600',
+        () => { clearUnsaved(); _doSwitchTab(name); }
+      );
+      return;
     }
+    _doSwitchTab(name);
+  }
+
+  function _doSwitchTab(name) {
     currentTab = name;
     closeSidebar();
-    ['profile','menus','diary'].forEach(t => {
+    ['profile','menus','diary','inquiries'].forEach(t => {
       document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
     });
     document.querySelectorAll('.side-btn').forEach(btn => {
@@ -605,9 +925,102 @@
     const info = TAB_TITLES[name] || {};
     document.getElementById('page-title').textContent    = info.title    || '';
     document.getElementById('page-subtitle').textContent = info.subtitle || '';
-    if (name === 'profile') loadProfile();
-    if (name === 'menus')   loadMenus();
-    if (name === 'diary')   loadDiary();
+    if (name === 'profile')   loadProfile();
+    if (name === 'menus')     loadMenus();
+    if (name === 'diary')     loadDiary();
+    if (name === 'inquiries') loadMyInquiries();
+  }
+
+  // ============================================================
+  // 問い合わせ履歴（B-04）
+  // ============================================================
+  let _myInquiries    = [];
+  let _myInqFilter    = 'all';
+
+  async function loadMyInquiries() {
+    const el = document.getElementById('my-inquiries-list');
+    if (!db || !currentOrg) {
+      el.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">Firebase未接続（デモモード）</div>`;
+      return;
+    }
+    el.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">読み込み中...</div>`;
+    try {
+      const snap = await db.collection('inquiries')
+        .where('org_id', '==', currentOrg.id)
+        .orderBy('created_at', 'desc')
+        .get();
+      _myInquiries = snap.docs;
+      // 未対応件数をバッジに表示
+      const newCount = _myInquiries.filter(d => d.data().status === 'new').length;
+      const badge = document.getElementById('badge-inquiries');
+      if (badge) { badge.textContent = newCount; badge.classList.toggle('hidden', newCount === 0); }
+      // M-9: フィルターUI状態をデータ読み込み後に同期（タブ再表示後の不整合を防止）
+      filterMyInquiries(_myInqFilter);
+    } catch(e) {
+      el.innerHTML = `<div class="text-xs text-red-400 text-center py-10">読み込みエラー: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function filterMyInquiries(f) {
+    _myInqFilter = f;
+    document.querySelectorAll('.my-inq-btn').forEach(btn => {
+      const active = btn.dataset.inq === f;
+      btn.classList.toggle('bg-orange-500', active); btn.classList.toggle('text-white', active);
+      btn.classList.toggle('bg-white',      !active); btn.classList.toggle('text-slate-500', !active);
+      btn.classList.toggle('border',        !active); btn.classList.toggle('border-slate-200', !active);
+    });
+    renderMyInquiries();
+  }
+
+  function renderMyInquiries() {
+    const el   = document.getElementById('my-inquiries-list');
+    const list = _myInqFilter === 'all'
+      ? _myInquiries
+      : _myInquiries.filter(d => d.data().status === _myInqFilter);
+    if (!list.length) {
+      el.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">${_myInquiries.length === 0 ? '問い合わせはまだありません' : '該当する問い合わせはありません'}</div>`;
+      return;
+    }
+    el.innerHTML = list.map(doc => {
+      const d  = doc.data();
+      const dt = d.created_at ? d.created_at.toDate().toLocaleDateString('ja-JP', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+      const isDone = d.status === 'done';
+      return `
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <p class="text-sm font-bold text-slate-900">${esc(d.company_name || '—')}</p>
+            <p class="text-xs text-slate-400 mt-0.5">${esc(d.pic_name || '')}　${dt}</p>
+          </div>
+          <span class="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${isDone ? 'bg-slate-100 text-slate-400' : 'bg-red-50 text-red-500 border border-red-200'}">
+            ${isDone ? '対応済み' : '未対応'}
+          </span>
+        </div>
+        ${d.message ? `<p class="text-sm text-slate-600 leading-relaxed mb-3 bg-slate-50 rounded-xl px-4 py-3">${esc(d.message).replace(/\n/g,'<br>')}</p>` : ''}
+        <div class="flex items-center gap-3 flex-wrap text-xs text-slate-500">
+          <a href="mailto:${esc(d.sender_email||'')}" class="flex items-center gap-1 hover:text-orange-600 transition-colors">
+            <i data-lucide="mail" width="12" height="12"></i>${esc(d.sender_email||'—')}
+          </a>
+          ${d.phone ? `<span class="flex items-center gap-1"><i data-lucide="phone" width="12" height="12"></i>${esc(d.phone)}</span>` : ''}
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button onclick="toggleMyInquiryStatus('${doc.id}', '${isDone ? 'new' : 'done'}')"
+            class="text-xs font-bold px-4 py-2 rounded-xl transition-all ${isDone ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-green-50 hover:bg-green-100 text-green-700 border border-green-200'}">
+            ${isDone ? '未対応に戻す' : '対応済みにする'}
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+    lucide.createIcons();
+  }
+
+  async function toggleMyInquiryStatus(docId, newStatus) {
+    if (!db) return;
+    try {
+      await db.collection('inquiries').doc(docId).update({ status: newStatus });
+      showToast(newStatus === 'done' ? '対応済みにしました' : '未対応に戻しました');
+      loadMyInquiries();
+    } catch(e) { showToast('更新に失敗しました', false); }
   }
 
   // ============================================================
@@ -670,7 +1083,10 @@
     document.getElementById('f-category').value      = org.category     || '';
     document.getElementById('f-area').value          = org.area         || '';
     document.getElementById('f-main-image').value    = org.main_image   || '';
-    document.getElementById('f-tags').value          = (org.tags || []).join(', ');
+    _profileTags = Array.isArray(org.tags)
+      ? [...org.tags]
+      : (typeof org.tags === 'string' ? org.tags.split(',').map(t=>t.trim()).filter(Boolean) : []);
+    renderProfileTags();
     document.getElementById('f-activity-how').value  = org.activity_how || '';
     document.getElementById('profile-char-counter').textContent = (org.activity_how || '').length;
 
@@ -687,8 +1103,7 @@
     btn.disabled = true;
     btn.innerHTML = '<span class="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full"></span> 保存中...';
 
-    const rawTags = document.getElementById('f-tags').value;
-    const tags    = rawTags.split(',').map(t => t.trim()).filter(Boolean);
+    const tags = [..._profileTags];
     const data    = {
       name:         document.getElementById('f-name').value.trim(),
       category:     document.getElementById('f-category').value,
@@ -775,7 +1190,7 @@
           <div class="flex items-start justify-between gap-3 mb-3">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1 flex-wrap">
-                <h3 class="text-sm font-black text-[#0f0e2e]">${esc(m.title)}</h3>
+                <h3 class="text-sm font-black text-slate-900">${esc(m.title)}</h3>
                 <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${m.status === 'public' ? 'badge-public border border-green-200' : 'bg-slate-100 text-slate-500'}">
                   ${m.status === 'public' ? '公開中' : '非公開'}
                 </span>
@@ -870,8 +1285,24 @@
         showToast('メニューを更新しました');
       } else {
         data.created_at = firebase.firestore.FieldValue.serverTimestamp();
+        data.owner_uid  = currentUser.uid;
         await menusRef.add(data);
         showToast('メニューを追加しました');
+        // 新規作成時のみ Slack 通知（既存 slackWebhook を使用・エラーは無視）
+        const _slackUrl = getCfg().slackWebhook || '';
+        if (_slackUrl) {
+          const _lines = [
+            ':new: *新規支援メニューが登録されました*',
+            `*団体名*：${currentOrg?.name || '—'}`,
+            `*メニュー名*：${data.title || '—'}`,
+            data.target_amount ? `*希望金額・数量*：${data.target_amount}` : null,
+            `*管理画面*：${window.location.origin}/admin.html`,
+          ].filter(Boolean).join('\n');
+          fetch(_slackUrl, {
+            method: 'POST', mode: 'no-cors',
+            body: new URLSearchParams({ payload: JSON.stringify({ text: _lines }) }),
+          }).catch(() => {});
+        }
       }
       cancelMenuForm();
       loadMenus();
@@ -888,7 +1319,10 @@
     if (!db) { showToast('Firebase未接続のため変更できません', false); return; }
     const newStatus = currentStatus === 'public' ? 'private' : 'public';
     try {
-      await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).update({ status: newStatus });
+      await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).update({
+        status: newStatus,
+        updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+      });
       showToast(newStatus === 'public' ? '公開しました' : '非公開にしました');
       loadMenus();
     } catch(err) { showToast('エラー: ' + err.message, false); }
@@ -949,7 +1383,7 @@
           onerror="this.style.display='none'">` : ''}
         <div class="p-5">
           <p class="text-[10px] text-slate-400 font-bold mb-1.5">${fmtDate(p.created_at)}</p>
-          <h3 class="text-sm font-black text-[#0f0e2e] mb-2">${esc(p.title)}</h3>
+          <h3 class="text-sm font-black text-slate-900 mb-2">${esc(p.title)}</h3>
           <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${esc(p.content)}</p>
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
@@ -1048,6 +1482,38 @@
   }
 
   // ============================================================
+  // プロフィールタグUI（TASK-06）
+  // ============================================================
+  function handleProfileTagKey(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = e.target.value.trim().replace(/,/g, '');
+      if (val && !_profileTags.includes(val)) {
+        _profileTags.push(val);
+        renderProfileTags();
+        markUnsaved();
+      }
+      e.target.value = '';
+    }
+  }
+  function removeProfileTag(i) {
+    _profileTags.splice(i, 1);
+    renderProfileTags();
+    markUnsaved();
+  }
+  function renderProfileTags() {
+    const display = document.getElementById('f-tags-display');
+    const hidden  = document.getElementById('f-tags');
+    if (!display) return;
+    display.innerHTML = _profileTags.map((t, i) =>
+      `<span class="inline-flex items-center gap-1 text-xs font-bold bg-indigo-50 text-orange-600 border border-indigo-200 px-2 py-0.5 rounded-full">
+        ${esc(t)}<button type="button" onclick="removeProfileTag(${i})" class="ml-0.5 hover:text-red-500 transition-colors leading-none text-base">×</button>
+      </span>`
+    ).join('');
+    if (hidden) hidden.value = _profileTags.join(',');
+  }
+
+  // ============================================================
   // ユーティリティ
   // ============================================================
   function esc(s) {
@@ -1056,13 +1522,15 @@
     );
   }
 
+  let _toastTimer = null;
   function showToast(msg, ok = true) {
     const t  = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
     ti.textContent = msg;
     ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
     t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3000);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
   }
 
   function fmtDate(val) {
@@ -1092,7 +1560,14 @@
     confirmCallback = null;
   }
   document.getElementById('confirm-ok').addEventListener('click', async () => {
-    if (confirmCallback) await confirmCallback();
+    // B-1: ダブルクリックによる二重実行防止 — 呼び出し前に null に設定
+    const cb = confirmCallback;
+    confirmCallback = null;
+    if (cb) {
+      const okBtn = document.getElementById('confirm-ok');
+      okBtn.disabled = true;
+      try { await cb(); } finally { okBtn.disabled = false; }
+    }
     closeConfirm();
   });
   document.getElementById('confirm-dialog').addEventListener('keydown', e => {
@@ -1118,11 +1593,23 @@
   });
 
   // BFCache（戻るボタン）対策: キャッシュから復元された場合も認証チェック
-  window.addEventListener('pageshow', e => {
-    if (e.persisted && auth && !auth.currentUser) {
-      window.location.replace('index.html');
+  window.addEventListener('pageshow', async e => {
+    if (!e.persisted) return;
+    if (!auth || !auth.currentUser) { window.location.replace('index.html'); return; }
+    // BFCacheから復元時にメール確認状態も最新化
+    try { await auth.currentUser.reload(); } catch(e) { /* ignore */ }
+    if (!auth.currentUser.emailVerified) {
+      // ダッシュボードが開いていた場合でも確認画面に戻す
+      document.getElementById('dashboard').classList.add('hidden');
+      currentUser = auth.currentUser;
+      showEmailVerify(currentUser.email);
     }
   });
+
+  // P-2: 本番環境で console.log を無効化
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.log = () => {};
+  }
   </script>
 </body>
 </html>

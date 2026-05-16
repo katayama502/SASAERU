@@ -1,5 +1,10 @@
 [build]
   publish = "."
+  command = "npm --prefix netlify/functions/send-email install && npm --prefix netlify/functions/send-verify-email install"
+
+# H-4: functions ディレクトリを明示（Netlify の自動検出に頼らない）
+[functions]
+  directory = "netlify/functions"
 
 # admin.html は直接配信（SPAリダイレクト対象外）
 [[redirects]]
@@ -13,9 +18,47 @@
   to = "/index.html"
   status = 200
 
+# ── 全ページ共通セキュリティヘッダー ──────────────────────────
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # S-4: HSTS（HTTPS強制）
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    # S-4: CSP（外部スクリプトを許可リスト制限）
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://api.cloudinary.com https://hooks.slack.com; frame-src https://sasaeru-7f375.firebaseapp.com;"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# P-3: 静的アセットのキャッシュ（HTML以外）
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+# HTMLは常に最新を取得
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

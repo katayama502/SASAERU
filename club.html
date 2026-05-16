@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0e2e'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23fb923c'>♥</text></svg>">
   <title>クラブ詳細 - SASAERU</title>
   <meta name="description" content="地域クラブの活動紹介・支援メニューをご覧いただけます - SASAERU">
   <meta property="og:site_name" content="SASAERU">
   <meta property="og:type" content="website">
   <meta id="og-title" property="og:title" content="クラブ詳細 - SASAERU">
   <meta id="og-description" property="og:description" content="地域クラブの活動紹介・支援メニューをご覧ください">
-  <meta id="og-image" property="og:image" content="">
-  <meta id="og-url" property="og:url" content="">
+  <!-- L-4: 静的デフォルト値を設定（クローラーはJSを実行しないため） -->
+  <meta id="og-image" property="og:image" content="https://sasaeru.netlify.app/ogp.png">
+  <meta id="og-url" property="og:url" content="https://sasaeru.netlify.app/club.html">
   <meta name="twitter:card" content="summary_large_image">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -21,7 +23,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <!-- EmailJS SDK（メール通知に使用） -->
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <!-- 設定は Netlify Snippet Injection で window.SASAERU_CONFIG として注入済み -->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
@@ -145,7 +146,9 @@
       <!-- ヒーローセクション -->
       <section id="hero-section" class="relative min-h-[520px] md:min-h-[600px] flex items-end overflow-hidden bg-[#0f0e2e]">
         <div class="absolute inset-0" id="hero-bg">
-          <img id="hero-img" src="" alt="" class="w-full h-full object-cover">
+          <!-- M-8: onerror でCDN障害時にグラデーション背景へフォールバック -->
+          <img id="hero-img" src="" alt="" class="w-full h-full object-cover"
+            onerror="document.getElementById('hero-bg').classList.add('hidden')">
           <div class="absolute inset-0 hero-overlay"></div>
         </div>
         <div id="hero-gradient" class="hidden absolute inset-0">
@@ -302,7 +305,7 @@
       <!-- 日記画像 -->
       <div id="post-modal-img-wrap" class="hidden">
         <img id="post-modal-img" src="" alt="" class="w-full max-h-72 object-cover rounded-t-2xl"
-          onerror="document.getElementById('post-modal-img-wrap').classList.add('hidden')">
+          loading="lazy" onerror="document.getElementById('post-modal-img-wrap').classList.add('hidden')">
       </div>
       <div class="p-6 sm:p-8 flex flex-col flex-grow">
         <!-- 日付 -->
@@ -356,6 +359,7 @@
         <div>
           <label for="inq-phone" class="block text-xs font-bold text-slate-600 mb-1.5">電話番号</label>
           <input type="tel" id="inq-phone" name="phone" maxlength="20" placeholder="090-0000-0000"
+            pattern="^[\d\-\+\(\)\s]{7,20}$" title="半角数字・ハイフンで入力してください"
             class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
         </div>
         <div>
@@ -370,7 +374,7 @@
           class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-black py-4 rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2">
           申請する
         </button>
-        <p id="inquiry-result" class="text-xs text-center min-h-[1rem]"></p>
+        <p id="inquiry-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
       </form>
     </div>
   </div>
@@ -408,17 +412,14 @@
   // ===================================================
   function getCfg() { return window.SASAERU_CONFIG || {}; }
 
-  let _emailjsReady = false;
   async function sendAdminNotification(type, params) {
     const cfg = getCfg();
-    const slackWebhook      = cfg.slackWebhook      || '';
-    const emailjsPublicKey  = cfg.emailjsPublicKey  || '';
-    const emailjsServiceId  = cfg.emailjsServiceId  || '';
-    const emailjsTemplateId = cfg.emailjsTemplateId || '';
+    const slackWebhook = cfg.slackWebhook || '';
 
     const labels = { club_apply: '🏃 新規クラブ申請', inquiry: '📩 支援申請', contact: '✉️ お問い合わせ' };
+    const label = labels[type] || type;
     const lines = Object.entries(params).map(([k,v]) => `${k}: ${v}`).join('\n');
-    const text  = `${labels[type] || type}\n\n${lines}\n\n🔗 管理画面: ${location.origin}/admin.html`;
+    const text  = `${label}\n\n${lines}\n\n🔗 管理画面: ${location.origin}/admin.html`;
 
     if (slackWebhook) {
       try {
@@ -428,14 +429,16 @@
         });
       } catch(e) { console.warn('Slack通知失敗:', e); }
     }
-    if (emailjsPublicKey && emailjsServiceId && emailjsTemplateId) {
-      try {
-        if (!_emailjsReady) { emailjs.init({ publicKey: emailjsPublicKey }); _emailjsReady = true; }
-        await emailjs.send(emailjsServiceId, emailjsTemplateId, {
-          notification_type: labels[type] || type, message: lines,
-        });
-      } catch(e) { console.warn('Email通知失敗:', e); }
-    }
+    try {
+      await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'admin_notify',
+          params: { label, lines, origin: location.origin },
+        }),
+      });
+    } catch(e) { console.warn('管理者メール通知失敗:', e); }
   }
 
   // ===================================================
@@ -447,13 +450,15 @@
     );
   }
 
+  let _toastTimer = null;
   function showToast(msg, ok = true) {
     const t = document.getElementById('toast');
     const ti = document.getElementById('toast-inner');
     ti.textContent = msg;
     ti.className = `px-5 py-3 rounded-xl text-sm font-bold shadow-xl ${ok ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
     t.classList.remove('hidden');
-    setTimeout(() => t.classList.add('hidden'), 3500);
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
   }
 
   function setBtnLoading(id, loading) {
@@ -486,8 +491,10 @@
   // ===================================================
   // グローバル状態
   // ===================================================
-  let currentOrgId   = '';
-  let currentOrgName = '';
+  let currentOrgId           = '';
+  let currentOrgName         = '';
+  let currentOrgContactEmail = '';
+  let currentMenuTitle       = '';
 
   // ===================================================
   // 認証状態監視
@@ -564,6 +571,26 @@
   }
 
   // ===================================================
+  // 管理者プレビューモード判定（?preview=1 + admin claim）
+  // ===================================================
+  let _isAdminPreview = false;
+  async function checkAdminPreview() {
+    if (!auth) return false;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('preview') !== '1') return false;
+    return new Promise(resolve => {
+      const unsub = auth.onAuthStateChanged(async user => {
+        unsub();
+        if (!user) { resolve(false); return; }
+        try {
+          const token = await user.getIdTokenResult();
+          resolve(token.claims.admin === true);
+        } catch(e) { resolve(false); }
+      });
+    });
+  }
+
+  // ===================================================
   // メインロード
   // ===================================================
   async function loadClub() {
@@ -574,14 +601,21 @@
     if (!orgId) { showError('クラブが見つかりません', 'URLにクラブIDが指定されていません。'); return; }
     if (!db)    { showError('読み込みエラー', 'データベースへの接続に失敗しました。しばらく経ってから再度お試しください。'); return; }
 
+    // 管理者プレビューモードの確認（?preview=1 付きURLは管理者のみ非公開ページ閲覧可）
+    _isAdminPreview = await checkAdminPreview();
+
     try {
       const orgDoc = await db.collection('organizations').doc(orgId).get();
       if (!orgDoc.exists) { showError('クラブが見つかりません', '指定されたクラブは存在しません。URLをご確認ください。'); return; }
       const org = { id: orgDoc.id, ...orgDoc.data() };
-      if (org.status !== 'public') { showError('このページは非公開です', 'このクラブのページは現在非公開に設定されています。'); return; }
+      if (org.status !== 'public' && !_isAdminPreview) {
+        showError('このページは非公開です', 'このクラブのページは現在非公開に設定されています。');
+        return;
+      }
 
-      currentOrgId   = org.id;
-      currentOrgName = org.name || '';
+      currentOrgId           = org.id;
+      currentOrgName         = org.name || '';
+      currentOrgContactEmail = org.contact_email || '';
       document.title = `${org.name || 'クラブ詳細'} - SASAERU`;
       // OG tags
       const ogTitle = document.getElementById('og-title');
@@ -708,8 +742,8 @@
                 </p>
                 <p class="leading-relaxed">${esc(m.return_merit).replace(/\n/g,'<br>')}</p>
               </div>` : ''}
-            <button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}"
-              onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName)"
+            <button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}" data-menu-title="${esc(m.title||'')}"
+              onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName, this.dataset.menuTitle)"
               class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 mt-auto">
               <i data-lucide="mail" width="15" height="15"></i>支援・問い合わせ
             </button>
@@ -840,12 +874,17 @@
     m.classList.remove('hidden'); m.classList.add('flex');
     document.body.style.overflow = 'hidden';
     lucide.createIcons();
+    // U-3: モーダルを開いた後、閉じるボタンにフォーカスを移動
+    _postModalOpener = document.activeElement;
+    setTimeout(() => m.querySelector('button[aria-label="モーダルを閉じる"]')?.focus(), 50);
   }
 
   function closePostModal() {
     const m = document.getElementById('post-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
+    // U-3: モーダルを開いたボタンにフォーカスを戻す
+    if (_postModalOpener) { _postModalOpener.focus(); _postModalOpener = null; }
   }
 
   document.getElementById('post-modal').addEventListener('click', e => {
@@ -855,8 +894,11 @@
   // ===================================================
   // 支援申請モーダル
   // ===================================================
-  function openInquiryModal(orgId, orgName) {
-    document.getElementById('inquiry-target').textContent = `支援先: ${orgName}`;
+  function openInquiryModal(orgId, orgName, menuTitle) {
+    currentMenuTitle = menuTitle || orgName;
+    document.getElementById('inquiry-target').textContent = menuTitle
+      ? `支援先: ${orgName}（${menuTitle}）`
+      : `支援先: ${orgName}`;
     document.getElementById('inquiry-result').textContent = '';
     document.getElementById('inquiry-form').reset();
     document.getElementById('inquiry-org-id').value = orgId;
@@ -895,14 +937,44 @@
     if (db) {
       try {
         await db.collection('inquiries').add({ ...payload, created_at: firebase.firestore.FieldValue.serverTimestamp() });
+        // 管理者通知（Slack + 管理者メール）
         sendAdminNotification('inquiry', {
           クラブ: currentOrgName || orgId, 企業名: data.company_name,
           担当者: data.pic_name, メール: data.sender_email,
           内容: (data.message || '').slice(0, 100),
         });
+        // オーナー向け問い合わせ通知メール（基本設計書 4.1）
+        if (currentOrgContactEmail) {
+          fetch('/.netlify/functions/send-email', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'inquiry_owner', params: {
+              toEmail:     currentOrgContactEmail,
+              orgName:     currentOrgName,
+              menuTitle:   currentMenuTitle,
+              companyName: data.company_name,
+              picName:     data.pic_name,
+              senderEmail: data.sender_email,
+              phone:       data.phone || '',
+              message:     data.message || '',
+            }}),
+          }).catch(e => console.warn('オーナー通知メール失敗:', e));
+        }
+        // 申請企業向け自動返信メール（基本設計書 4.2）
+        fetch('/.netlify/functions/send-email', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'inquiry_reply', params: {
+            toEmail:     data.sender_email,
+            companyName: data.company_name,
+            picName:     data.pic_name,
+            orgName:     currentOrgName,
+            menuTitle:   currentMenuTitle,
+          }}),
+        }).catch(e => console.warn('申請者自動返信メール失敗:', e));
         result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
+        // H-3: 成功時もボタンをリセット（ESCでモーダルを早期に閉じた場合の対策）
+        setBtnLoading('inq-submit-btn', false);
         setTimeout(closeInquiryModal, 2500);
         showToast('支援申請を受け付けました');
         return;
@@ -947,8 +1019,14 @@
   // ESCキー & フォーカストラップ
   // ===================================================
   let _activeModal = null;
+  let _postModalOpener = null;
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeInquiryModal();
+    if (e.key === 'Escape') {
+      // U-3: 日記詳細モーダルが開いている場合はそちらを閉じる
+      const postModal = document.getElementById('post-modal');
+      if (postModal && postModal.classList.contains('flex')) { closePostModal(); return; }
+      closeInquiryModal();
+    }
     if (e.key === 'Tab' && _activeModal) {
       const focusable = [..._activeModal.querySelectorAll(
         'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled])'
@@ -959,6 +1037,13 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
   });
+
+  // ===================================================
+  // P-2: 本番環境で console.log を無効化
+  // ===================================================
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.log = () => {};
+  }
 
   // ===================================================
   // 初期化
