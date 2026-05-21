@@ -16,7 +16,16 @@
   <meta name="twitter:card" content="summary_large_image">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } } }
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#f97316', dark: '#ea580c' },
+            indigo: { 950: '#0f0e2e' }
+          }
+        }
+      }
+    }
   </script>
   <script src="https://unpkg.com/lucide@0.344.0"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -30,9 +39,10 @@
     .card-hover { transition: transform 0.25s ease, box-shadow 0.25s ease; }
     .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(15,14,46,0.18); }
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
-    .modal-inner { animation: slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #f97316; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ea580c; }
+    .modal-inner { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
     @keyframes slideUp {
       from { opacity: 0; transform: translateY(24px) scale(0.97); }
       to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -122,8 +132,8 @@
     <!-- ローディング -->
     <div id="loading-state" class="min-h-[60vh] flex items-center justify-center">
       <div class="text-center text-slate-400">
-        <i data-lucide="loader-2" width="40" height="40" class="mx-auto mb-3 animate-spin text-indigo-400"></i>
-        <p class="text-sm">読み込み中...</p>
+        <i data-lucide="loader-2" width="40" height="40" class="mx-auto mb-3 animate-spin text-orange-500"></i>
+        <p class="text-sm font-bold">読み込み中...</p>
       </div>
     </div>
     <!-- エラー表示 -->

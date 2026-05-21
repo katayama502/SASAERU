@@ -26,8 +26,10 @@
     .badge-unread   { background:#fdf2f8; color:#9333ea; }
     @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
     .fade-in { animation: fadeIn .25s ease forwards; }
-    ::-webkit-scrollbar { width:5px; height:5px; }
-    ::-webkit-scrollbar-thumb { background:#6366f1; border-radius:4px; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background:#f97316; border-radius:10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ea580c; }
     #sidebar { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
     #sidebar-overlay { transition: opacity 0.3s ease; }
   </style>
@@ -73,7 +75,7 @@
         <p id="login-error" class="text-xs text-center text-red-500 min-h-[1rem]" aria-live="assertive"></p>
       </form>
       <p class="text-center text-xs text-slate-400 mt-6">
-        <a href="index.html" class="hover:text-indigo-700 underline underline-offset-2">← 公開サイトへ戻る</a>
+        <a href="index.html" class="hover:text-orange-600 underline underline-offset-2 transition-colors">← 公開サイトへ戻る</a>
       </p>
     </div>
   </div>
@@ -84,19 +86,19 @@
 
     <div class="flex h-screen overflow-hidden">
       <!-- サイドバー -->
-      <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-60 bg-slate-900 flex flex-col shrink-0 -translate-x-full md:translate-x-0">
-        <div class="px-5 py-5 border-b border-white/10">
-          <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 bg-orange-400 rounded-lg flex items-center justify-center shadow-md shadow-orange-400/30">
-              <i data-lucide="heart" class="text-white fill-white" width="16" height="16"></i>
+      <aside id="sidebar" class="fixed md:relative inset-y-0 left-0 z-30 w-64 bg-slate-900 flex flex-col shrink-0 -translate-x-full md:translate-x-0">
+        <div class="px-6 py-6 border-b border-white/10">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-orange-400 rounded-lg flex items-center justify-center shadow-lg shadow-orange-400/30">
+              <i data-lucide="heart" class="text-white fill-white" width="18" height="18"></i>
             </div>
             <div>
-              <p class="text-sm font-black text-white leading-none">SASAERU</p>
-              <p class="text-[9px] text-white/40 mt-0.5">Admin</p>
+              <p class="text-base font-black text-white leading-none">SASAERU</p>
+              <p class="text-[10px] text-white/40 mt-1 uppercase tracking-wider font-bold">Admin Panel</p>
             </div>
           </div>
         </div>
-        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav class="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
           <button onclick="switchTab('overview')" data-tab="overview"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
             <i data-lucide="layout-dashboard" width="16" height="16"></i>概要
