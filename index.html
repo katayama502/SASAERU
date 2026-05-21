@@ -205,7 +205,7 @@
   </section>
 
   <!-- ===== 三方良し ===== -->
-  <section id="about" class="py-24 bg-white">
+  <section id="about" class="py-16 md:py-24 bg-white">
     <div class="max-w-7xl mx-auto px-4">
       <div class="text-center mb-16">
         <span class="text-xs font-bold text-orange-400 tracking-widest uppercase">Why SASAERU</span>
@@ -251,7 +251,7 @@
   </section>
 
   <!-- ===== 団体一覧 ===== -->
-  <section id="clubs" class="py-24 bg-[#0f0e2e]/[0.03]">
+  <section id="clubs" class="py-16 md:py-24 bg-[#0f0e2e]/[0.03]">
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
         <div>
@@ -297,7 +297,7 @@
   </section>
 
   <!-- ===== 企業向けセクション ===== -->
-  <section id="for-company" class="py-24 bg-white overflow-hidden relative">
+  <section id="for-company" class="py-16 md:py-24 bg-white overflow-hidden relative">
     <div class="max-w-7xl mx-auto px-4 relative z-10">
       <div class="grid md:grid-cols-2 gap-16 items-center">
         <div>
@@ -679,13 +679,13 @@
   </div>
 
   <!-- Toast -->
-  <div id="toast" class="fixed bottom-6 right-6 z-[200] hidden">
+  <div id="toast" class="fixed bottom-6 left-4 md:left-6 z-[200] hidden">
     <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-bold shadow-xl"></div>
   </div>
 
   <!-- Back to Top -->
   <button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})"
-    class="fixed bottom-6 left-6 z-[150] w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 translate-y-4 pointer-events-none transition-all"
+    class="fixed bottom-6 right-4 md:right-6 z-[90] w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 translate-y-4 pointer-events-none transition-all"
     aria-label="ページトップへ戻る">
     <i data-lucide="chevron-up" width="18" height="18"></i>
   </button>
@@ -1166,7 +1166,7 @@
             ${tags.length ? `<div class="flex flex-wrap gap-1.5 mb-3">
               ${tags.map(t => `<span class="text-[10px] font-bold bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-100">${esc(t)}</span>`).join('')}
             </div>` : ''}
-            <p class="text-xs text-slate-500 leading-relaxed line-clamp-3">${esc(desc)}</p>
+            <p class="text-sm text-slate-500 leading-relaxed line-clamp-3">${esc(desc)}</p>
           </div>
           <div class="px-5 pb-5 mt-auto">
             <a href="club.html?id=${orgId}" class="w-full bg-slate-50 hover:bg-orange-500 hover:text-white border border-slate-200 hover:border-orange-500 text-slate-900 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">

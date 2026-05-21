@@ -4,3 +4,7 @@ serviceAccountKey.json
 
 # ローカル設定ファイル（Slack Webhook / EmailJS / Cloudinary キーを含む）
 config.js
+
+# 依存パッケージ
+node_modules/
+netlify/functions/*/node_modules/
