@@ -293,7 +293,7 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (e) {
     // S-7: 内部エラー詳細をクライアントに漏洩させない
-    console.error('Send email error:', e.message);
+    console.error('Send email error:', e.code || e.name || 'unknown');
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'メール送信に失敗しました' }) };
   }
 };

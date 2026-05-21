@@ -57,9 +57,10 @@
     .area-chip button { background:none; border:none; cursor:pointer; color:#f97316; padding:0; line-height:1; font-size:0.875rem; }
     .stat-counter { font-variant-numeric: tabular-nums; }
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
-    .modal-inner { animation: slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #f97316; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ea580c; }
+    .modal-inner { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
     @keyframes slideUp {
       from { opacity: 0; transform: translateY(24px) scale(0.97); }
       to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -158,7 +159,7 @@
           <i data-lucide="zap" width="12" height="12"></i>
           島根県発・地域支援マッチングプラットフォーム
         </div>
-        <h1 class="text-4xl md:text-6xl font-black text-slate-900 leading-[1.1] mb-6 tracking-tight">
+        <h1 class="text-4xl md:text-6xl font-black text-slate-900 leading-[1.1] mb-6 tracking-tighter">
           地域の未来を、<br>
           企業の力で<span class="text-orange-500">支える。</span>
         </h1>
@@ -167,11 +168,11 @@
           社会貢献を志す企業をつなぐマッチングプラットフォーム。
         </p>
         <div class="flex flex-col sm:flex-row gap-4">
-          <a href="#clubs" class="bg-orange-500 text-white px-8 py-4 rounded-xl font-black text-base hover:bg-orange-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30">
+          <a href="#clubs" class="bg-orange-500 text-white px-8 py-4 rounded-xl font-black text-base hover:bg-orange-600 transition-all flex items-center justify-center gap-2 shadow-xl shadow-orange-500/40 hover:-translate-y-0.5">
             支援したいクラブを探す
             <i data-lucide="arrow-right" width="18" height="18"></i>
           </a>
-          <button onclick="openRegisterModal()" class="bg-white border border-slate-300 text-slate-700 px-8 py-4 rounded-xl font-bold text-base hover:bg-slate-50 hover:border-orange-400 transition-all flex items-center justify-center gap-2 shadow-sm">
+          <button onclick="openRegisterModal()" class="bg-white border border-slate-200 text-slate-700 px-8 py-4 rounded-xl font-bold text-base hover:bg-slate-50 hover:border-orange-400 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5">
             <i data-lucide="plus-circle" width="18" height="18"></i>
             活動内容を掲載する
           </button>
@@ -204,11 +205,11 @@
   </section>
 
   <!-- ===== 三方良し ===== -->
-  <section id="about" class="py-24 bg-white">
+  <section id="about" class="py-16 md:py-24 bg-white">
     <div class="max-w-7xl mx-auto px-4">
       <div class="text-center mb-16">
         <span class="text-xs font-bold text-orange-400 tracking-widest uppercase">Why SASAERU</span>
-        <h2 class="text-3xl md:text-4xl font-black text-slate-900 mt-2 mb-4">なぜ「SASAERU」なのか</h2>
+        <h2 class="text-3xl md:text-4xl font-black text-slate-900 mt-2 mb-4 tracking-tight">なぜ「SASAERU」なのか</h2>
         <p class="text-slate-500 max-w-md mx-auto">地域・企業・子どもたちの「三方良し」を実現します</p>
       </div>
       <div class="grid md:grid-cols-3 gap-6">
@@ -223,7 +224,7 @@
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>広報活動の負担軽減</li>
           </ul>
         </div>
-        <div class="card-hover p-8 rounded-2xl bg-orange-500 text-white shadow-2xl shadow-orange-500/30 scale-105 border border-orange-400">
+        <div class="card-hover p-8 rounded-2xl bg-orange-500 text-white shadow-2xl shadow-orange-500/40 scale-105 border border-orange-400">
           <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-6">
             <i data-lucide="building-2" class="text-white" width="24" height="24"></i>
           </div>
@@ -250,7 +251,7 @@
   </section>
 
   <!-- ===== 団体一覧 ===== -->
-  <section id="clubs" class="py-24 bg-[#0f0e2e]/[0.03]">
+  <section id="clubs" class="py-16 md:py-24 bg-[#0f0e2e]/[0.03]">
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
         <div>
@@ -296,7 +297,7 @@
   </section>
 
   <!-- ===== 企業向けセクション ===== -->
-  <section id="for-company" class="py-24 bg-white overflow-hidden relative">
+  <section id="for-company" class="py-16 md:py-24 bg-white overflow-hidden relative">
     <div class="max-w-7xl mx-auto px-4 relative z-10">
       <div class="grid md:grid-cols-2 gap-16 items-center">
         <div>
@@ -678,13 +679,13 @@
   </div>
 
   <!-- Toast -->
-  <div id="toast" class="fixed bottom-6 right-6 z-[200] hidden">
+  <div id="toast" class="fixed bottom-6 left-4 md:left-6 z-[200] hidden">
     <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-bold shadow-xl"></div>
   </div>
 
   <!-- Back to Top -->
   <button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})"
-    class="fixed bottom-6 left-6 z-[150] w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 translate-y-4 pointer-events-none transition-all"
+    class="fixed bottom-6 right-4 md:right-6 z-[90] w-10 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg flex items-center justify-center opacity-0 translate-y-4 pointer-events-none transition-all"
     aria-label="ページトップへ戻る">
     <i data-lucide="chevron-up" width="18" height="18"></i>
   </button>
@@ -1165,7 +1166,7 @@
             ${tags.length ? `<div class="flex flex-wrap gap-1.5 mb-3">
               ${tags.map(t => `<span class="text-[10px] font-bold bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-100">${esc(t)}</span>`).join('')}
             </div>` : ''}
-            <p class="text-xs text-slate-500 leading-relaxed line-clamp-3">${esc(desc)}</p>
+            <p class="text-sm text-slate-500 leading-relaxed line-clamp-3">${esc(desc)}</p>
           </div>
           <div class="px-5 pb-5 mt-auto">
             <a href="club.html?id=${orgId}" class="w-full bg-slate-50 hover:bg-orange-500 hover:text-white border border-slate-200 hover:border-orange-500 text-slate-900 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">

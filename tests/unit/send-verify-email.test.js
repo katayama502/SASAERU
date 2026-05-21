@@ -174,6 +174,18 @@ describe('入力バリデーション', () => {
     expect(res.statusCode).toBe(400);
   });
 
+  test('改行を含むメールアドレス → 400', async () => {
+    const res = await handler(makeEvent({
+      body: JSON.stringify({
+        email: 'user@example.com\r\nbcc: attacker@example.com',
+        origin: 'https://sasaeru.netlify.app',
+      }),
+    }));
+    expect(res.statusCode).toBe(400);
+    expect(mockGenerateLink).not.toHaveBeenCalled();
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
+
   test('不正なJSON → 400', async () => {
     const res = await handler(makeEvent({ body: '{bad json' }));
     expect(res.statusCode).toBe(400);
@@ -236,6 +248,19 @@ describe('Firebase エラーハンドリング', () => {
     expect(JSON.parse(res.body).error).not.toContain('DB_PASSWORD');
     expect(JSON.parse(res.body).error).not.toContain('secret123');
   });
+
+  test('エラー時に内部エラー詳細をログへ出さない', async () => {
+    const logSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const err = new Error('DB_PASSWORD=secret123');
+    err.code = 'auth/internal-error';
+    mockGenerateLink.mockRejectedValueOnce(err);
+
+    await handler(makeEvent());
+    const logs = logSpy.mock.calls.flat().join(' ');
+    expect(logs).not.toContain('DB_PASSWORD');
+    expect(logs).not.toContain('secret123');
+    logSpy.mockRestore();
+  });
 });
 
 // ════════════════════════════════════════════════════════════════════
@@ -290,6 +315,31 @@ describe('環境変数未設定', () => {
     expect(JSON.parse(result.body).error).toBe('Email not configured');
 
     process.env.GMAIL_USER = orig;
+  });
+
+  test('FIREBASE_SERVICE_ACCOUNT が不正JSON → 500', async () => {
+    const orig = process.env.FIREBASE_SERVICE_ACCOUNT;
+    process.env.FIREBASE_SERVICE_ACCOUNT = '{bad json';
+
+    let res;
+    jest.isolateModules(() => {
+      jest.mock('firebase-admin', () => ({
+        apps: [],
+        initializeApp: jest.fn(),
+        credential: { cert: jest.fn() },
+        auth: jest.fn(() => ({ generateEmailVerificationLink: jest.fn() })),
+      }));
+      jest.mock('nodemailer', () => ({
+        createTransport: jest.fn(() => ({ sendMail: jest.fn().mockResolvedValue({}) })),
+      }));
+      const { handler: h } = require('../../netlify/functions/send-verify-email/index.js');
+      res = h(makeEvent());
+    });
+    const result = await res;
+    expect(result.statusCode).toBe(500);
+    expect(JSON.parse(result.body).error).toBe('Firebase not configured');
+
+    process.env.FIREBASE_SERVICE_ACCOUNT = orig;
   });
 });
 
