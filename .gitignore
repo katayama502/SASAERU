@@ -8,3 +8,4 @@ config.js
 # 依存パッケージ
 node_modules/
 netlify/functions/*/node_modules/
+netlify/functions/*/package-lock.json
