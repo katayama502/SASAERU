@@ -79,7 +79,7 @@ exports.handler = async (event) => {
   if (allowedOrigins.length === 0) {
     corsOrigin = reqOrigin || 'null';
   } else {
-    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : allowedOrigins[0];
+    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
   }
 
   const headers = {
@@ -92,6 +92,9 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+  if (allowedOrigins.length > 0 && reqOrigin && !allowedOrigins.includes(reqOrigin)) {
+    return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden origin' }) };
+  }
 
   const clientIp = event.headers['x-nf-client-connection-ip']
     || event.headers['x-forwarded-for']?.split(',')[0]?.trim()

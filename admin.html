@@ -795,7 +795,7 @@
               class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
               <i data-lucide="rotate-ccw" width="12" height="12"></i>審査中に戻す</button>` : ''}
           <a href="club.html?id=${id}&preview=1" target="_blank" rel="noopener"
-            class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
+            class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
             <i data-lucide="external-link" width="12" height="12"></i>${o.status === 'public' ? '公開ページ' : 'プレビュー'}</a>
           <button data-id="${esc(id)}" data-name="${esc(o.name)}"
             onclick="deleteOrg(this.dataset.id, this.dataset.name)"
@@ -825,7 +825,8 @@
             await db.collection('organizations').doc(id).update({ status:'public', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
             showToast('承認・公開しました');
             loadTab(currentTab); loadOverview();
-            sendOrgStatusEmail('approve', { ...orgData, _id: id });
+            sendOrgStatusEmail('approve', { ...orgData, _id: id })
+              .catch(() => showToast('承認メールの送信に失敗しました。手動でご連絡ください。', false));
           } catch(e) { showToast('エラー: ' + e.message, false); }
         }
       );
@@ -947,7 +948,7 @@
                 class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
                 <i data-lucide="undo-2" width="12" height="12"></i>未対応に戻す</button>`}
             <a href="mailto:${esc(q.sender_email)}?subject=${encodeURIComponent('【SASAERU】支援申請についてのご連絡')}"
-              class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
+              class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
               <i data-lucide="mail" width="12" height="12"></i>返信する</a>
           </div>
         </div>`;
@@ -1002,7 +1003,7 @@
                     class="flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-lg transition-all">
                     <i data-lucide="check" width="12" height="12"></i>既読にする</button>` : ''}
                 <a href="mailto:${esc(c.email)}?subject=${encodeURIComponent('【SASAERU】お問い合わせへのご回答')}"
-                  class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
+                  class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
                   <i data-lucide="mail" width="12" height="12"></i>返信</a>
               </div>
             </div>
@@ -1164,7 +1165,8 @@
         // 申請者へ否認メール送信
         const orgSnap = await db.collection('organizations').doc(orgId).get();
         if (orgSnap.exists) {
-          sendOrgStatusEmail('reject', orgSnap.data(), reason);
+          sendOrgStatusEmail('reject', orgSnap.data(), reason)
+            .catch(() => showToast('却下メールの送信に失敗しました。手動でご連絡ください。', false));
         }
       } catch(e) { showToast('エラー: ' + e.message, false); }
     };
@@ -1198,29 +1200,27 @@
   // 承認・否認メール送信（TASK-03 / Nodemailer + Netlify Function）
   // ============================================================
   async function sendOrgStatusEmail(type, orgData, rejectReason = '') {
-    try {
-      const now = new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
-      const params = type === 'approve'
-        ? {
-            toEmail:     orgData.contact_email,
-            toName:      orgData.name,
-            clubName:    orgData.name,
-            approvedAt:  now,
-            clubPageUrl: `${location.origin}/club.html?id=${orgData._id || ''}`,
-          }
-        : {
-            toEmail:      orgData.contact_email,
-            toName:       orgData.name,
-            clubName:     orgData.name,
-            rejectReason: rejectReason || '',
-          };
-      const res = await fetch('/.netlify/functions/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, params }),
-      });
-      if (!res.ok) console.warn('ステータスメール送信失敗:', res.status);
-    } catch(e) { console.warn('ステータスメール送信失敗:', e); }
+    const now = new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    const params = type === 'approve'
+      ? {
+          toEmail:     orgData.contact_email,
+          toName:      orgData.name,
+          clubName:    orgData.name,
+          approvedAt:  now,
+          clubPageUrl: `${location.origin}/club.html?id=${orgData._id || ''}`,
+        }
+      : {
+          toEmail:      orgData.contact_email,
+          toName:       orgData.name,
+          clubName:     orgData.name,
+          rejectReason: rejectReason || '',
+        };
+    const res = await fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, params }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
   }
 
   // ============================================================

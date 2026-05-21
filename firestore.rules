@@ -19,6 +19,33 @@ service cloud.firestore {
         get(/databases/$(database)/documents/organizations/$(orgId)).data.owner_uid == request.auth.uid;
     }
 
+    function validEmail(email) {
+      return email is string
+        && email.size() <= 254
+        && email.matches('.*@.*\\..*');
+    }
+
+    function validOrgName(data) {
+      return data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 100;
+    }
+
+    function validOrgProfile(data) {
+      return validOrgName(data)
+        && data.category is string
+        && data.category.size() > 0
+        && data.category.size() <= 50
+        && ((data.area is list && data.area.size() > 0 && data.area.size() <= 20)
+            || (data.area is string && data.area.size() > 0 && data.area.size() <= 200))
+        && (data.main_image == null
+            || (data.main_image is string && data.main_image.size() <= 2000))
+        && data.tags is list
+        && data.tags.size() <= 20
+        && data.activity_how is string
+        && data.activity_how.size() <= 5000;
+    }
+
     // organizations
     match /organizations/{orgId} {
       // 公開中は誰でも1件取得可 / 管理者は全件取得可 / オーナーは自分の団体のみ取得可
@@ -34,8 +61,20 @@ service cloud.firestore {
                     || (isAuth() && resource.data.owner_uid == request.auth.uid);
       // 作成: 認証済みユーザーが自分のowner_uidで、かつstatus=pendingのみ
       allow create: if isAuth()
+                    && request.resource.data.keys().hasAll([
+                         'name','category','area','contact_email','main_image','tags',
+                         'activity_how','status','owner_uid','emailVerified','created_at'
+                       ])
+                    && request.resource.data.keys().hasOnly([
+                         'name','category','area','contact_email','main_image','tags',
+                         'activity_how','status','owner_uid','emailVerified','created_at'
+                       ])
                     && request.resource.data.owner_uid == request.auth.uid
-                    && request.resource.data.status == "pending";
+                    && request.resource.data.status == "pending"
+                    && request.resource.data.emailVerified == false
+                    && validEmail(request.resource.data.contact_email)
+                    && validOrgProfile(request.resource.data)
+                    && request.resource.data.created_at is timestamp;
       // 更新: 管理者はすべてのフィールドを変更可
       //       オーナーは指定フィールドのみ変更可 / statusは'pending'への変更（再申請）のみ許可
       // S-2 / M-4: hasOnly制限 + フィールド値バリデーション（サイズ・フォーマット）
@@ -46,9 +85,7 @@ service cloud.firestore {
                              'name','category','area','main_image','tags',
                              'activity_how','updated_at','status'
                            ])
-                        && request.resource.data.name is string
-                        && request.resource.data.name.size() > 0
-                        && request.resource.data.name.size() <= 100
+                        && validOrgProfile(request.resource.data)
                         && (request.resource.data.status == resource.data.status
                             || request.resource.data.status == 'pending'))
                     || (isAuth()
@@ -84,7 +121,11 @@ service cloud.firestore {
                              'title','support_type','target_amount','description',
                              'return_merit','status','created_at','updated_at','owner_uid'
                            ])
-                        && request.resource.data.owner_uid == request.auth.uid);
+                        && request.resource.data.owner_uid == request.auth.uid
+                        && request.resource.data.title is string
+                        && request.resource.data.title.size() > 0
+                        && request.resource.data.title.size() <= 100
+                        && request.resource.data.status in ['public', 'private']);
       // update/delete: resource.data.owner_uid が一致すれば get() 不要で判定
       //                owner_uid なし（旧メニュー）は isOwnerOf フォールバック
       allow update: if isAdmin()
@@ -92,12 +133,20 @@ service cloud.firestore {
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                              'title','support_type','target_amount','description',
                              'return_merit','status','updated_at'
-                           ]))
+                           ])
+                        && request.resource.data.title is string
+                        && request.resource.data.title.size() > 0
+                        && request.resource.data.title.size() <= 100
+                        && request.resource.data.status in ['public', 'private'])
                     || (isOwnerOf(orgId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                              'title','support_type','target_amount','description',
                              'return_merit','status','updated_at'
-                           ]));
+                           ])
+                        && request.resource.data.title is string
+                        && request.resource.data.title.size() > 0
+                        && request.resource.data.title.size() <= 100
+                        && request.resource.data.status in ['public', 'private']);
       // 削除: resource.data.owner_uid が一致、または旧メニューは isOwnerOf フォールバック
       allow delete: if isAdmin()
                     || resource.data.owner_uid == request.auth.uid
@@ -147,7 +196,10 @@ service cloud.firestore {
                        || (isAuth() && isOwnerOf(resource.data.org_id));
       // 更新（対応ステータス変更）: 管理者 または 問い合わせ先の団体オーナー
       allow update: if isAdmin()
-                    || (isAuth() && isOwnerOf(resource.data.org_id));
+                    || (isAuth()
+                        && isOwnerOf(resource.data.org_id)
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                        && request.resource.data.status in ['new', 'done']);
       // 削除: 管理者のみ
       allow delete: if isAdmin();
     }
