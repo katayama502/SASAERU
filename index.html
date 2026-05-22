@@ -560,7 +560,7 @@
           <label for="reg-pass" class="block text-xs font-bold text-slate-600 mb-1">パスワード設定 <span class="text-red-400">*</span></label>
           <div class="relative">
             <input type="password" id="reg-pass" name="password" required minlength="8" maxlength="200"
-              autocomplete="new-password" placeholder="8文字以上・英数字記号すべて含む"
+              autocomplete="new-password" placeholder="8文字以上・英字と数字を含む"
               oninput="updatePwRequirements(this.value)"
               class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
             <button type="button" onclick="togglePwd('reg-pass','reg-eye')"
@@ -572,7 +572,6 @@
             <div id="req-length" class="flex items-center gap-1.5 text-slate-400 text-[11px]"><i data-lucide="circle" width="10" height="10"></i>8文字以上</div>
             <div id="req-letter" class="flex items-center gap-1.5 text-slate-400 text-[11px]"><i data-lucide="circle" width="10" height="10"></i>英字を含む</div>
             <div id="req-digit"  class="flex items-center gap-1.5 text-slate-400 text-[11px]"><i data-lucide="circle" width="10" height="10"></i>数字を含む</div>
-            <div id="req-symbol" class="flex items-center gap-1.5 text-slate-400 text-[11px]"><i data-lucide="circle" width="10" height="10"></i>記号を含む</div>
           </div>
         </div>
         <div>
@@ -939,12 +938,11 @@
       length: pw.length >= 8,
       letter: /[a-zA-Z]/.test(pw),
       digit:  /[0-9]/.test(pw),
-      symbol: /[^a-zA-Z0-9]/.test(pw),
     };
   }
   function updatePwRequirements(pw) {
     const v = validatePassword(pw);
-    const map = { length: 'req-length', letter: 'req-letter', digit: 'req-digit', symbol: 'req-symbol' };
+    const map = { length: 'req-length', letter: 'req-letter', digit: 'req-digit' };
     Object.entries(map).forEach(([key, id]) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1222,8 +1220,8 @@
 
     // パスワード強度チェック
     const pwCheck = validatePassword(data.password);
-    if (!pwCheck.length || !pwCheck.letter || !pwCheck.digit || !pwCheck.symbol) {
-      result.textContent = '✗ パスワードは8文字以上で英字・数字・記号をすべて含めてください';
+    if (!pwCheck.length || !pwCheck.letter || !pwCheck.digit) {
+      result.textContent = '✗ パスワードは8文字以上で英字・数字をすべて含めてください';
       result.className = 'text-xs text-center text-red-500';
       setBtnLoading('register-submit-btn', false);
       return;
@@ -1332,7 +1330,7 @@
         }
         const msgs = {
           'auth/email-already-in-use': 'このメールアドレスは既に登録されています',
-          'auth/weak-password': 'パスワードは8文字以上で英字・数字・記号をすべて含めてください',
+          'auth/weak-password': 'パスワードは8文字以上で英字・数字を含めてください',
           'auth/invalid-email': 'メールアドレスの形式が正しくありません',
         };
         result.textContent = '✗ ' + (msgs[err.code] || err.message);
@@ -1352,9 +1350,11 @@
   // ===================================================
   let _inquiryContactEmail = '';
   let _inquiryMenuTitle    = '';
+  let _inquiryOrgName      = '';
   function openInquiryModal(orgId, orgName, contactEmail, menuTitle) {
     _inquiryContactEmail = contactEmail || '';
     _inquiryMenuTitle    = menuTitle    || orgName;
+    _inquiryOrgName      = orgName      || '';
     document.getElementById('inquiry-target').textContent = menuTitle
       ? `支援先: ${orgName}（${menuTitle}）`
       : `支援先: ${orgName}`;
@@ -1372,6 +1372,7 @@
     // B-2: モーダルを閉じる際にグローバル変数をリセット（次の団体で古い値が使われないよう）
     _inquiryContactEmail = '';
     _inquiryMenuTitle    = '';
+    _inquiryOrgName      = '';
     const m = document.getElementById('inquiry-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
@@ -1411,7 +1412,7 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'inquiry_owner', params: {
               toEmail:     _inquiryContactEmail,
-              orgName:     document.getElementById('inquiry-target').textContent.replace('支援先: ', '').split('（')[0],
+              orgName:     _inquiryOrgName,
               menuTitle:   _inquiryMenuTitle,
               companyName: data.company_name,
               picName:     data.pic_name,
@@ -1429,7 +1430,7 @@
             toEmail:     data.sender_email,
             companyName: data.company_name,
             picName:     data.pic_name,
-            orgName:     document.getElementById('inquiry-target').textContent.replace('支援先: ', '').split('（')[0],
+            orgName:     _inquiryOrgName,
             menuTitle:   _inquiryMenuTitle,
           }}),
         }).then(res => { if (!res.ok) console.warn('申請者自動返信メール失敗:', res.status); })

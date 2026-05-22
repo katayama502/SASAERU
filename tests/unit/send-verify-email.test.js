@@ -406,6 +406,21 @@ describe('CORS ヘッダー', () => {
     const res = await handler(makeEvent());
     expect(res.headers['Access-Control-Allow-Methods']).toContain('POST');
   });
+
+  test('許可外OriginのPOST → 403 かつ送信しない', async () => {
+    const res = await handler(makeEvent({
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example.com',
+        'x-nf-client-connection-ip': nextIp(),
+      },
+    }));
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body).error).toBe('Forbidden origin');
+    expect(res.headers['Access-Control-Allow-Origin']).toBe('null');
+    expect(mockGenerateLink).not.toHaveBeenCalled();
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
 });
 
 // ════════════════════════════════════════════════════════════════════

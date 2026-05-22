@@ -100,6 +100,14 @@ describe('リクエストボディ検証', () => {
     expect(JSON.parse(res.body).error).toBe('Missing type or params');
   });
 
+  test('params がオブジェクト以外 → 400', async () => {
+    const res = await handler(makeEvent({
+      body: JSON.stringify({ type: 'admin_notify', params: [] }),
+    }));
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toBe('Missing type or params');
+  });
+
   test('空ボディ → 400 (type/params欠落)', async () => {
     const res = await handler(makeEvent({ body: '' }));
     expect(res.statusCode).toBe(400);
@@ -258,11 +266,13 @@ describe('メールタイプ別 正常送信 (200)', () => {
     expect(mail.subject).toBe('【SASAERU】お問い合わせを受け付けました');
   });
 
-  test('未知のタイプ → 500', async () => {
+  test('未知のタイプ → 400', async () => {
     const res = await handler(makeEvent({
       body: JSON.stringify({ type: 'unknown_type', params: {} }),
     }));
-    expect(res.statusCode).toBe(500);
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toBe('Invalid request');
+    expect(mockSendMail).not.toHaveBeenCalled();
   });
 });
 
@@ -342,6 +352,20 @@ describe('CORS ヘッダー', () => {
     const res = await handler(makeEvent());
     expect(res.headers['Access-Control-Allow-Methods']).toContain('POST');
   });
+
+  test('許可外OriginのPOST → 403 かつ送信しない', async () => {
+    const res = await handler(makeEvent({
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example.com',
+        'x-nf-client-connection-ip': nextIp(),
+      },
+    }));
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body).error).toBe('Forbidden origin');
+    expect(res.headers['Access-Control-Allow-Origin']).toBe('null');
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
 });
 
 // ════════════════════════════════════════════════════════════════════
@@ -395,6 +419,41 @@ describe('入力サニタイズ（ヘッダーインジェクション防止）'
     const mail = mockSendMail.mock.calls[0][0];
     // lines の改行は本文整形で保持される
     expect(mail.text).toContain('行1\n行2\n行3');
+  });
+
+  test('宛先メールアドレスに改行を含む場合は 400 で送信しない', async () => {
+    const res = await handler(makeEvent({
+      body: JSON.stringify({
+        type: 'applicant',
+        params: {
+          toEmail: 'club@example.com\r\nbcc: attacker@example.com',
+          clubName: '松江FC',
+          categoryJp: 'スポーツ',
+          registeredAt: '2026-05-15',
+          origin: 'https://sasaeru.netlify.app',
+        },
+      }),
+    }));
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toBe('Invalid request');
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
+
+  test('必須項目不足の場合は 400 で送信しない', async () => {
+    const res = await handler(makeEvent({
+      body: JSON.stringify({
+        type: 'approve',
+        params: {
+          toEmail: 'club@example.com',
+          toName: '田中太郎',
+          clubName: '松江FC',
+          approvedAt: '2026-05-15',
+        },
+      }),
+    }));
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toBe('Invalid request');
+    expect(mockSendMail).not.toHaveBeenCalled();
   });
 });
 

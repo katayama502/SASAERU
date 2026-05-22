@@ -769,13 +769,18 @@
         btn.textContent = '再送しました（60秒後に再試行可能）';
       } else {
         const errData = await verifyRes.json().catch(() => ({}));
-        if (verifyRes.status === 429) {
+        if (verifyRes.status === 409 && errData.error === 'already-verified') {
+          statusEl.textContent = '既にメールアドレスが確認済みです。「確認しました」ボタンを押してください。';
+          statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-green-600';
+        } else if (verifyRes.status === 429) {
           statusEl.textContent = '送信回数が多すぎます。しばらく待ってから再試行してください。';
+          statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
         } else {
           statusEl.textContent = '送信に失敗しました。しばらく待ってから再試行してください。';
+          statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
         }
-        statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
         btn.disabled = false;
+        btn.textContent = '確認メールを再送する';
       }
     } catch(e) {
       statusEl.textContent = '送信に失敗しました。しばらく待ってから再試行してください。';
@@ -1083,7 +1088,8 @@
 
     document.getElementById('f-name').value          = org.name         || '';
     document.getElementById('f-category').value      = org.category     || '';
-    document.getElementById('f-area').value          = org.area         || '';
+    // area は登録時に配列で保存されることがあるため、表示用に区切り文字で結合
+    document.getElementById('f-area').value          = Array.isArray(org.area) ? org.area.join('・') : (org.area || '');
     document.getElementById('f-main-image').value    = org.main_image   || '';
     _profileTags = Array.isArray(org.tags)
       ? [...org.tags]
