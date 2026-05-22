@@ -1352,9 +1352,11 @@
   // ===================================================
   let _inquiryContactEmail = '';
   let _inquiryMenuTitle    = '';
+  let _inquiryOrgName      = '';
   function openInquiryModal(orgId, orgName, contactEmail, menuTitle) {
     _inquiryContactEmail = contactEmail || '';
     _inquiryMenuTitle    = menuTitle    || orgName;
+    _inquiryOrgName      = orgName      || '';
     document.getElementById('inquiry-target').textContent = menuTitle
       ? `支援先: ${orgName}（${menuTitle}）`
       : `支援先: ${orgName}`;
@@ -1372,6 +1374,7 @@
     // B-2: モーダルを閉じる際にグローバル変数をリセット（次の団体で古い値が使われないよう）
     _inquiryContactEmail = '';
     _inquiryMenuTitle    = '';
+    _inquiryOrgName      = '';
     const m = document.getElementById('inquiry-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
@@ -1411,7 +1414,7 @@
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'inquiry_owner', params: {
               toEmail:     _inquiryContactEmail,
-              orgName:     document.getElementById('inquiry-target').textContent.replace('支援先: ', '').split('（')[0],
+              orgName:     _inquiryOrgName,
               menuTitle:   _inquiryMenuTitle,
               companyName: data.company_name,
               picName:     data.pic_name,
@@ -1429,7 +1432,7 @@
             toEmail:     data.sender_email,
             companyName: data.company_name,
             picName:     data.pic_name,
-            orgName:     document.getElementById('inquiry-target').textContent.replace('支援先: ', '').split('（')[0],
+            orgName:     _inquiryOrgName,
             menuTitle:   _inquiryMenuTitle,
           }}),
         }).then(res => { if (!res.ok) console.warn('申請者自動返信メール失敗:', res.status); })

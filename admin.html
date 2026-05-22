@@ -624,19 +624,23 @@
     if (!db) { renderOverviewDemo(); return; }
     try {
       // P-1: where フィルタをサーバー側で適用し全件取得を回避
+      // contacts は read_at フィールドが存在しないドキュメントが未読のため
+      // Firestore の where('read_at','==',null) では存在しないフィールドにマッチしない。
+      // 全件取得してクライアント側でフィルタする。
       const [pendSnap, pubSnap, inqNewSnap, conSnap] = await Promise.all([
         db.collection('organizations').where('status','==','pending').get(),
         db.collection('organizations').where('status','==','public').get(),
         db.collection('inquiries').where('status','==','new').get(),
-        db.collection('contacts').where('read_at','==',null).get(),
+        db.collection('contacts').get(),
       ]);
+      const unreadContactCount = conSnap.docs.filter(d => !d.data().read_at).length;
       document.getElementById('ov-pending').textContent   = pendSnap.size;
       document.getElementById('ov-public').textContent    = pubSnap.size;
       document.getElementById('ov-inquiries').textContent = inqNewSnap.size;
-      document.getElementById('ov-contacts').textContent  = conSnap.size;
+      document.getElementById('ov-contacts').textContent  = unreadContactCount;
       updateBadge('badge-pending',   pendSnap.size);
       updateBadge('badge-inquiries', inqNewSnap.size);
-      updateBadge('badge-contacts',  conSnap.size);
+      updateBadge('badge-contacts',  unreadContactCount);
       const pendingSorted = pendSnap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
       renderRecentPending(pendingSorted.slice(0, 5));
     } catch(e) {
@@ -1128,7 +1132,7 @@
       async () => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
-          await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).update({ status: 'private' });
+          await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).update({ status: 'private', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
           showToast('支援メニューを非公開にしました');
           loadAdminMenus();
         } catch(e) { showToast('エラー: ' + e.message, false); }
