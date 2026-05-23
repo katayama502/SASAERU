@@ -25,8 +25,10 @@
     .fade-in { animation: fadeIn .25s ease forwards; }
     @keyframes slideDown { from{opacity:0;max-height:0;transform:translateY(-8px)} to{opacity:1;max-height:2000px;transform:translateY(0)} }
     .slide-down { animation: slideDown .3s ease forwards; }
-    ::-webkit-scrollbar { width:5px; height:5px; }
-    ::-webkit-scrollbar-thumb { background:#6366f1; border-radius:4px; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background:#f97316; border-radius:10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ea580c; }
     .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     #sidebar { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
     #sidebar-overlay { transition: opacity 0.3s ease; }
@@ -223,7 +225,7 @@
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">メイン画像</label>
                     <div class="flex items-center gap-2 mb-2">
                       <label for="f-main-image-file"
-                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-bold text-orange-600 transition-all">
+                        class="cursor-pointer flex items-center gap-1.5 px-3 py-2 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl text-xs font-bold text-orange-600 transition-all">
                         <i data-lucide="upload" width="14" height="14"></i>画像をアップロード
                       </label>
                       <input type="file" id="f-main-image-file" accept="image/*" class="hidden"
@@ -246,7 +248,7 @@
                 <div>
                   <label class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ</label>
                   <div id="f-tags-container"
-                    class="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-400 bg-white flex flex-wrap gap-1.5 items-center cursor-text"
+                    class="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 bg-white flex flex-wrap gap-1.5 items-center cursor-text"
                     onclick="document.getElementById('f-tags-input').focus()">
                     <div id="f-tags-display" class="contents"></div>
                     <input type="text" id="f-tags-input" maxlength="50"
@@ -464,7 +466,7 @@
   </div>
 
   <!-- Toast -->
-  <div id="toast" class="fixed bottom-6 right-6 z-[200] hidden">
+  <div id="toast" class="fixed bottom-6 left-4 md:left-6 z-[200] hidden">
     <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-bold shadow-xl"></div>
   </div>
 
@@ -767,13 +769,18 @@
         btn.textContent = '再送しました（60秒後に再試行可能）';
       } else {
         const errData = await verifyRes.json().catch(() => ({}));
-        if (verifyRes.status === 429) {
+        if (verifyRes.status === 409 && errData.error === 'already-verified') {
+          statusEl.textContent = '既にメールアドレスが確認済みです。「確認しました」ボタンを押してください。';
+          statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-green-600';
+        } else if (verifyRes.status === 429) {
           statusEl.textContent = '送信回数が多すぎます。しばらく待ってから再試行してください。';
+          statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
         } else {
           statusEl.textContent = '送信に失敗しました。しばらく待ってから再試行してください。';
+          statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
         }
-        statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
         btn.disabled = false;
+        btn.textContent = '確認メールを再送する';
       }
     } catch(e) {
       statusEl.textContent = '送信に失敗しました。しばらく待ってから再試行してください。';
@@ -1081,7 +1088,8 @@
 
     document.getElementById('f-name').value          = org.name         || '';
     document.getElementById('f-category').value      = org.category     || '';
-    document.getElementById('f-area').value          = org.area         || '';
+    // area は登録時に配列で保存されることがあるため、表示用に区切り文字で結合
+    document.getElementById('f-area').value          = Array.isArray(org.area) ? org.area.join('・') : (org.area || '');
     document.getElementById('f-main-image').value    = org.main_image   || '';
     _profileTags = Array.isArray(org.tags)
       ? [...org.tags]

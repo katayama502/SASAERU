@@ -16,7 +16,16 @@
   <meta name="twitter:card" content="summary_large_image">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { colors: { indigo: { 950: '#0f0e2e' } } } } }
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#f97316', dark: '#ea580c' },
+            indigo: { 950: '#0f0e2e' }
+          }
+        }
+      }
+    }
   </script>
   <script src="https://unpkg.com/lucide@0.344.0"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -30,9 +39,10 @@
     .card-hover { transition: transform 0.25s ease, box-shadow 0.25s ease; }
     .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(15,14,46,0.18); }
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
-    .modal-inner { animation: slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #f97316; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ea580c; }
+    .modal-inner { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
     @keyframes slideUp {
       from { opacity: 0; transform: translateY(24px) scale(0.97); }
       to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -122,8 +132,8 @@
     <!-- ローディング -->
     <div id="loading-state" class="min-h-[60vh] flex items-center justify-center">
       <div class="text-center text-slate-400">
-        <i data-lucide="loader-2" width="40" height="40" class="mx-auto mb-3 animate-spin text-indigo-400"></i>
-        <p class="text-sm">読み込み中...</p>
+        <i data-lucide="loader-2" width="40" height="40" class="mx-auto mb-3 animate-spin text-orange-500"></i>
+        <p class="text-sm font-bold">読み込み中...</p>
       </div>
     </div>
     <!-- エラー表示 -->
@@ -289,7 +299,7 @@
 
   <!-- Back to Top -->
   <button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})"
-    class="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-[99] w-10 h-10 bg-[#0f0e2e]/80 hover:bg-[#0f0e2e] text-white rounded-full shadow-lg flex items-center justify-center opacity-0 translate-y-4 pointer-events-none transition-all"
+    class="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-[90] w-10 h-10 bg-[#0f0e2e]/80 hover:bg-[#0f0e2e] text-white rounded-full shadow-lg flex items-center justify-center opacity-0 translate-y-4 pointer-events-none transition-all"
     aria-label="ページトップへ戻る">
     <i data-lucide="chevron-up" width="18" height="18"></i>
   </button>
@@ -380,7 +390,7 @@
   </div>
 
   <!-- Toast -->
-  <div id="toast" class="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[200] hidden">
+  <div id="toast" class="fixed bottom-6 left-4 md:left-6 z-[200] hidden">
     <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-bold shadow-xl"></div>
   </div>
 
@@ -430,7 +440,7 @@
       } catch(e) { console.warn('Slack通知失敗:', e); }
     }
     try {
-      await fetch('/.netlify/functions/send-email', {
+      const res = await fetch('/.netlify/functions/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -438,6 +448,7 @@
           params: { label, lines, origin: location.origin },
         }),
       });
+      if (!res.ok) console.warn('管理者メール通知失敗:', res.status);
     } catch(e) { console.warn('管理者メール通知失敗:', e); }
   }
 
@@ -943,33 +954,38 @@
           担当者: data.pic_name, メール: data.sender_email,
           内容: (data.message || '').slice(0, 100),
         });
-        // オーナー向け問い合わせ通知メール（基本設計書 4.1）
+        // オーナー向け問い合わせ通知メール・申請者自動返信メールを並列送信（基本設計書 4.1/4.2）
+        const emailJobs = [];
         if (currentOrgContactEmail) {
+          emailJobs.push(
+            fetch('/.netlify/functions/send-email', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'inquiry_owner', params: {
+                toEmail:     currentOrgContactEmail,
+                orgName:     currentOrgName,
+                menuTitle:   currentMenuTitle,
+                companyName: data.company_name,
+                picName:     data.pic_name,
+                senderEmail: data.sender_email,
+                phone:       data.phone || '',
+                message:     data.message || '',
+              }}),
+            }).catch(e => console.warn('オーナー通知メール失敗:', e))
+          );
+        }
+        emailJobs.push(
           fetch('/.netlify/functions/send-email', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'inquiry_owner', params: {
-              toEmail:     currentOrgContactEmail,
-              orgName:     currentOrgName,
-              menuTitle:   currentMenuTitle,
+            body: JSON.stringify({ type: 'inquiry_reply', params: {
+              toEmail:     data.sender_email,
               companyName: data.company_name,
               picName:     data.pic_name,
-              senderEmail: data.sender_email,
-              phone:       data.phone || '',
-              message:     data.message || '',
+              orgName:     currentOrgName,
+              menuTitle:   currentMenuTitle,
             }}),
-          }).catch(e => console.warn('オーナー通知メール失敗:', e));
-        }
-        // 申請企業向け自動返信メール（基本設計書 4.2）
-        fetch('/.netlify/functions/send-email', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'inquiry_reply', params: {
-            toEmail:     data.sender_email,
-            companyName: data.company_name,
-            picName:     data.pic_name,
-            orgName:     currentOrgName,
-            menuTitle:   currentMenuTitle,
-          }}),
-        }).catch(e => console.warn('申請者自動返信メール失敗:', e));
+          }).catch(e => console.warn('申請者自動返信メール失敗:', e))
+        );
+        await Promise.all(emailJobs);
         result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();

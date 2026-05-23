@@ -1,19 +1,34 @@
 const admin      = require('firebase-admin');
 const nodemailer = require('nodemailer');
 
+const GMAIL_USER     = process.env.GMAIL_USER;
+const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+
 // ============================================================
 // Firebase Admin 初期化（シングルトン）
 // 環境変数 FIREBASE_SERVICE_ACCOUNT に JSON 文字列をセット
 // ============================================================
-if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+function getFirebaseAuth() {
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const err = new Error('Firebase not configured');
+    err.code = 'config/firebase';
+    throw err;
+  }
+  if (!admin.apps.length) {
+    let serviceAccount;
+    try {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (e) {
+      const err = new Error('Firebase not configured');
+      err.code = 'config/firebase';
+      throw err;
+    }
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  }
+  return admin.auth();
 }
-
-const GMAIL_USER     = process.env.GMAIL_USER;
-const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
 // ============================================================
 // レート制限（送信元IPごとに60秒で最大3回）
@@ -46,6 +61,14 @@ function createTransporter() {
   });
 }
 
+function normalizeEmail(rawEmail) {
+  if (typeof rawEmail !== 'string') return null;
+  const email = rawEmail.trim();
+  if (email.length === 0 || email.length > 254 || /[\r\n]/.test(email)) return null;
+  if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) return null;
+  return email;
+}
+
 // ============================================================
 // ハンドラー
 // ============================================================
@@ -56,7 +79,7 @@ exports.handler = async (event) => {
   if (allowedOrigins.length === 0) {
     corsOrigin = reqOrigin || 'null';
   } else {
-    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : allowedOrigins[0];
+    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
   }
 
   const headers = {
@@ -69,6 +92,9 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+  if (allowedOrigins.length > 0 && reqOrigin && !allowedOrigins.includes(reqOrigin)) {
+    return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden origin' }) };
+  }
 
   const clientIp = event.headers['x-nf-client-connection-ip']
     || event.headers['x-forwarded-for']?.split(',')[0]?.trim()
@@ -92,7 +118,8 @@ exports.handler = async (event) => {
   }
 
   const { email, origin } = body;
-  if (!email || typeof email !== 'string' || !email.includes('@')) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid email' }) };
   }
 
@@ -101,8 +128,8 @@ exports.handler = async (event) => {
 
   try {
     // Firebase Admin SDK でメール確認リンクを生成
-    const verifyLink = await admin.auth().generateEmailVerificationLink(
-      email.trim(),
+    const verifyLink = await getFirebaseAuth().generateEmailVerificationLink(
+      normalizedEmail,
       { url: `${safeOrigin}/mypage.html` },
     );
 
@@ -110,7 +137,7 @@ exports.handler = async (event) => {
     const transporter = createTransporter();
     await transporter.sendMail({
       from:    `"SASAERU 運営事務局" <${GMAIL_USER}>`,
-      to:      email.trim(),
+      to:      normalizedEmail,
       subject: '【SASAERU】メールアドレスの確認をお願いします',
       text: [
         'SASAERUへのご登録ありがとうございます。',
@@ -131,13 +158,16 @@ exports.handler = async (event) => {
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (e) {
-    console.error('send-verify-email error:', e.message, e.code);
+    console.error('send-verify-email error:', e.code || e.name || 'unknown');
     // Firebase Auth のエラーコードは一部クライアントに返す（UX のため）
     if (e.code === 'auth/user-not-found') {
       return { statusCode: 404, headers, body: JSON.stringify({ error: 'user-not-found' }) };
     }
     if (e.code === 'auth/email-already-verified') {
       return { statusCode: 409, headers, body: JSON.stringify({ error: 'already-verified' }) };
+    }
+    if (e.code === 'config/firebase') {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Firebase not configured' }) };
     }
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'メール送信に失敗しました' }) };
   }

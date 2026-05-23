@@ -39,6 +39,32 @@ function sanitize(val, maxLen = 500, keepNewlines = false) {
   return s.trim().slice(0, maxLen);
 }
 
+function normalizeEmail(rawEmail) {
+  if (typeof rawEmail !== 'string') return null;
+  const email = rawEmail.trim();
+  if (email.length === 0 || email.length > 254 || /[\r\n]/.test(email)) return null;
+  if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) return null;
+  return email;
+}
+
+function clientError(message) {
+  const err = new Error(message);
+  err.code = 'validation/client';
+  return err;
+}
+
+function requireFields(params, fields) {
+  for (const field of fields) {
+    if (!params[field]) throw clientError(`Missing ${field}`);
+  }
+}
+
+function requireEmail(params, field) {
+  const email = normalizeEmail(params[field]);
+  if (!email) throw clientError(`Invalid ${field}`);
+  params[field] = email;
+}
+
 // ============================================================
 // Gmail トランスポーター
 // S-8: SMTPタイムアウトを設定（Netlifyの10秒制限内に収める）
@@ -71,6 +97,7 @@ function buildMailOptions(type, rawParams) {
 
     // 管理者通知
     case 'admin_notify':
+      requireFields(p, ['label', 'origin']);
       return {
         from,
         to: ADMIN_EMAIL,
@@ -86,6 +113,8 @@ function buildMailOptions(type, rawParams) {
 
     // 登録受付メール（申請者向け）
     case 'applicant':
+      requireFields(p, ['clubName', 'categoryJp', 'registeredAt', 'origin']);
+      requireEmail(p, 'toEmail');
       return {
         from,
         to: p.toEmail,
@@ -121,6 +150,8 @@ function buildMailOptions(type, rawParams) {
 
     // 承認メール
     case 'approve':
+      requireFields(p, ['toName', 'clubName', 'approvedAt', 'clubPageUrl']);
+      requireEmail(p, 'toEmail');
       return {
         from,
         to: p.toEmail,
@@ -144,6 +175,8 @@ function buildMailOptions(type, rawParams) {
 
     // 否認メール
     case 'reject': {
+      requireFields(p, ['toName']);
+      requireEmail(p, 'toEmail');
       const reasonBlock = p.rejectReason
         ? [
             '─────────────────────────',
@@ -174,6 +207,9 @@ function buildMailOptions(type, rawParams) {
 
     // 問い合わせ通知（オーナー向け）
     case 'inquiry_owner':
+      requireFields(p, ['orgName', 'menuTitle', 'companyName', 'picName']);
+      requireEmail(p, 'toEmail');
+      requireEmail(p, 'senderEmail');
       return {
         from,
         to: p.toEmail,
@@ -203,6 +239,8 @@ function buildMailOptions(type, rawParams) {
 
     // 問い合わせ自動返信（申請企業向け）
     case 'inquiry_reply':
+      requireFields(p, ['companyName', 'picName', 'orgName', 'menuTitle']);
+      requireEmail(p, 'toEmail');
       return {
         from,
         to: p.toEmail,
@@ -225,7 +263,7 @@ function buildMailOptions(type, rawParams) {
       };
 
     default:
-      throw new Error(`Unknown email type: ${type}`);
+      throw clientError('Unknown email type');
   }
 }
 
@@ -242,7 +280,7 @@ exports.handler = async (event) => {
     // 未設定の場合は同オリジン（Netlify 内部）からのみ許可
     corsOrigin = reqOrigin || 'null';
   } else {
-    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : allowedOrigins[0];
+    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
   }
 
   const headers = {
@@ -258,6 +296,9 @@ exports.handler = async (event) => {
   }
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+  }
+  if (allowedOrigins.length > 0 && reqOrigin && !allowedOrigins.includes(reqOrigin)) {
+    return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden origin' }) };
   }
 
   // S-3: レート制限チェック
@@ -282,7 +323,7 @@ exports.handler = async (event) => {
   }
 
   const { type, params } = body;
-  if (!type || !params) {
+  if (!type || !params || typeof params !== 'object' || Array.isArray(params)) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing type or params' }) };
   }
 
@@ -292,8 +333,11 @@ exports.handler = async (event) => {
     await transporter.sendMail(mailOptions);
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (e) {
+    if (e.code === 'validation/client') {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid request' }) };
+    }
     // S-7: 内部エラー詳細をクライアントに漏洩させない
-    console.error('Send email error:', e.message);
+    console.error('Send email error:', e.code || e.name || 'unknown');
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'メール送信に失敗しました' }) };
   }
 };
