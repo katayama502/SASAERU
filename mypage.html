@@ -800,6 +800,16 @@
       const snap = await db.collection('organizations').where('owner_uid', '==', uid).limit(1).get();
       if (snap.empty) { showNoOrg(); return; }
       currentOrg = { id: snap.docs[0].id, ...snap.docs[0].data() };
+      // Firebase Auth が確認済みなのに Firestore が未確認のままの場合は同期する。
+      // メールリンクから直接 mypage.html にリダイレクトされた場合、
+      // onAuthStateChanged 時点で既に emailVerified=true になっているため
+      // if(!user.emailVerified) ブロックを通らず Firestore が更新されないことがある。
+      if (currentUser && currentUser.emailVerified && !currentOrg.emailVerified) {
+        try {
+          await snap.docs[0].ref.update({ emailVerified: true });
+          currentOrg.emailVerified = true;
+        } catch(e) { console.warn('emailVerified同期失敗:', e); }
+      }
       initDashboard();
     } catch(e) {
       console.error('loadUserOrg error:', e);
