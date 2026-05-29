@@ -204,6 +204,20 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // admins（管理者一覧）— 管理者のみ読み書き可
+    // { uid: string, email: string, added_by: string, added_at: timestamp }
+    match /admins/{adminId} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin()
+                    && request.resource.data.keys().hasAll(['uid','email','added_by','added_at'])
+                    && request.resource.data.keys().hasOnly(['uid','email','added_by','added_at'])
+                    && request.resource.data.uid is string
+                    && request.resource.data.email is string
+                    && request.resource.data.added_by is string
+                    && request.resource.data.added_at is timestamp;
+      allow delete: if isAdmin();
+    }
+
     // contacts（お問い合わせ）— 管理者のみ閲覧・操作可
     match /contacts/{contactId} {
       // S-1 + S-5 + M-1: hasOnly で read_at など管理フィールドの不正書き込みを防止

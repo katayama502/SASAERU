@@ -126,6 +126,10 @@
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
             <i data-lucide="list-checks" width="16" height="16"></i>支援メニュー管理
           </button>
+          <button onclick="switchTab('admins')" data-tab="admins"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="shield-check" width="16" height="16"></i>管理者管理
+          </button>
         </nav>
         <div class="px-4 py-4 border-t border-white/10">
           <div class="flex items-center gap-2.5 mb-3">
@@ -263,6 +267,10 @@
               <button onclick="filterInquiries('done')" data-inq-filter="done"
                 class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">対応済み</button>
               <span id="inq-count" class="ml-auto text-xs text-slate-400"></span>
+              <button onclick="exportInquiriesCSV()"
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold rounded-lg transition-all border border-green-200">
+                <i data-lucide="download" width="13" height="13"></i>CSVエクスポート
+              </button>
             </div>
             <div id="inquiries-list" class="space-y-3">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
@@ -280,6 +288,42 @@
             </div>
             <div id="contacts-list" class="space-y-3">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
+          <!-- 管理者管理タブ -->
+          <div id="tab-admins" class="hidden fade-in">
+            <!-- 管理者追加フォーム -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+              <h2 class="text-sm font-black text-slate-900 mb-4 flex items-center gap-2">
+                <i data-lucide="user-plus" width="16" height="16" class="text-orange-500"></i>
+                管理者を追加する
+              </h2>
+              <div class="flex gap-3 flex-col sm:flex-row">
+                <div class="flex-1">
+                  <label for="admin-target-email" class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス</label>
+                  <input type="email" id="admin-target-email" maxlength="254"
+                    placeholder="追加するユーザーのメールアドレス"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
+                </div>
+                <div class="flex items-end gap-2">
+                  <button onclick="grantAdminRole()"
+                    class="flex items-center gap-1.5 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-sm">
+                    <i data-lucide="shield-check" width="13" height="13"></i>管理者権限を付与
+                  </button>
+                </div>
+              </div>
+              <p id="admin-action-msg" class="text-xs mt-2 min-h-[1rem]" aria-live="assertive"></p>
+            </div>
+            <!-- 現在の管理者一覧 -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h2 class="text-sm font-black text-slate-900">現在の管理者一覧</h2>
+                <button onclick="loadAdmins()" class="text-xs text-orange-600 font-bold hover:underline">更新</button>
+              </div>
+              <div id="admins-list" class="divide-y divide-slate-50">
+                <div class="px-6 py-4 text-xs text-slate-400 text-center">読み込み中...</div>
+              </div>
             </div>
           </div>
 
@@ -486,6 +530,7 @@
     inquiries: { title: '支援申請一覧',     subtitle: '企業からの問い合わせ' },
     contacts:  { title: 'お問い合わせ',     subtitle: 'お問い合わせ一覧' },
     menus:     { title: '支援メニュー管理', subtitle: '全団体の支援メニューを管理' },
+    admins:    { title: '管理者管理',       subtitle: '管理者権限の付与・削除' },
   };
 
   function toggleSidebar() {
@@ -504,7 +549,7 @@
   function switchTab(name) {
     currentTab = name;
     closeSidebar();
-    ['overview','pending','orgs','inquiries','contacts','menus'].forEach(t => {
+    ['overview','pending','orgs','inquiries','contacts','menus','admins'].forEach(t => {
       document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
     });
     document.querySelectorAll('.side-btn').forEach(btn => {
@@ -528,6 +573,7 @@
     if (name === 'inquiries') loadInquiries();
     if (name === 'contacts')  loadContacts();
     if (name === 'menus')     loadAdminMenus();
+    if (name === 'admins')    loadAdmins();
   }
 
   // ============================================================
@@ -1225,6 +1271,203 @@
       body: JSON.stringify({ type, params }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  }
+
+  // ============================================================
+  // 管理者管理（Task 4）
+  // ============================================================
+  async function loadAdmins() {
+    const el = document.getElementById('admins-list');
+    if (!db) { el.innerHTML = demoMsg(); return; }
+    try {
+      const snap = await db.collection('admins').orderBy('added_at', 'desc').get();
+      if (snap.empty) {
+        el.innerHTML = '<div class="px-6 py-6 text-xs text-slate-400 text-center">管理者情報がまだ登録されていません</div>';
+        return;
+      }
+      el.innerHTML = snap.docs.map(d => {
+        const a = d.data();
+        return `
+          <div class="px-6 py-4 flex items-center gap-4">
+            <div class="w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center shrink-0">
+              <i data-lucide="shield-check" class="text-orange-500" width="15" height="15"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-bold text-slate-900 truncate">${esc(a.email||'—')}</p>
+              <p class="text-xs text-slate-400 mt-0.5">追加者: ${esc(a.added_by||'—')} · ${fmtDate(a.added_at)}</p>
+            </div>
+            <button data-doc="${esc(d.id)}" data-email="${esc(a.email||'')}" data-uid="${esc(a.uid||'')}"
+              onclick="revokeAdminRole(this.dataset.doc, this.dataset.email, this.dataset.uid)"
+              class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all shrink-0">
+              <i data-lucide="shield-off" width="12" height="12"></i>権限削除
+            </button>
+          </div>`;
+      }).join('');
+      lucide.createIcons();
+    } catch(e) { el.innerHTML = errMsg(e); }
+  }
+
+  async function grantAdminRole() {
+    const emailInput = document.getElementById('admin-target-email');
+    const msgEl      = document.getElementById('admin-action-msg');
+    const email      = (emailInput.value || '').trim();
+    msgEl.textContent = '';
+    msgEl.className  = 'text-xs mt-2 min-h-[1rem]';
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      msgEl.textContent = 'メールアドレスを正しく入力してください';
+      msgEl.classList.add('text-red-500');
+      return;
+    }
+    if (!auth || !db) { msgEl.textContent = 'Firebase未設定です'; msgEl.classList.add('text-red-500'); return; }
+
+    showConfirm(
+      `「${email}」に管理者権限を付与しますか？`,
+      'このユーザーはダッシュボードに完全アクセスできるようになります。',
+      '付与する', 'bg-orange-500 hover:bg-orange-600',
+      async () => {
+        try {
+          const user    = auth.currentUser;
+          const idToken = await user.getIdToken(true);
+          const res = await fetch('/.netlify/functions/set-admin-claim', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+            body: JSON.stringify({ targetEmail: email, action: 'add' }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            const msg = data.error === 'user-not-found' ? 'ユーザーが見つかりません' : (data.error || '付与に失敗しました');
+            msgEl.textContent = msg;
+            msgEl.classList.add('text-red-500');
+            return;
+          }
+          await db.collection('admins').doc(data.uid).set({
+            uid:      data.uid,
+            email:    email,
+            added_by: user.email || user.uid,
+            added_at: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          emailInput.value  = '';
+          msgEl.textContent = email + ' に管理者権限を付与しました';
+          msgEl.classList.add('text-green-600');
+          showToast('管理者権限を付与しました');
+          loadAdmins();
+        } catch(e) {
+          msgEl.textContent = 'エラー: ' + e.message;
+          msgEl.classList.add('text-red-500');
+        }
+      }
+    );
+  }
+
+  function revokeAdminRole(docId, email, uid) {
+    showConfirm(
+      `「${email}」の管理者権限を削除しますか？`,
+      'このユーザーはダッシュボードにアクセスできなくなります。',
+      '削除する', 'bg-red-500 hover:bg-red-600',
+      async () => {
+        if (!auth || !db) { showToast('Firebase未設定です', false); return; }
+        try {
+          const idToken = await auth.currentUser.getIdToken(true);
+          const res = await fetch('/.netlify/functions/set-admin-claim', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+            body: JSON.stringify({ targetEmail: email, action: 'remove' }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            showToast(data.error || '削除に失敗しました', false);
+            return;
+          }
+          await db.collection('admins').doc(docId).delete();
+          showToast('管理者権限を削除しました');
+          loadAdmins();
+        } catch(e) { showToast('エラー: ' + e.message, false); }
+      }
+    );
+  }
+
+  // ============================================================
+  // CSVエクスポート（Task 7）
+  // ============================================================
+  function csvEscape(val) {
+    const s = String(val ?? '');
+    if (s.includes(',') || s.includes('"') || s.includes('
+') || s.includes('')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function fmtDateCSV(val) {
+    if (!val) return '';
+    const d = val.toDate ? val.toDate() : new Date(val);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  }
+
+  async function exportInquiriesCSV() {
+    if (!db) { showToast('Firebase未設定です', false); return; }
+    showToast('CSVを生成中...');
+    try {
+      const inqSnap = await db.collection('inquiries').get();
+      if (inqSnap.empty) { showToast('エクスポートするデータがありません', false); return; }
+
+      const orgMenuMap = {};
+      for (const doc of inqSnap.docs) {
+        const q = doc.data();
+        if (q.org_id && !orgMenuMap[q.org_id]) orgMenuMap[q.org_id] = {};
+        if (q.org_id && q.menu_id && !orgMenuMap[q.org_id][q.menu_id]) orgMenuMap[q.org_id][q.menu_id] = null;
+      }
+
+      const orgNames   = {};
+      const menuTitles = {};
+      await Promise.all(Object.keys(orgMenuMap).map(async orgId => {
+        try {
+          const orgDoc = await db.collection('organizations').doc(orgId).get();
+          if (orgDoc.exists) orgNames[orgId] = orgDoc.data().name || '';
+          await Promise.all(Object.keys(orgMenuMap[orgId]).map(async menuId => {
+            try {
+              const mDoc = await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).get();
+              if (mDoc.exists) menuTitles[orgId + '__' + menuId] = mDoc.data().title || '';
+            } catch(e) { /* skip */ }
+          }));
+        } catch(e) { /* skip */ }
+      }));
+
+      const headers = ['団体名','支援メニュー','登録日','状況','進捗','支援実施日','支援企業名','支援企業担当者名','支援企業担当者電話番号','支援企業担当者メールアドレス'];
+      const statusMap = { new: '対応中', done: '完了' };
+
+      const rows = inqSnap.docs
+        .slice()
+        .sort((a,b) => (b.data().created_at?.toMillis?.()??0) - (a.data().created_at?.toMillis?.()??0))
+        .map(doc => {
+          const q = doc.data();
+          const orgName   = orgNames[q.org_id]  || q.org_id  || '';
+          const menuTitle = menuTitles[q.org_id + '__' + q.menu_id] || q.menu_id || '';
+          const statusJp  = statusMap[q.status] || q.status || '';
+          const doneDate  = q.done_at ? fmtDateCSV(q.done_at) : (q.status === 'done' ? fmtDateCSV(q.updated_at) : '');
+          return [orgName, menuTitle, fmtDateCSV(q.created_at), statusJp, statusJp, doneDate,
+                  q.company_name||'', q.pic_name||'', q.phone||'', q.sender_email||''].map(csvEscape).join(',');
+        });
+
+      const csvContent = '﻿' + [headers.map(csvEscape).join(','), ...rows].join('
+');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = '支援データ_' + dateStr + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(inqSnap.size + '件のデータをエクスポートしました');
+    } catch(e) {
+      console.error('CSV export error:', e);
+      showToast('エクスポートに失敗しました: ' + e.message, false);
+    }
   }
 
   // ============================================================
