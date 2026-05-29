@@ -737,11 +737,14 @@
         const icon = SUPPORT_TYPE_ICON[m.support_type] || SUPPORT_TYPE_ICON['その他'];
         const amountStr = (m.target_amount !== undefined && m.target_amount !== null && m.target_amount !== '')
           ? String(m.target_amount) : '';
+        const isMatched = m.is_matched === true;
+        // esc() で全ての動的値をサニタイズしているため XSS のリスクはありません
         return `
-          <div class="card-hover bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col">
+          <div class="${isMatched ? '' : 'card-hover '}bg-white rounded-2xl shadow-sm border ${isMatched ? 'border-slate-200 opacity-70' : 'border-slate-100'} p-6 flex flex-col">
             <div class="flex items-center gap-3 mb-4">
               <span class="text-2xl">${icon}</span>
               <span class="text-xs font-bold bg-orange-50 text-orange-600 px-3 py-1 rounded-full border border-orange-100">${esc(m.support_type||'その他')}</span>
+              ${isMatched ? `<span class="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full ml-auto">マッチング済み</span>` : ''}
             </div>
             <h3 class="text-lg font-black text-[#0f0e2e] mb-2">${esc(m.title||'')}</h3>
             ${amountStr ? `<p class="text-orange-500 font-black text-xl mb-3">${esc(amountStr)}</p>` : ''}
@@ -753,11 +756,15 @@
                 </p>
                 <p class="leading-relaxed">${esc(m.return_merit).replace(/\n/g,'<br>')}</p>
               </div>` : ''}
-            <button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}" data-menu-title="${esc(m.title||'')}"
-              onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName, this.dataset.menuTitle)"
-              class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 mt-auto">
-              <i data-lucide="mail" width="15" height="15"></i>支援・問い合わせ
-            </button>
+            ${isMatched
+              ? `<div class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 mt-auto cursor-not-allowed">
+                  <i data-lucide="check-circle" width="15" height="15"></i>このメニューはマッチング済みです
+                </div>`
+              : `<button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}" data-menu-id="${esc(m.id)}" data-menu-title="${esc(m.title||'')}"
+                  onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName, this.dataset.menuTitle, this.dataset.menuId)"
+                  class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 mt-auto">
+                  <i data-lucide="mail" width="15" height="15"></i>支援・問い合わせ
+                </button>`}
           </div>`;
       }).join('');
       emptyEl.classList.add('hidden');
@@ -905,8 +912,10 @@
   // ===================================================
   // 支援申請モーダル
   // ===================================================
-  function openInquiryModal(orgId, orgName, menuTitle) {
+  let currentMenuId = '';
+  function openInquiryModal(orgId, orgName, menuTitle, menuId) {
     currentMenuTitle = menuTitle || orgName;
+    currentMenuId    = menuId    || '';
     document.getElementById('inquiry-target').textContent = menuTitle
       ? `支援先: ${orgName}（${menuTitle}）`
       : `支援先: ${orgName}`;
@@ -942,7 +951,9 @@
     const payload = {
       org_id: orgId, company_name: data.company_name, pic_name: data.pic_name,
       sender_email: data.sender_email, phone: data.phone || null,
-      message: data.message, status: 'new'
+      message: data.message, status: 'new',
+      // menu_id / menu_title は特定の支援メニューから申請した場合のみ付与
+      ...(currentMenuId ? { menu_id: currentMenuId, menu_title: currentMenuTitle } : {}),
     };
 
     if (db) {
