@@ -312,6 +312,28 @@
     </div>
   </div>
 
+  <!-- 継続支援確認ダイアログ -->
+  <div id="continuous-support-dialog" class="fixed inset-0 z-[110] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    role="dialog" aria-modal="true" aria-labelledby="cs-dialog-title">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center mb-4">
+        <i data-lucide="handshake" class="text-green-500" width="20" height="20"></i>
+      </div>
+      <h3 id="cs-dialog-title" class="text-base font-black text-slate-900 mb-2">マッチング成立</h3>
+      <p class="text-sm text-slate-500 mb-6">この申請をマッチング成立（対応済み）にします。<br>継続支援を希望しますか？</p>
+      <div class="flex gap-3">
+        <button id="cs-no-btn"
+          class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">
+          いいえ（終了する）
+        </button>
+        <button id="cs-yes-btn"
+          class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white bg-green-500 hover:bg-green-600">
+          はい（継続する）
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 否認理由ダイアログ（TASK-03） -->
   <div id="reject-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
     role="dialog" aria-modal="true" aria-labelledby="reject-dialog-title">
@@ -939,6 +961,8 @@
                 <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(q.sender_email||'—')}</span>
                 ${q.phone ? `<span class="flex items-center gap-1"><i data-lucide="phone" width="11" height="11"></i>${esc(q.phone)}</span>` : ''}
                 <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(q.created_at)}</span>
+                ${q.menu_title ? `<span class="flex items-center gap-1"><i data-lucide="package" width="11" height="11"></i>${esc(q.menu_title)}</span>` : ''}
+                ${q.continuous_support === true ? `<span class="flex items-center gap-1 text-green-600 font-bold"><i data-lucide="repeat" width="11" height="11"></i>継続支援</span>` : ''}
               </div>
             </div>
           </div>
@@ -962,12 +986,83 @@
 
   async function updateInquiryStatus(id, status) {
     if (!db) return;
+    if (status === 'done') {
+      // マッチング成立時は継続支援確認ダイアログを表示
+      showContinuousSupportDialog(id);
+      return;
+    }
     try {
       await db.collection('inquiries').doc(id).update({ status });
-      showToast(status === 'done' ? '対応済みにしました' : '未対応に戻しました');
+      showToast('未対応に戻しました');
       loadInquiries();
     } catch(e) { showToast('エラー: ' + e.message, false); }
   }
+
+  // ============================================================
+  // 継続支援確認ダイアログ制御
+  // ============================================================
+  let _csPendingInquiryId = null;
+  function showContinuousSupportDialog(inquiryId) {
+    _csPendingInquiryId = inquiryId;
+    const d = document.getElementById('continuous-support-dialog');
+    d.classList.remove('hidden'); d.classList.add('flex');
+    lucide.createIcons();
+    setTimeout(() => document.getElementById('cs-yes-btn').focus(), 50);
+  }
+  function closeContinuousSupportDialog() {
+    const d = document.getElementById('continuous-support-dialog');
+    d.classList.add('hidden'); d.classList.remove('flex');
+    _csPendingInquiryId = null;
+  }
+  async function completeContinuousSupportChoice(continuous) {
+    const id = _csPendingInquiryId;
+    closeContinuousSupportDialog();
+    if (!id || !db) return;
+    try {
+      // inquiryドキュメントを取得してmenu_idを取得
+      const inqSnap = await db.collection('inquiries').doc(id).get();
+      if (!inqSnap.exists) { showToast('申請が見つかりません', false); return; }
+      const inqData = inqSnap.data();
+
+      // inquiryをdoneにする（継続支援フラグ付き）
+      await db.collection('inquiries').doc(id).update({
+        status: 'done',
+        continuous_support: continuous,
+      });
+
+      // menu_idがある場合は対応するメニューを更新
+      if (inqData.menu_id && inqData.org_id) {
+        const menuRef = db.collection('organizations').doc(inqData.org_id).collection('menus').doc(inqData.menu_id);
+        const menuSnap = await menuRef.get();
+        if (menuSnap.exists) {
+          const currentCount = menuSnap.data().matched_count || 0;
+          const updateData = {
+            matched_count: currentCount + 1,
+            updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+          };
+          if (!continuous) {
+            // 継続支援なし → is_matched=true にして新規申請を停止
+            updateData.is_matched = true;
+          }
+          await menuRef.update(updateData);
+        }
+      }
+
+      showToast(continuous ? 'マッチング成立（継続支援）にしました' : 'マッチング成立（終了）にしました');
+      loadInquiries();
+    } catch(e) { showToast('エラー: ' + e.message, false); }
+  }
+  document.getElementById('cs-yes-btn').addEventListener('click', () => completeContinuousSupportChoice(true));
+  document.getElementById('cs-no-btn').addEventListener('click', () => completeContinuousSupportChoice(false));
+  document.getElementById('continuous-support-dialog').addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeContinuousSupportDialog(); return; }
+    if (e.key === 'Tab') {
+      const btns = document.getElementById('continuous-support-dialog').querySelectorAll('button');
+      const first = btns[0], last = btns[btns.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
 
   // ============================================================
   // お問い合わせ（Contacts）- Bug Fix: sort result stored
