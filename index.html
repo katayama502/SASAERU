@@ -1063,6 +1063,18 @@
   function onSearchInput() {
     clearTimeout(_searchTimer);
     _searchTimer = setTimeout(() => {
+      // カテゴリ検索が選択されている場合、タブを「すべて」に戻す（二重フィルター防止）
+      const catSel = document.getElementById('search-category');
+      if (catSel && catSel.value) {
+        currentFilter = 'all';
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          const isAll = b.getAttribute('data-tab') === 'all';
+          b.classList.toggle('bg-orange-500', isAll);
+          b.classList.toggle('text-white', isAll);
+          b.classList.toggle('text-slate-500', !isAll);
+          b.classList.toggle('hover:bg-slate-100', !isAll);
+        });
+      }
       renderOrgs();
     }, 180);
   }
@@ -1651,6 +1663,9 @@
       btn.classList.remove('text-slate-500', 'hover:bg-slate-100');
       btn.classList.add('bg-orange-500', 'text-white');
       currentFilter = btn.getAttribute('data-tab');
+      // タブ切り替え時はカテゴリ検索セレクトをリセット（二重フィルター防止）
+      const catSel = document.getElementById('search-category');
+      if (catSel) catSel.value = '';
       renderOrgs();
     });
   });
