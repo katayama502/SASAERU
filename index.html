@@ -1504,10 +1504,12 @@
   let _inquiryContactEmail = '';
   let _inquiryMenuTitle    = '';
   let _inquiryOrgName      = '';
-  function openInquiryModal(orgId, orgName, contactEmail, menuTitle) {
+  let _inquiryMenuId       = '';
+  function openInquiryModal(orgId, orgName, contactEmail, menuTitle, menuId) {
     _inquiryContactEmail = contactEmail || '';
-    _inquiryMenuTitle    = menuTitle    || orgName;
+    _inquiryMenuTitle    = menuTitle    || '';
     _inquiryOrgName      = orgName      || '';
+    _inquiryMenuId       = menuId       || '';
     document.getElementById('inquiry-target').textContent = menuTitle
       ? `支援先: ${orgName}（${menuTitle}）`
       : `支援先: ${orgName}`;
@@ -1526,6 +1528,7 @@
     _inquiryContactEmail = '';
     _inquiryMenuTitle    = '';
     _inquiryOrgName      = '';
+    _inquiryMenuId       = '';
     const m = document.getElementById('inquiry-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
@@ -1548,6 +1551,7 @@
       org_id: orgId, company_name: data.company_name, pic_name: data.pic_name,
       sender_email: data.sender_email, phone: data.phone || null,
       message: data.message, status: 'new',
+      ...(_inquiryMenuId ? { menu_id: _inquiryMenuId, menu_title: _inquiryMenuTitle } : {}),
     };
 
     if (db) {

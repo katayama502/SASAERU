@@ -1234,6 +1234,7 @@
                 <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${m.status === 'public' ? 'badge-public border border-green-200' : 'bg-slate-100 text-slate-500'}">
                   ${m.status === 'public' ? '公開中' : '非公開'}
                 </span>
+                ${m.is_matched === true ? `<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center gap-1"><i data-lucide="check-circle" width="10" height="10"></i>マッチング済み${(m.matched_count && m.matched_count > 0) ? ` ${m.matched_count}件` : ''}</span>` : ''}
               </div>
               <div class="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span class="flex items-center gap-1"><i data-lucide="tag" width="11" height="11"></i>${esc(m.support_type||'—')}</span>
