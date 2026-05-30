@@ -1063,6 +1063,18 @@
   function onSearchInput() {
     clearTimeout(_searchTimer);
     _searchTimer = setTimeout(() => {
+      // カテゴリ検索が選択されている場合、タブを「すべて」に戻す（二重フィルター防止）
+      const catSel = document.getElementById('search-category');
+      if (catSel && catSel.value) {
+        currentFilter = 'all';
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          const isAll = b.getAttribute('data-tab') === 'all';
+          b.classList.toggle('bg-orange-500', isAll);
+          b.classList.toggle('text-white', isAll);
+          b.classList.toggle('text-slate-500', !isAll);
+          b.classList.toggle('hover:bg-slate-100', !isAll);
+        });
+      }
       renderOrgs();
     }, 180);
   }
@@ -1223,60 +1235,7 @@
       );
   }
 
-  function clearSearch() {
-    const kw = document.getElementById('search-keyword');
-    const ar = document.getElementById('search-area');
-    if (kw) kw.value = '';
-    if (ar) ar.value = '';
-    renderOrgs();
-  }
-
   function renderOrgs() {
-<<<<<<< ours
-    const container = document.getElementById('clubs-container');
-
-    // 3軸フィルタ（カテゴリ＋地域＋フリーワード）
-    const keyword = (document.getElementById('search-keyword')?.value || '').trim().toLowerCase();
-    const areaVal = (document.getElementById('search-area')?.value   || '').trim();
-    let list = currentFilter === 'all' ? allOrgs : allOrgs.filter(o => o.category === currentFilter);
-
-    if (areaVal) {
-      list = list.filter(o => {
-        const area = Array.isArray(o.area) ? o.area.join(' ') : (o.area || '');
-        return area.includes(areaVal);
-      });
-    }
-    if (keyword) {
-      list = list.filter(o => {
-        const name = (o.name || '').toLowerCase();
-        const desc = (o.activity_how || '').toLowerCase();
-        const tags = Array.isArray(o.tags) ? o.tags.join(' ').toLowerCase() : (typeof o.tags === 'string' ? o.tags.toLowerCase() : '');
-        return name.includes(keyword) || desc.includes(keyword) || tags.includes(keyword);
-      });
-    }
-
-    // 検索結果件数表示
-    const countEl = document.getElementById('search-result-count');
-    const isFiltered = currentFilter !== 'all' || areaVal || keyword;
-    if (countEl) {
-      if (isFiltered) {
-        countEl.textContent = list.length + '件が見つかりました';
-        countEl.classList.remove('hidden');
-      } else {
-        countEl.classList.add('hidden');
-      }
-    }
-
-    if (list.length === 0) {
-      container.innerHTML = `
-        <div class="col-span-3 text-center py-20 text-slate-400">
-          <i data-lucide="search-x" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
-          <p class="text-sm font-medium">該当するクラブはありません</p>
-          <p class="text-xs mt-1">条件を変えてお試しください</p>
-        </div>`;
-      lucide.createIcons();
-      return;
-=======
     const container  = document.getElementById('clubs-container');
     const s          = getSearchValues();
     const clearBtn   = document.getElementById('search-clear-btn');
@@ -1291,7 +1250,6 @@
         (o.activity_how   || '').toLowerCase().includes(s.keyword) ||
         ((o.tags || []).join(' ')).toLowerCase().includes(s.keyword)
       );
->>>>>>> theirs
     }
     if (s.area) {
       list = list.filter(o => {
@@ -1546,10 +1504,12 @@
   let _inquiryContactEmail = '';
   let _inquiryMenuTitle    = '';
   let _inquiryOrgName      = '';
-  function openInquiryModal(orgId, orgName, contactEmail, menuTitle) {
+  let _inquiryMenuId       = '';
+  function openInquiryModal(orgId, orgName, contactEmail, menuTitle, menuId) {
     _inquiryContactEmail = contactEmail || '';
-    _inquiryMenuTitle    = menuTitle    || orgName;
+    _inquiryMenuTitle    = menuTitle    || '';
     _inquiryOrgName      = orgName      || '';
+    _inquiryMenuId       = menuId       || '';
     document.getElementById('inquiry-target').textContent = menuTitle
       ? `支援先: ${orgName}（${menuTitle}）`
       : `支援先: ${orgName}`;
@@ -1568,6 +1528,7 @@
     _inquiryContactEmail = '';
     _inquiryMenuTitle    = '';
     _inquiryOrgName      = '';
+    _inquiryMenuId       = '';
     const m = document.getElementById('inquiry-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
@@ -1590,6 +1551,7 @@
       org_id: orgId, company_name: data.company_name, pic_name: data.pic_name,
       sender_email: data.sender_email, phone: data.phone || null,
       message: data.message, status: 'new',
+      ...(_inquiryMenuId ? { menu_id: _inquiryMenuId, menu_title: _inquiryMenuTitle } : {}),
     };
 
     if (db) {
@@ -1705,6 +1667,9 @@
       btn.classList.remove('text-slate-500', 'hover:bg-slate-100');
       btn.classList.add('bg-orange-500', 'text-white');
       currentFilter = btn.getAttribute('data-tab');
+      // タブ切り替え時はカテゴリ検索セレクトをリセット（二重フィルター防止）
+      const catSel = document.getElementById('search-category');
+      if (catSel) catSel.value = '';
       renderOrgs();
     });
   });

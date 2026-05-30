@@ -42,6 +42,7 @@
     .menu-card.drag-over-bot { border-bottom:2px solid #f97316 !important; }
     .menu-drag-handle { color:#94a3b8; cursor:grab; flex-shrink:0; }
     .menu-drag-handle:active { cursor:grabbing; }
+    .menu-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
   </style>
 </head>
 <noscript><div style="background:#ff4444;color:#fff;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999">このサイトの利用にはJavaScriptが必要です。ブラウザの設定を確認してください。</div></noscript>
@@ -1234,6 +1235,7 @@
                 <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${m.status === 'public' ? 'badge-public border border-green-200' : 'bg-slate-100 text-slate-500'}">
                   ${m.status === 'public' ? '公開中' : '非公開'}
                 </span>
+                ${m.is_matched === true ? `<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center gap-1"><i data-lucide="check-circle" width="10" height="10"></i>マッチング済み${(m.matched_count && m.matched_count > 0) ? ` ${m.matched_count}件` : ''}</span>` : ''}
               </div>
               <div class="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span class="flex items-center gap-1"><i data-lucide="tag" width="11" height="11"></i>${esc(m.support_type||'—')}</span>
