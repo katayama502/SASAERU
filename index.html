@@ -1223,60 +1223,7 @@
       );
   }
 
-  function clearSearch() {
-    const kw = document.getElementById('search-keyword');
-    const ar = document.getElementById('search-area');
-    if (kw) kw.value = '';
-    if (ar) ar.value = '';
-    renderOrgs();
-  }
-
   function renderOrgs() {
-<<<<<<< ours
-    const container = document.getElementById('clubs-container');
-
-    // 3軸フィルタ（カテゴリ＋地域＋フリーワード）
-    const keyword = (document.getElementById('search-keyword')?.value || '').trim().toLowerCase();
-    const areaVal = (document.getElementById('search-area')?.value   || '').trim();
-    let list = currentFilter === 'all' ? allOrgs : allOrgs.filter(o => o.category === currentFilter);
-
-    if (areaVal) {
-      list = list.filter(o => {
-        const area = Array.isArray(o.area) ? o.area.join(' ') : (o.area || '');
-        return area.includes(areaVal);
-      });
-    }
-    if (keyword) {
-      list = list.filter(o => {
-        const name = (o.name || '').toLowerCase();
-        const desc = (o.activity_how || '').toLowerCase();
-        const tags = Array.isArray(o.tags) ? o.tags.join(' ').toLowerCase() : (typeof o.tags === 'string' ? o.tags.toLowerCase() : '');
-        return name.includes(keyword) || desc.includes(keyword) || tags.includes(keyword);
-      });
-    }
-
-    // 検索結果件数表示
-    const countEl = document.getElementById('search-result-count');
-    const isFiltered = currentFilter !== 'all' || areaVal || keyword;
-    if (countEl) {
-      if (isFiltered) {
-        countEl.textContent = list.length + '件が見つかりました';
-        countEl.classList.remove('hidden');
-      } else {
-        countEl.classList.add('hidden');
-      }
-    }
-
-    if (list.length === 0) {
-      container.innerHTML = `
-        <div class="col-span-3 text-center py-20 text-slate-400">
-          <i data-lucide="search-x" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
-          <p class="text-sm font-medium">該当するクラブはありません</p>
-          <p class="text-xs mt-1">条件を変えてお試しください</p>
-        </div>`;
-      lucide.createIcons();
-      return;
-=======
     const container  = document.getElementById('clubs-container');
     const s          = getSearchValues();
     const clearBtn   = document.getElementById('search-clear-btn');
@@ -1291,7 +1238,6 @@
         (o.activity_how   || '').toLowerCase().includes(s.keyword) ||
         ((o.tags || []).join(' ')).toLowerCase().includes(s.keyword)
       );
->>>>>>> theirs
     }
     if (s.area) {
       list = list.filter(o => {
