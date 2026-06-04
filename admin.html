@@ -1719,6 +1719,8 @@
     const el = document.getElementById('admins-list');
     if (!db) { el.innerHTML = demoMsg(); return; }
     try {
+      // Custom Claim が最新であることを保証するためトークンを強制リフレッシュ
+      if (auth && auth.currentUser) await auth.currentUser.getIdToken(true);
       const snap = await db.collection('admins').orderBy('added_at', 'desc').get();
       if (snap.empty) {
         el.innerHTML = '<div class="px-6 py-6 text-xs text-slate-400 text-center">管理者情報がまだ登録されていません</div>';
