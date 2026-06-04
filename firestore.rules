@@ -82,10 +82,12 @@ service cloud.firestore {
       allow update: if isAdmin()
                     || (isOwnerOf(orgId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                             'name','category','area','main_image','tags',
+                             'name','category','area','contact_email','main_image','tags',
                              'activity_how','updated_at','status'
                            ])
                         && validOrgProfile(request.resource.data)
+                        && (!('contact_email' in request.resource.data.diff(resource.data).affectedKeys())
+                            || validEmail(request.resource.data.contact_email))
                         && (request.resource.data.status == resource.data.status
                             || request.resource.data.status == 'pending'))
                     || (isAuth()
