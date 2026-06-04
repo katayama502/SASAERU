@@ -134,21 +134,25 @@ service cloud.firestore {
                     || (resource.data.owner_uid == request.auth.uid
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                              'title','support_type','target_amount','description',
-                             'return_merit','status','updated_at'
+                             'return_merit','status','updated_at','sort_order'
                            ])
-                        && request.resource.data.title is string
-                        && request.resource.data.title.size() > 0
-                        && request.resource.data.title.size() <= 100
-                        && request.resource.data.status in ['public', 'private'])
+                        && (!('title' in request.resource.data.diff(resource.data).affectedKeys())
+                            || (request.resource.data.title is string
+                                && request.resource.data.title.size() > 0
+                                && request.resource.data.title.size() <= 100))
+                        && (!('status' in request.resource.data.diff(resource.data).affectedKeys())
+                            || request.resource.data.status in ['public', 'private']))
                     || (isOwnerOf(orgId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                              'title','support_type','target_amount','description',
-                             'return_merit','status','updated_at'
+                             'return_merit','status','updated_at','sort_order'
                            ])
-                        && request.resource.data.title is string
-                        && request.resource.data.title.size() > 0
-                        && request.resource.data.title.size() <= 100
-                        && request.resource.data.status in ['public', 'private']);
+                        && (!('title' in request.resource.data.diff(resource.data).affectedKeys())
+                            || (request.resource.data.title is string
+                                && request.resource.data.title.size() > 0
+                                && request.resource.data.title.size() <= 100))
+                        && (!('status' in request.resource.data.diff(resource.data).affectedKeys())
+                            || request.resource.data.status in ['public', 'private']));
       // 削除: resource.data.owner_uid が一致、または旧メニューは isOwnerOf フォールバック
       allow delete: if isAdmin()
                     || resource.data.owner_uid == request.auth.uid
