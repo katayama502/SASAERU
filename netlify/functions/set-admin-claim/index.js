@@ -149,6 +149,20 @@ exports.handler = async (event) => {
     const newClaims = action === 'add' ? { admin: true } : { admin: false };
     await auth.setCustomUserClaims(targetUser.uid, newClaims);
 
+    // Firestore admins コレクションを Custom Claim と同期
+    // add: ドキュメントを upsert / remove: ドキュメントを削除
+    const db = firebaseAdmin.firestore();
+    if (action === 'add') {
+      await db.collection('admins').doc(targetUser.uid).set({
+        uid:      targetUser.uid,
+        email:    normalizedTarget,
+        added_by: callerClaims.uid,
+        added_at: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      await db.collection('admins').doc(targetUser.uid).delete();
+    }
+
     return {
       statusCode: 200,
       headers,

@@ -254,6 +254,14 @@
                   </div>
                 </div>
                 <div>
+                  <label for="f-contact-email" class="block text-xs font-bold text-slate-600 mb-1.5">連絡先メールアドレス <span class="text-red-400">*</span></label>
+                  <input type="email" id="f-contact-email" required maxlength="254"
+                    oninput="markUnsaved()"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
+                    placeholder="例: info@example.com">
+                  <p class="text-[10px] text-slate-400 mt-1">企業からの支援申請通知が届くメールアドレスです。</p>
+                </div>
+                <div>
                   <label class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ</label>
                   <div id="f-tags-container"
                     class="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 bg-white flex flex-wrap gap-1.5 items-center cursor-text"
@@ -268,7 +276,7 @@
                   <p class="text-[10px] text-slate-400 mt-1">Enterキーで追加。×で個別削除できます。</p>
                 </div>
                 <div>
-                  <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介（テンプレートはこちら） <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]">📄 テンプレートはこちら</a></label>
+                  <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介 <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]">📄 テンプレートはこちら</a></label>
                   <textarea id="f-activity-how" rows="5" maxlength="2000"
                     oninput="markUnsaved(); document.getElementById('profile-char-counter').textContent=this.value.length"
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
@@ -1108,8 +1116,9 @@
       banner.classList.add('hidden');
     }
 
-    document.getElementById('f-name').value          = org.name         || '';
-    document.getElementById('f-category').value      = org.category     || '';
+    document.getElementById('f-name').value          = org.name          || '';
+    document.getElementById('f-category').value      = org.category      || '';
+    document.getElementById('f-contact-email').value = org.contact_email || '';
     // area は登録時に配列で保存されることがあるため、表示用に区切り文字で結合
     document.getElementById('f-area').value          = Array.isArray(org.area) ? org.area.join('・') : (org.area || '');
     document.getElementById('f-main-image').value    = org.main_image   || '';
@@ -1135,13 +1144,14 @@
 
     const tags = [..._profileTags];
     const data    = {
-      name:         document.getElementById('f-name').value.trim(),
-      category:     document.getElementById('f-category').value,
-      area:         document.getElementById('f-area').value.trim(),
-      main_image:   document.getElementById('f-main-image').value.trim() || null,
+      name:          document.getElementById('f-name').value.trim(),
+      category:      document.getElementById('f-category').value,
+      contact_email: document.getElementById('f-contact-email').value.trim(),
+      area:          document.getElementById('f-area').value.trim(),
+      main_image:    document.getElementById('f-main-image').value.trim() || null,
       tags,
-      activity_how: document.getElementById('f-activity-how').value.trim(),
-      updated_at:   db ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+      activity_how:  document.getElementById('f-activity-how').value.trim(),
+      updated_at:    db ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
     };
 
     if (!db) {

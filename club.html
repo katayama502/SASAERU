@@ -733,7 +733,8 @@
       const snap = await db.collection('organizations').doc(orgId).collection('menus')
         .where('status', '==', 'public').get();
       if (snap.empty) { container.classList.add('hidden'); emptyEl.classList.remove('hidden'); return; }
-      const menus = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const menus = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
       container.innerHTML = menus.map(m => {
         const icon = SUPPORT_TYPE_ICON[m.support_type] || SUPPORT_TYPE_ICON['その他'];
         const amountStr = (m.target_amount !== undefined && m.target_amount !== null && m.target_amount !== '')
