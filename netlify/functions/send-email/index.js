@@ -213,6 +213,7 @@ function buildMailOptions(type, rawParams) {
       return {
         from,
         to: p.toEmail,
+        cc: 'sasaeru@scl.or.jp',
         subject: `【SASAERU】「${p.menuTitle}」にお問い合わせがありました`,
         text: [
           `${p.orgName} 様`,

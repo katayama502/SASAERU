@@ -265,10 +265,10 @@
           <p class="text-slate-500 text-sm">あなたの企業の力が、子どもたちの夢を支えます。</p>
         </div>
         <div class="flex bg-white p-1 rounded-full shadow-sm border border-slate-200 flex-wrap gap-1" id="tab-container">
-          <button data-tab="all" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
-          <button data-tab="sports" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">スポーツ</button>
-          <button data-tab="culture" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">文化・芸術</button>
-          <button data-tab="welfare" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">福祉</button>
+          <button data-tab="all" data-tab-label="すべて" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
+          <button data-tab="sports" data-tab-label="スポーツ" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">スポーツ</button>
+          <button data-tab="culture" data-tab-label="文化・芸術" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">文化・芸術</button>
+          <button data-tab="welfare" data-tab-label="福祉" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">福祉</button>
         </div>
       </div>
       <!-- 3軸検索バー -->
@@ -678,7 +678,7 @@
           <p class="text-[10px] text-slate-400 mt-1.5">クリックで選択・解除できます。</p>
         </div>
         <div>
-          <label for="reg-activity" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介・現状 <span class="text-red-500">*</span></label>
+          <label for="reg-activity" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介（テンプレートはこちら） <span class="text-red-500">*</span> <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]">📄 テンプレートはこちら</a></label>
           <textarea id="reg-activity" name="activity_how" rows="4" required maxlength="2000"
             placeholder="クラブの活動内容、現在直面している課題、必要な支援内容などをご記入ください。"
             oninput="updateCounter(this,'reg-activity-counter',2000)"
@@ -1235,6 +1235,36 @@
       );
   }
 
+  // 各タブボタンに現在の keyword・area フィルター適用後の件数を表示する
+  function updateTabCounts(s) {
+    // keyword・area だけを適用したベースリストを作る（カテゴリタブは除く）
+    let base = allOrgs.slice();
+    if (s && s.keyword) {
+      base = base.filter(o =>
+        (o.name         || '').toLowerCase().includes(s.keyword) ||
+        (o.activity_how || '').toLowerCase().includes(s.keyword) ||
+        ((o.tags || []).join(' ')).toLowerCase().includes(s.keyword)
+      );
+    }
+    if (s && s.area) {
+      base = base.filter(o => {
+        const areas = Array.isArray(o.area) ? o.area : [o.area];
+        return areas.some(a => (a || '').includes(s.area));
+      });
+    }
+    // search-category セレクトによる絞り込みも反映（タブとは独立）
+    if (s && s.category) {
+      base = base.filter(o => o.category === s.category);
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      const tab   = btn.getAttribute('data-tab');
+      const label = btn.getAttribute('data-tab-label') || tab;
+      const count = tab === 'all' ? base.length : base.filter(o => o.category === tab).length;
+      btn.textContent = label + ' (' + count + '件)';
+    });
+  }
+
   function renderOrgs() {
     const container  = document.getElementById('clubs-container');
     const s          = getSearchValues();
@@ -1263,6 +1293,9 @@
 
     // クリアボタン表示制御
     if (clearBtn) clearBtn.style.display = isSearchActive(s) ? '' : 'none';
+
+    // タブごとの件数更新
+    updateTabCounts(s);
 
     // 結果件数ラベル更新
     if (resultLbl) {
