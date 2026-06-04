@@ -675,7 +675,13 @@
           <p class="text-[10px] text-slate-400 mt-1.5">クリックで選択・解除できます。</p>
         </div>
         <div>
-          <label for="reg-activity" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介（テンプレートはこちら） <span class="text-red-500">*</span> <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]">📄 テンプレートはこちら</a></label>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="reg-activity" class="block text-xs font-bold text-slate-600">クラブ紹介・現状 <span class="text-red-500">*</span></label>
+            <button type="button" onclick="fillActivityTemplate()"
+              class="text-[11px] text-orange-500 hover:text-orange-600 underline underline-offset-2 font-bold flex items-center gap-1 transition-colors">
+              <i data-lucide="clipboard-paste" width="12" height="12"></i>テンプレートを使う
+            </button>
+          </div>
           <textarea id="reg-activity" name="activity_how" rows="4" required maxlength="2000"
             placeholder="クラブの活動内容、現在直面している課題、必要な支援内容などをご記入ください。"
             oninput="updateCounter(this,'reg-activity-counter',2000)"
@@ -1219,7 +1225,7 @@
               <div class="col-span-3 text-center py-20 text-slate-400">
                 <i data-lucide="wifi-off" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
                 <p class="text-sm font-medium">データの取得に失敗しました</p>
-                <p class="text-xs mt-1 text-red-400">${err.code || err.message || '不明なエラー'}</p>
+                <p class="text-xs mt-1 text-red-400">${esc(err.code || err.message || '不明なエラー')}</p>
                 <button onclick="loadOrgs()" class="mt-4 px-4 py-2 bg-orange-500 text-white text-xs font-bold rounded-xl hover:bg-orange-600 transition-all">再試行</button>
               </div>`;
             lucide.createIcons();
@@ -1906,6 +1912,37 @@
   // P-2: 本番環境で console.log を無効化
   if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
     console.log = () => {};
+  }
+
+  // ========================================================
+  // クラブ紹介テンプレート自動挿入
+  // ========================================================
+  function fillActivityTemplate() {
+    const ta = document.getElementById('reg-activity');
+    if (!ta) return;
+    const template = `◆ 団体の概要
+（設立年・代表者・会員数・活動場所など基本情報を記入してください）
+例：2010年設立。現在メンバー30名（小学生〜中学生）。毎週土日に○○公園で活動中。
+
+◆ 活動内容
+（どのような活動をしているか具体的に記入してください）
+例：地域の小学生を対象にサッカー教室を開催。年に2回、市内大会にも参加しています。
+
+◆ 現在の課題
+（どんな困りごとや課題があるか記入してください）
+例：練習用具の老朽化が進んでおり、新しい装備の調達が難しい状況です。
+
+◆ 求める支援内容
+（どのような支援があれば助かるか具体的に記入してください）
+例：練習用ボール・ビブスの提供、または費用の一部ご支援をいただけると大変助かります。`;
+
+    if (ta.value.trim() !== '' && !confirm('現在の入力内容をテンプレートで上書きしますか？')) return;
+    ta.value = template;
+    // カウンターを更新
+    const counter = document.getElementById('reg-activity-counter');
+    if (counter) counter.textContent = template.length;
+    ta.focus();
+    ta.dispatchEvent(new Event('input'));
   }
   </script>
 </body>

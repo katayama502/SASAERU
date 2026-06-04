@@ -196,6 +196,10 @@
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
             <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="shield-check" width="16" height="16"></i>管理者管理
           </button>
+          <button onclick="switchTab('admins')" data-tab="admins"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="shield-check" width="16" height="16"></i>管理者管理
+          </button>
         </nav>
         <div class="px-4 py-4 border-t border-white/10">
           <div class="flex items-center gap-2.5 mb-3">
@@ -436,6 +440,77 @@
             </div>
             <div id="admin-menus-list" class="space-y-2">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
+          <!-- 管理者管理タブ -->
+          <div id="tab-admins" class="hidden fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- 管理者追加フォーム -->
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <div class="flex items-center gap-3 mb-5">
+                  <div class="w-9 h-9 bg-orange-50 rounded-xl flex items-center justify-center">
+                    <i data-lucide="user-plus" class="text-orange-500" width="18" height="18"></i>
+                  </div>
+                  <div>
+                    <h2 class="text-sm font-black text-slate-900">管理者を追加</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">新しい管理者アカウントを作成し、招待メールを送信します</p>
+                  </div>
+                </div>
+                <form id="add-admin-form" class="space-y-4" onsubmit="handleAddAdmin(event)">
+                  <div>
+                    <label for="new-admin-email" class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス <span class="text-red-400">*</span></label>
+                    <input type="email" id="new-admin-email" required maxlength="200"
+                      placeholder="admin@example.com" autocomplete="off"
+                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
+                  </div>
+                  <div>
+                    <label for="new-admin-password" class="block text-xs font-bold text-slate-600 mb-1.5">仮パスワード <span class="text-red-400">*</span></label>
+                    <div class="relative">
+                      <input type="password" id="new-admin-password" required minlength="8" maxlength="100"
+                        placeholder="8文字以上" autocomplete="new-password"
+                        class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
+                      <button type="button" onclick="toggleNewAdminPwd()"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                        <i id="new-admin-eye" data-lucide="eye" width="16" height="16"></i>
+                      </button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">新しい管理者は最初のログイン後にパスワードを変更してください。</p>
+                  </div>
+                  <div class="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                    <div class="flex items-start gap-2">
+                      <i data-lucide="info" class="text-blue-500 mt-0.5 shrink-0" width="14" height="14"></i>
+                      <div class="text-[11px] text-blue-700 leading-relaxed">
+                        <strong>招待フロー：</strong><br>
+                        ① アカウントが作成されます<br>
+                        ② 入力したメールアドレスに招待メールが届きます<br>
+                        ③ メール内のリンクをクリックしてパスワードを設定→ログイン完了
+                      </div>
+                    </div>
+                  </div>
+                  <button type="submit" id="add-admin-btn"
+                    class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all text-sm shadow-sm">
+                    <i data-lucide="send" width="14" height="14"></i>アカウントを作成して招待メールを送信
+                  </button>
+                  <p id="add-admin-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
+                </form>
+              </div>
+
+              <!-- 管理者一覧 -->
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <div class="flex items-center gap-3 mb-5">
+                  <div class="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center">
+                    <i data-lucide="users" class="text-slate-500" width="18" height="18"></i>
+                  </div>
+                  <div>
+                    <h2 class="text-sm font-black text-slate-900">管理者一覧</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">現在の管理者アカウント</p>
+                  </div>
+                </div>
+                <div id="admins-list" class="space-y-2">
+                  <div class="text-xs text-slate-400 text-center py-6">読み込み中...</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -755,7 +830,7 @@
     inquiries: { title: '支援申請一覧',     subtitle: '企業からの問い合わせ' },
     contacts:  { title: 'お問い合わせ',     subtitle: 'お問い合わせ一覧' },
     menus:     { title: '支援メニュー管理', subtitle: '全団体の支援メニューを管理' },
-    admins:    { title: '管理者管理',       subtitle: '管理者権限の付与・削除' },
+    admins:    { title: '管理者管理',       subtitle: '管理者アカウントの追加・管理' },
   };
 
   function toggleSidebar() {
@@ -939,7 +1014,7 @@
         <div class="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
           <div class="flex-1 min-w-0">
             <p class="text-sm font-bold text-slate-900 truncate">${esc(o.name)}</p>
-            <p class="text-xs text-slate-400 mt-0.5">${esc(CAT[o.category]||o.category||'—')} · ${esc(o.area||'—')}</p>
+            <p class="text-xs text-slate-400 mt-0.5">${esc(CAT[o.category]||o.category||'—')} · ${esc(Array.isArray(o.area) ? o.area.join('・') : (o.area||'—'))}</p>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             ${statusBadge('pending')}
@@ -1012,7 +1087,7 @@
         const o = d.data();
         return (o.name || '').toLowerCase().includes(query) ||
                (o.contact_email || '').toLowerCase().includes(query) ||
-               (o.area || '').toLowerCase().includes(query);
+               (Array.isArray(o.area) ? o.area.join(' ') : (o.area || '')).toLowerCase().includes(query);
       });
     }
     if (list.length === 0) {
@@ -1048,12 +1123,12 @@
               </div>
               <div class="flex flex-wrap gap-3 text-xs text-slate-400 mb-2">
                 <span class="flex items-center gap-1"><i data-lucide="tag" width="11" height="11"></i>${esc(CAT[o.category]||o.category||'—')}</span>
-                <span class="flex items-center gap-1"><i data-lucide="map-pin" width="11" height="11"></i>${esc(o.area||'—')}</span>
+                <span class="flex items-center gap-1"><i data-lucide="map-pin" width="11" height="11"></i>${esc(Array.isArray(o.area) ? o.area.join('・') : (o.area||'—'))}</span>
                 <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(o.contact_email||'—')}</span>
                 <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(o.created_at)}</span>
               </div>
-              ${(o.tags||[]).length ? `<div class="flex flex-wrap gap-1 mb-2">
-                ${o.tags.map(t => `<span class="text-[10px] bg-orange-50 text-orange-500 border border-orange-100 px-2 py-0.5 rounded-full">${esc(t)}</span>`).join('')}
+              ${(Array.isArray(o.tags) ? o.tags : []).length ? `<div class="flex flex-wrap gap-1 mb-2">
+                ${(Array.isArray(o.tags) ? o.tags : []).map(t => `<span class="text-[10px] bg-orange-50 text-orange-500 border border-orange-100 px-2 py-0.5 rounded-full">${esc(t)}</span>`).join('')}
               </div>` : ''}
               <p class="text-xs text-slate-500 leading-relaxed line-clamp-2">${esc(o.activity_how||'')}</p>
             </div>
@@ -2138,6 +2213,101 @@
       showLogin();
     }
   });
+
+  // ============================================================
+  // 管理者管理
+  // ============================================================
+  function toggleNewAdminPwd() {
+    const input = document.getElementById('new-admin-password');
+    const icon  = document.getElementById('new-admin-eye');
+    if (!input || !icon) return;
+    if (input.type === 'password') {
+      input.type = 'text'; icon.setAttribute('data-lucide', 'eye-off');
+    } else {
+      input.type = 'password'; icon.setAttribute('data-lucide', 'eye');
+    }
+    lucide.createIcons();
+  }
+
+  async function handleAddAdmin(e) {
+    e.preventDefault();
+    const email    = document.getElementById('new-admin-email').value.trim();
+    const password = document.getElementById('new-admin-password').value;
+    const resultEl = document.getElementById('add-admin-result');
+    const btn      = document.getElementById('add-admin-btn');
+    resultEl.textContent = '';
+    resultEl.className   = 'text-xs text-center min-h-[1rem]';
+
+    if (!email || !password || password.length < 8) {
+      resultEl.textContent = 'メールアドレスと8文字以上のパスワードを入力してください';
+      resultEl.classList.add('text-red-500');
+      return;
+    }
+
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> 処理中...';
+
+    try {
+      const res = await fetch('/.netlify/functions/create-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      resultEl.textContent = '\u2705 ' + email + ' の管理者アカウントを作成し、招待メールを送信しました';
+      resultEl.classList.add('text-green-600');
+      document.getElementById('add-admin-form').reset();
+      showToast('管理者を追加しました');
+      loadAdmins();
+    } catch(err) {
+      resultEl.textContent = '\u274c エラー: ' + err.message;
+      resultEl.classList.add('text-red-500');
+    } finally {
+      btn.disabled  = false;
+      btn.innerHTML = '<i data-lucide="send" width="14" height="14"></i>アカウントを作成して招待メールを送信';
+      lucide.createIcons();
+    }
+  }
+
+  async function loadAdmins() {
+    const listEl = document.getElementById('admins-list');
+    if (!listEl) return;
+    try {
+      const res = await fetch('/.netlify/functions/list-admins');
+      if (!res.ok) {
+        listEl.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">\u7ba1\u7406\u8005\u4e00\u89a7\u3092\u53d6\u5f97\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f<br><span class="text-[10px]">\uff08Netlify Function\u304c\u5fc5\u8981\u3067\u3059\uff09</span></div>';
+        return;
+      }
+      const { admins } = await res.json();
+      if (!admins || admins.length === 0) {
+        listEl.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">\u7ba1\u7406\u8005\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093</div>';
+        return;
+      }
+      const items = admins.map(a => {
+        const safeEmail = esc(a.email);
+        const verified  = a.emailVerified
+          ? '\u2705 \u30e1\u30fc\u30eb\u78ba\u8a8d\u6e08\u307f'
+          : '\u26a0\ufe0f \u30e1\u30fc\u30eb\u672a\u78ba\u8a8d';
+        return [
+          '<div class="flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-xl">',
+          '  <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center shrink-0">',
+          '    <i data-lucide="shield-check" class="text-orange-500" width="14" height="14"></i>',
+          '  </div>',
+          '  <div class="flex-1 min-w-0">',
+          '    <p class="text-xs font-bold text-slate-800 truncate">' + safeEmail + '</p>',
+          '    <p class="text-[10px] text-slate-400 mt-0.5">' + verified + '</p>',
+          '  </div>',
+          '  <span class="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full shrink-0">\u7ba1\u7406\u8005</span>',
+          '</div>',
+        ].join('');
+      });
+      listEl.innerHTML = items.join('');
+      lucide.createIcons();
+    } catch(err) {
+      listEl.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">\u53d6\u5f97\u30a8\u30e9\u30fc</div>';
+    }
+  }
 
   // ============================================================
   // P-2: 本番環境で console.log を無効化（warn/error は残す）

@@ -43,6 +43,20 @@
     .menu-drag-handle { color:#94a3b8; cursor:grab; flex-shrink:0; }
     .menu-drag-handle:active { cursor:grabbing; }
     .menu-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
+    /* 活動日記リッチエディタ */
+    .diary-editor:empty:before { content: attr(placeholder); color: #94a3b8; pointer-events: none; }
+    .diary-editor h2 { font-size: 1.1rem; font-weight: 900; color: #0f172a; margin: 1rem 0 0.4rem; }
+    .diary-editor h3 { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0.8rem 0 0.3rem; }
+    .diary-editor blockquote { border-left: 3px solid #f97316; padding-left: 0.75rem; color: #64748b; margin: 0.5rem 0; font-style: italic; }
+    .diary-editor ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+    .diary-editor hr { border: none; border-top: 2px solid #e2e8f0; margin: 1rem 0; }
+    .diary-editor a { color: #f97316; text-decoration: underline; }
+    .diary-preview h2 { font-size: 1.1rem; font-weight: 900; color: #0f172a; margin: 1rem 0 0.4rem; }
+    .diary-preview h3 { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0.8rem 0 0.3rem; }
+    .diary-preview blockquote { border-left: 3px solid #f97316; padding-left: 0.75rem; color: #64748b; margin: 0.5rem 0; font-style: italic; }
+    .diary-preview ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+    .diary-preview hr { border: none; border-top: 2px solid #e2e8f0; margin: 1rem 0; }
+    .diary-preview a { color: #f97316; text-decoration: underline; }
   </style>
 </head>
 <noscript><div style="background:#ff4444;color:#fff;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999">このサイトの利用にはJavaScriptが必要です。ブラウザの設定を確認してください。</div></noscript>
@@ -276,7 +290,13 @@
                   <p class="text-[10px] text-slate-400 mt-1">Enterキーで追加。×で個別削除できます。</p>
                 </div>
                 <div>
-                  <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介 <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]">📄 テンプレートはこちら</a></label>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <label for="f-activity-how" class="text-xs font-bold text-slate-600">活動内容・現状</label>
+                    <button type="button" onclick="fillProfileTemplate()"
+                      class="text-[11px] text-orange-500 hover:text-orange-600 underline underline-offset-2 font-bold flex items-center gap-1 transition-colors">
+                      <i data-lucide="clipboard-paste" width="12" height="12"></i>テンプレートを使う
+                    </button>
+                  </div>
                   <textarea id="f-activity-how" rows="5" maxlength="2000"
                     oninput="markUnsaved(); document.getElementById('profile-char-counter').textContent=this.value.length"
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
@@ -399,12 +419,58 @@
                       placeholder="例: 秋季大会に参加しました！">
                   </div>
                   <div>
-                    <label for="df-content" class="block text-xs font-bold text-slate-600 mb-1.5">本文 <span class="text-red-400">*</span></label>
-                    <textarea id="df-content" rows="8" required maxlength="5000"
-                      oninput="document.getElementById('df-content-counter').textContent=this.value.length"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
-                      placeholder="活動の内容を詳しく記入してください..."></textarea>
-                    <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="df-content-counter">0</span>/5000</p>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">本文 <span class="text-red-400">*</span></label>
+                    <!-- Note風リッチエディタ -->
+                    <div class="rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 overflow-hidden transition-all bg-white">
+                      <!-- ツールバー -->
+                      <div class="flex items-center gap-0.5 px-2 py-1.5 border-b border-slate-100 bg-slate-50 flex-wrap">
+                        <button type="button" onclick="diaryFmt('h2')" title="見出し（大）"
+                          class="diary-tool-btn w-7 h-7 rounded-md text-xs font-black text-slate-600 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors">H1</button>
+                        <button type="button" onclick="diaryFmt('h3')" title="見出し（小）"
+                          class="diary-tool-btn w-7 h-7 rounded-md text-xs font-black text-slate-600 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors">H2</button>
+                        <div class="w-px h-4 bg-slate-200 mx-1"></div>
+                        <button type="button" onclick="diaryFmt('bold')" title="太字 (Ctrl+B)"
+                          class="diary-tool-btn w-7 h-7 rounded-md text-slate-600 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors">
+                          <b class="text-xs">B</b></button>
+                        <button type="button" onclick="diaryFmt('italic')" title="斜体 (Ctrl+I)"
+                          class="diary-tool-btn w-7 h-7 rounded-md text-slate-600 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors">
+                          <i class="text-xs">I</i></button>
+                        <div class="w-px h-4 bg-slate-200 mx-1"></div>
+                        <button type="button" onclick="diaryFmt('ul')" title="箇条書き"
+                          class="diary-tool-btn w-7 h-7 rounded-md text-slate-600 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors text-xs">≡</button>
+                        <button type="button" onclick="diaryFmt('quote')" title="引用"
+                          class="diary-tool-btn w-7 h-7 rounded-md text-slate-600 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors text-sm">"</button>
+                        <button type="button" onclick="diaryFmt('hr')" title="区切り線"
+                          class="diary-tool-btn w-7 h-7 rounded-md text-slate-600 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors text-xs">—</button>
+                        <div class="w-px h-4 bg-slate-200 mx-1"></div>
+                        <button type="button" onclick="diaryInsertLink()" title="リンク"
+                          class="diary-tool-btn w-7 h-7 rounded-md text-slate-600 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors">
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                        </button>
+                        <div class="ml-auto flex items-center gap-1.5">
+                          <button type="button" id="diary-preview-btn" onclick="toggleDiaryPreview()"
+                            class="text-[11px] px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-orange-300 text-slate-500 hover:text-orange-600 font-bold transition-all flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            プレビュー
+                          </button>
+                        </div>
+                      </div>
+                      <!-- エディタ本体 -->
+                      <div id="df-editor"
+                        contenteditable="true"
+                        class="min-h-[180px] max-h-[400px] overflow-y-auto px-4 py-3 text-sm text-slate-700 leading-relaxed outline-none diary-editor"
+                        oninput="onDiaryEditorInput()"
+                        onkeydown="handleDiaryEditorKeydown(event)"
+                        placeholder="活動の内容を詳しく記入してください..."></div>
+                      <!-- プレビュー -->
+                      <div id="df-preview" class="hidden min-h-[180px] max-h-[400px] overflow-y-auto px-4 py-3 text-sm text-slate-700 leading-relaxed diary-preview"></div>
+                      <!-- 隠しtextarea (フォーム送信用) -->
+                      <textarea id="df-content" name="content" class="hidden" maxlength="10000"></textarea>
+                      <div class="flex items-center justify-between px-3 py-1.5 border-t border-slate-100 bg-slate-50">
+                        <span class="text-[10px] text-slate-400">Ctrl+B 太字 / Ctrl+I 斜体</span>
+                        <span class="text-[10px] text-slate-400"><span id="df-content-counter">0</span>/3000文字</span>
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">画像（任意）</label>
@@ -1263,7 +1329,7 @@
             class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-all">
             <i data-lucide="pencil" width="12" height="12"></i>編集
           </button>
-          <button onclick="toggleMenuStatus('${esc(m.id)}','${m.status}')"
+          <button onclick="toggleMenuStatus('${esc(m.id)}','${esc(m.status)}')"
             class="flex items-center gap-1 px-3 py-1.5 ${m.status === 'public' ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-green-50 hover:bg-green-100 text-green-700'} text-xs font-bold rounded-lg transition-all">
             <i data-lucide="${m.status === 'public' ? 'eye-off' : 'eye'}" width="12" height="12"></i>
             ${m.status === 'public' ? '非公開にする' : '公開する'}
@@ -1528,6 +1594,14 @@
     document.getElementById('df-id').value = '';
     document.getElementById('df-content-counter').textContent = '0';
     document.getElementById('diary-img-preview').classList.add('hidden');
+    const editor = document.getElementById('df-editor');
+    if (editor) editor.innerHTML = '';
+    const hidden = document.getElementById('df-content');
+    if (hidden) hidden.value = '';
+    _diaryPreviewMode = false;
+    const preview = document.getElementById('df-preview');
+    if (preview) preview.classList.add('hidden');
+    if (editor) editor.classList.remove('hidden');
     const wrap = document.getElementById('diary-form-wrap');
     wrap.classList.toggle('hidden');
     if (!wrap.classList.contains('hidden')) wrap.scrollIntoView({ behavior:'smooth', block:'start' });
@@ -1537,6 +1611,73 @@
   function cancelDiaryForm() {
     document.getElementById('diary-form-wrap').classList.add('hidden');
     editingDiaryId = null;
+  }
+
+  // ========================================================
+  // 活動日記リッチエディタ
+  // ========================================================
+  let _diaryPreviewMode = false;
+
+  function onDiaryEditorInput() {
+    const editor = document.getElementById('df-editor');
+    const hidden = document.getElementById('df-content');
+    const counter = document.getElementById('df-content-counter');
+    if (hidden) hidden.value = editor.innerHTML;
+    if (counter) counter.textContent = editor.innerText.length;
+  }
+
+  function diaryFmt(cmd) {
+    const editor = document.getElementById('df-editor');
+    editor.focus();
+    if (cmd === 'h2') {
+      document.execCommand('formatBlock', false, 'h2');
+    } else if (cmd === 'h3') {
+      document.execCommand('formatBlock', false, 'h3');
+    } else if (cmd === 'bold') {
+      document.execCommand('bold', false, null);
+    } else if (cmd === 'italic') {
+      document.execCommand('italic', false, null);
+    } else if (cmd === 'ul') {
+      document.execCommand('insertUnorderedList', false, null);
+    } else if (cmd === 'quote') {
+      document.execCommand('formatBlock', false, 'blockquote');
+    } else if (cmd === 'hr') {
+      document.execCommand('insertHorizontalRule', false, null);
+    }
+    onDiaryEditorInput();
+  }
+
+  function diaryInsertLink() {
+    const url = prompt('リンクURLを入力してください:', 'https://');
+    if (!url || !/^https?:\/\//.test(url)) return;
+    const editor = document.getElementById('df-editor');
+    editor.focus();
+    document.execCommand('createLink', false, url);
+    onDiaryEditorInput();
+  }
+
+  function handleDiaryEditorKeydown(e) {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'b') { e.preventDefault(); diaryFmt('bold'); }
+      if (e.key === 'i') { e.preventDefault(); diaryFmt('italic'); }
+    }
+  }
+
+  function toggleDiaryPreview() {
+    _diaryPreviewMode = !_diaryPreviewMode;
+    const editor = document.getElementById('df-editor');
+    const preview = document.getElementById('df-preview');
+    const btn = document.getElementById('diary-preview-btn');
+    if (_diaryPreviewMode) {
+      preview.innerHTML = editor.innerHTML;
+      editor.classList.add('hidden');
+      preview.classList.remove('hidden');
+      btn.textContent = '編集に戻る';
+    } else {
+      editor.classList.remove('hidden');
+      preview.classList.add('hidden');
+      btn.textContent = 'プレビュー';
+    }
   }
 
   function editDiary(postId) {
@@ -1549,6 +1690,11 @@
     document.getElementById('df-content').value               = postData.content   || '';
     document.getElementById('df-image-url').value             = postData.image_url || '';
     document.getElementById('df-content-counter').textContent = (postData.content || '').length;
+    // リッチエディタにも反映
+    const editorEl = document.getElementById('df-editor');
+    if (editorEl) {
+      editorEl.innerHTML = postData.content || '';
+    }
     if (postData.image_url) previewDiaryImage(postData.image_url);
     const wrap = document.getElementById('diary-form-wrap');
     wrap.classList.remove('hidden');
@@ -1729,6 +1875,37 @@
   // P-2: 本番環境で console.log を無効化
   if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
     console.log = () => {};
+  }
+
+  // ========================================================
+  // プロフィール活動内容テンプレート自動挿入
+  // ========================================================
+  function fillProfileTemplate() {
+    const ta = document.getElementById('f-activity-how');
+    if (!ta) return;
+    const template = `◆ 団体の概要
+（設立年・代表者・会員数・活動場所など基本情報を記入してください）
+例：2010年設立。現在メンバー30名（小学生〜中学生）。毎週土日に○○公園で活動中。
+
+◆ 活動内容
+（どのような活動をしているか具体的に記入してください）
+例：地域の小学生を対象にサッカー教室を開催。年に2回、市内大会にも参加しています。
+
+◆ 現在の課題
+（どんな困りごとや課題があるか記入してください）
+例：練習用具の老朽化が進んでおり、新しい装備の調達が難しい状況です。
+
+◆ 求める支援内容
+（どのような支援があれば助かるか具体的に記入してください）
+例：練習用ボール・ビブスの提供、または費用の一部ご支援をいただけると大変助かります。`;
+
+    if (ta.value.trim() !== '' && !confirm('現在の入力内容をテンプレートで上書きしますか？')) return;
+    ta.value = template;
+    const counter = document.getElementById('profile-char-counter');
+    if (counter) counter.textContent = template.length;
+    markUnsaved();
+    ta.focus();
+    ta.dispatchEvent(new Event('input'));
   }
   </script>
 </body>

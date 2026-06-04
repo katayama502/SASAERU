@@ -263,6 +263,91 @@ function buildMailOptions(type, rawParams) {
         ].filter(l => l !== null).join('\n'),
       };
 
+    case 'admin_invite': {
+      requireFields(p, ['toEmail', 'adminUrl', 'tempPassword']);
+      requireEmail(p, 'toEmail');
+      return {
+        from,
+        to: p.toEmail,
+        subject: '【SASAERU】管理者アカウントへのご招待',
+        text: [
+          'SASAERU管理ダッシュボードへのアクセス権が付与されました。',
+          '',
+          '以下の情報でログインしてください：',
+          `ログインURL: ${p.adminUrl}`,
+          `メールアドレス: ${p.toEmail}`,
+          `仮パスワード: ${p.tempPassword}`,
+          '',
+          p.resetLink && p.resetLink !== p.adminUrl
+            ? `または、以下のリンクからパスワードを設定することもできます：\n${p.resetLink}`
+            : '',
+          '',
+          '【重要】初回ログイン後は必ずパスワードを変更してください。',
+          'このメールに心当たりがない場合は、送信元にご連絡ください。',
+          '',
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+          'SASAERU 運営事務局',
+        ].filter(Boolean).join('\n'),
+        html: `
+          <div style="font-family:'Noto Sans JP',sans-serif;max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+            <div style="background:linear-gradient(135deg,#f97316,#ea580c);padding:32px 40px;text-align:center">
+              <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 20px">
+                <span style="font-size:20px">♥</span>
+                <span style="color:#fff;font-size:20px;font-weight:900;letter-spacing:0.5px">SASAERU</span>
+              </div>
+            </div>
+            <div style="padding:40px">
+              <h1 style="font-size:20px;font-weight:900;color:#0f172a;margin:0 0 8px">管理者アカウントへのご招待</h1>
+              <p style="color:#64748b;font-size:14px;margin:0 0 28px">SASAERU管理ダッシュボードへのアクセス権が付与されました。</p>
+
+              <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:20px;margin-bottom:24px">
+                <p style="font-size:12px;font-weight:700;color:#9a3412;margin:0 0 12px;text-transform:uppercase;letter-spacing:0.5px">ログイン情報</p>
+                <table style="width:100%;border-collapse:collapse">
+                  <tr>
+                    <td style="font-size:12px;color:#64748b;padding:4px 0;white-space:nowrap;width:120px">ログインURL</td>
+                    <td style="font-size:12px;color:#0f172a;font-weight:700;padding:4px 0">
+                      <a href="${p.adminUrl}" style="color:#f97316;text-decoration:none">${p.adminUrl}</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:12px;color:#64748b;padding:4px 0">メールアドレス</td>
+                    <td style="font-size:12px;color:#0f172a;font-weight:700;padding:4px 0">${p.toEmail}</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:12px;color:#64748b;padding:4px 0">仮パスワード</td>
+                    <td style="font-size:14px;color:#0f172a;font-weight:900;padding:4px 0;letter-spacing:1px">${p.tempPassword}</td>
+                  </tr>
+                </table>
+              </div>
+
+              ${p.resetLink && p.resetLink !== p.adminUrl ? `
+              <div style="text-align:center;margin-bottom:24px">
+                <a href="${p.resetLink}" style="display:inline-block;background:#f97316;color:#fff;font-weight:700;font-size:14px;padding:14px 32px;border-radius:12px;text-decoration:none">
+                  パスワードを設定してログイン →
+                </a>
+              </div>` : `
+              <div style="text-align:center;margin-bottom:24px">
+                <a href="${p.adminUrl}" style="display:inline-block;background:#f97316;color:#fff;font-weight:700;font-size:14px;padding:14px 32px;border-radius:12px;text-decoration:none">
+                  管理ダッシュボードへログイン →
+                </a>
+              </div>`}
+
+              <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;padding:16px;margin-bottom:24px">
+                <p style="font-size:12px;color:#dc2626;font-weight:700;margin:0 0 6px">⚠️ 重要</p>
+                <p style="font-size:12px;color:#7f1d1d;margin:0;line-height:1.6">
+                  初回ログイン後は必ずパスワードを変更してください。<br>
+                  このメールに心当たりがない場合は、送信元にご連絡ください。
+                </p>
+              </div>
+
+              <p style="font-size:11px;color:#94a3b8;text-align:center;margin:0">
+                SASAERU 運営事務局 ｜ このメールは自動送信されています
+              </p>
+            </div>
+          </div>`,
+      };
+    }
+
     default:
       throw clientError('Unknown email type');
   }
