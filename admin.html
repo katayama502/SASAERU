@@ -404,13 +404,19 @@
                 <div class="flex-1">
                   <label for="admin-target-email" class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス</label>
                   <input type="email" id="admin-target-email" maxlength="254"
-                    placeholder="追加するユーザーのメールアドレス"
+                    placeholder="招待するユーザーのメールアドレス"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
+                </div>
+                <div class="flex-1">
+                  <label for="admin-temp-password" class="block text-xs font-bold text-slate-600 mb-1.5">仮パスワード</label>
+                  <input type="password" id="admin-temp-password" maxlength="200"
+                    placeholder="8文字以上"
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
                 </div>
                 <div class="flex items-end gap-2">
-                  <button onclick="grantAdminRole()"
-                    class="flex items-center gap-1.5 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-sm">
-                    <i data-lucide="shield-check" width="13" height="13"></i>管理者権限を付与
+                  <button onclick="inviteAdmin()"
+                    class="flex items-center gap-1.5 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-sm whitespace-nowrap">
+                    <i data-lucide="user-plus" width="13" height="13"></i>管理者として招待
                   </button>
                 </div>
               </div>
@@ -1748,57 +1754,56 @@
     } catch(e) { el.innerHTML = errMsg(e); }
   }
 
-  async function grantAdminRole() {
-    const emailInput = document.getElementById('admin-target-email');
-    const msgEl      = document.getElementById('admin-action-msg');
-    const email      = (emailInput.value || '').trim();
+  async function inviteAdmin() {
+    const emailInput    = document.getElementById('admin-target-email');
+    const passwordInput = document.getElementById('admin-temp-password');
+    const msgEl         = document.getElementById('admin-action-msg');
+    const email         = (emailInput.value || '').trim();
+    const password      = passwordInput.value;
     msgEl.textContent = '';
-    msgEl.className  = 'text-xs mt-2 min-h-[1rem]';
+    msgEl.className   = 'text-xs mt-2 min-h-[1rem]';
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       msgEl.textContent = 'メールアドレスを正しく入力してください';
       msgEl.classList.add('text-red-500');
       return;
     }
+    if (!password || password.length < 8) {
+      msgEl.textContent = '仮パスワードは8文字以上で入力してください';
+      msgEl.classList.add('text-red-500');
+      return;
+    }
     if (!auth || !db) { msgEl.textContent = 'Firebase未設定です'; msgEl.classList.add('text-red-500'); return; }
 
-    showConfirm(
-      `「${email}」に管理者権限を付与しますか？`,
-      'このユーザーはダッシュボードに完全アクセスできるようになります。',
-      '付与する', 'bg-orange-500 hover:bg-orange-600',
-      async () => {
-        try {
-          const user    = auth.currentUser;
-          const idToken = await user.getIdToken(true);
-          const res = await fetch('/.netlify/functions/set-admin-claim', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-            body: JSON.stringify({ targetEmail: email, action: 'add' }),
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            const msg = data.error === 'user-not-found' ? 'ユーザーが見つかりません' : (data.error || '付与に失敗しました');
-            msgEl.textContent = msg;
-            msgEl.classList.add('text-red-500');
-            return;
-          }
-          await db.collection('admins').doc(data.uid).set({
-            uid:      data.uid,
-            email:    email,
-            added_by: user.email || user.uid,
-            added_at: firebase.firestore.FieldValue.serverTimestamp(),
-          });
-          emailInput.value  = '';
-          msgEl.textContent = email + ' に管理者権限を付与しました';
-          msgEl.classList.add('text-green-600');
-          showToast('管理者権限を付与しました');
-          loadAdmins();
-        } catch(e) {
-          msgEl.textContent = 'エラー: ' + e.message;
-          msgEl.classList.add('text-red-500');
-        }
+    try {
+      const user    = auth.currentUser;
+      const idToken = await user.getIdToken(true);
+      const res = await fetch('/.netlify/functions/invite-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body: JSON.stringify({ targetEmail: email, tempPassword: password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const errMsgs = {
+          'user-already-exists': 'このメールアドレスはすでに登録されています',
+          'invalid-email':       'メールアドレスの形式が正しくありません',
+          'weak-password':       'パスワードが弱すぎます（8文字以上にしてください）',
+        };
+        msgEl.textContent = errMsgs[data.error] || (data.error ? `エラー: ${data.error}` : '招待に失敗しました');
+        msgEl.classList.add('text-red-500');
+        return;
       }
-    );
+      emailInput.value    = '';
+      passwordInput.value = '';
+      msgEl.textContent   = `${email} に招待メールを送信しました`;
+      msgEl.classList.add('text-green-600');
+      showToast('招待メールを送信しました');
+      loadAdmins();
+    } catch(e) {
+      msgEl.textContent = 'エラー: ' + e.message;
+      msgEl.classList.add('text-red-500');
+    }
   }
 
   function revokeAdminRole(docId, email, uid) {

@@ -11,6 +11,8 @@
     tailwind.config = { theme: { extend: { colors: { brand: { DEFAULT: '#f97316', dark: '#ea580c' } } } } }
   </script>
   <script src="https://unpkg.com/lucide@0.344.0"></script>
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -43,6 +45,21 @@
     .menu-drag-handle { color:#94a3b8; cursor:grab; flex-shrink:0; }
     .menu-drag-handle:active { cursor:grabbing; }
     .menu-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
+    /* ===== Quill Rich Editor (活動日記) ===== */
+    #post-editor { min-height:300px; font-family:'Noto Sans JP',sans-serif; font-size:14px; overflow-y:auto; }
+    .ql-toolbar.ql-snow { border-color:#e2e8f0 !important; border-radius:0.75rem 0.75rem 0 0; background:#f8fafc; }
+    .ql-container.ql-snow { border-color:#e2e8f0 !important; border-radius:0 0 0.75rem 0.75rem; font-family:'Noto Sans JP',sans-serif; }
+    .ql-container.ql-snow:focus-within { box-shadow:0 0 0 2px #fb923c; border-color:#fb923c !important; }
+    .ql-toolbar.ql-snow + .ql-container.ql-snow:focus-within { border-top-color:#fb923c !important; }
+    .ql-snow .ql-picker { color:#475569; }
+    .ql-snow .ql-stroke { stroke:#475569; }
+    .ql-snow .ql-fill { fill:#475569; }
+    .ql-snow.ql-toolbar button:hover .ql-stroke,
+    .ql-snow .ql-toolbar button:hover .ql-stroke { stroke:#f97316; }
+    .ql-snow.ql-toolbar button:hover .ql-fill,
+    .ql-snow .ql-toolbar button:hover .ql-fill { fill:#f97316; }
+    .ql-snow .ql-editor { min-height:300px; padding:12px 16px; line-height:1.75; }
+    .ql-snow .ql-editor.ql-blank::before { color:#94a3b8; font-style:normal; }
   </style>
 </head>
 <noscript><div style="background:#ff4444;color:#fff;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999">このサイトの利用にはJavaScriptが必要です。ブラウザの設定を確認してください。</div></noscript>
@@ -276,7 +293,7 @@
                   <p class="text-[10px] text-slate-400 mt-1">Enterキーで追加。×で個別削除できます。</p>
                 </div>
                 <div>
-                  <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介 <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]">📄 テンプレートはこちら</a></label>
+                  <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介 <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" onclick="applyClubIntroTemplate(event)" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]">📄 テンプレートはこちら</a></label>
                   <textarea id="f-activity-how" rows="5" maxlength="2000"
                     oninput="markUnsaved(); document.getElementById('profile-char-counter').textContent=this.value.length"
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
@@ -399,12 +416,11 @@
                       placeholder="例: 秋季大会に参加しました！">
                   </div>
                   <div>
-                    <label for="df-content" class="block text-xs font-bold text-slate-600 mb-1.5">本文 <span class="text-red-400">*</span></label>
-                    <textarea id="df-content" rows="8" required maxlength="5000"
-                      oninput="document.getElementById('df-content-counter').textContent=this.value.length"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
-                      placeholder="活動の内容を詳しく記入してください..."></textarea>
-                    <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="df-content-counter">0</span>/5000</p>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">本文 <span class="text-red-400">*</span></label>
+                    <div id="post-editor" class="border border-slate-200 rounded-xl"></div>
+                    <input type="hidden" id="post-content-html">
+                    <input type="hidden" id="df-content">
+                    <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="df-content-counter">0</span>/10000</p>
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">画像（任意）</label>
@@ -1504,7 +1520,7 @@
         <div class="p-5">
           <p class="text-[10px] text-slate-400 font-bold mb-1.5">${fmtDate(p.created_at)}</p>
           <h3 class="text-sm font-black text-slate-900 mb-2">${esc(p.title)}</h3>
-          <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${esc(p.content)}</p>
+          <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${esc(htmlToPlainText(p.content).slice(0,100))}</p>
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
           <button onclick="editDiary('${esc(p.id)}')"
@@ -1527,28 +1543,44 @@
     document.getElementById('diary-form').reset();
     document.getElementById('df-id').value = '';
     document.getElementById('df-content-counter').textContent = '0';
+    document.getElementById('post-content-html').value = '';
+    if (quillEditor) quillEditor.setContents([]);
     document.getElementById('diary-img-preview').classList.add('hidden');
     const wrap = document.getElementById('diary-form-wrap');
     wrap.classList.toggle('hidden');
-    if (!wrap.classList.contains('hidden')) wrap.scrollIntoView({ behavior:'smooth', block:'start' });
+    if (!wrap.classList.contains('hidden')) {
+      wrap.scrollIntoView({ behavior:'smooth', block:'start' });
+      // Quill初期化（まだ未初期化の場合）
+      if (!quillEditor) initQuillEditor();
+    }
     lucide.createIcons();
   }
 
   function cancelDiaryForm() {
     document.getElementById('diary-form-wrap').classList.add('hidden');
     editingDiaryId = null;
+    if (quillEditor) quillEditor.setContents([]);
+    document.getElementById('post-content-html').value = '';
+    document.getElementById('df-content-counter').textContent = '0';
   }
 
   function editDiary(postId) {
     const postData = _diaryCache.get(postId);
     if (!postData) return;
     editingDiaryId = postData.id;
-    document.getElementById('diary-form-title').textContent    = '投稿を編集';
-    document.getElementById('df-id').value                    = postData.id;
-    document.getElementById('df-title').value                 = postData.title     || '';
-    document.getElementById('df-content').value               = postData.content   || '';
-    document.getElementById('df-image-url').value             = postData.image_url || '';
-    document.getElementById('df-content-counter').textContent = (postData.content || '').length;
+    document.getElementById('diary-form-title').textContent = '投稿を編集';
+    document.getElementById('df-id').value                  = postData.id;
+    document.getElementById('df-title').value               = postData.title     || '';
+    document.getElementById('df-image-url').value           = postData.image_url || '';
+    // Quill初期化（まだ未初期化の場合）
+    if (!quillEditor) initQuillEditor();
+    if (quillEditor) {
+      const raw = postData.content || '';
+      // HTMLコンテンツをQuillにロード
+      quillEditor.clipboard.dangerouslyPasteHTML(raw);
+      const plainLen = htmlToPlainText(raw).length;
+      document.getElementById('df-content-counter').textContent = plainLen;
+    }
     if (postData.image_url) previewDiaryImage(postData.image_url);
     const wrap = document.getElementById('diary-form-wrap');
     wrap.classList.remove('hidden');
@@ -1561,9 +1593,21 @@
     if (!db) { showToast('Firebase未接続のため保存できません', false); return; }
     const btn = document.getElementById('diary-save-btn');
     btn.disabled = true; btn.textContent = '送信中...';
+    // Quill コンテンツをチェック
+    const rawHtml = quillEditor ? quillEditor.root.innerHTML : '';
+    const plainText = htmlToPlainText(rawHtml);
+    if (!plainText.trim()) {
+      showToast('本文を入力してください', false);
+      btn.disabled = false; btn.innerHTML = '<i data-lucide="send" width="14" height="14"></i> 投稿する'; lucide.createIcons(); return;
+    }
+    if (plainText.length > 10000) {
+      showToast('本文は10,000文字以内にしてください', false);
+      btn.disabled = false; btn.innerHTML = '<i data-lucide="send" width="14" height="14"></i> 投稿する'; lucide.createIcons(); return;
+    }
+    document.getElementById('post-content-html').value = rawHtml;
     const data = {
       title:     document.getElementById('df-title').value.trim(),
-      content:   document.getElementById('df-content').value.trim(),
+      content:   rawHtml,
       image_url: document.getElementById('df-image-url').value.trim() || null,
     };
     try {
@@ -1699,6 +1743,106 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
   });
+
+  // ============================================================
+  // クラブ紹介テンプレート（Task1）
+  // ============================================================
+  const CLUB_INTRO_TEMPLATE = `みなさんこんにちは！
+
+SASAERUの運営会社である一般社団法人しまね創生ラボの藤田です。
+
+この度はクラブ登録をご検討いただきありがとうございます。
+
+この登録をきっかけにみなさんのクラブを応援してくれる個人や団体、企業が増えていくことを願っております。
+
+私は、子どもたちの体験を大人が守っていく地域を、国や自治体に頼り過ぎるのではなく、自分たちで支える社会を作っていきたい。
+
+子どもたちが将来、「島根に生まれて良かった」と心から思える社会を一緒に創っていきましょう！
+
+一般社団法人しまね創生ラボ
+代表理事 藤田優太朗
+
+---
+
+【地域クラブ紹介】構成テンプレート
+
+こちらに企業登録時に使用できるテンプレートをご用意しております。
+
+具体例なども記載しておりますので、参考になさってください。
+
+1. キャッチコピー
+一言で伝えるクラブの魅力：（例：〇〇を通じて、地域の笑顔をつなぐ）
+
+2. 私たちの想い（ビジョン）
+- 活動の目的・きっかけ：（なぜこの活動をしているのか、地域のどんな課題を解決したいのか）
+- 目指す未来：（この活動の先に、地域をどう良くしていきたいか）
+
+3. 活動内容
+- 具体的な取り組み：（誰に、いつ、どこで、何を、どんな風に提供しているか）
+- 対象・規模：（参加者の年齢層や、現在のメンバー数など）
+
+4. 地域の声・実績
+これまでの成果：（参加者、保護者、地域住民からのポジティブな反響やエピソード）
+
+5. 応援・協賛のお願い
+- 募集している支援：（寄付、物品、ボランティア、企業パートナーシップなど）
+- 共に創る価値：（応援してくれる企業・個人と一緒にどんな地域貢献ができるか）
+
+6. クラブ概要
+基本情報：（代表者名、活動拠点、連絡先、HP・SNSリンク）`;
+
+  function applyClubIntroTemplate(event) {
+    event.preventDefault();
+    const ta = document.getElementById('f-activity-how');
+    if (!ta) return;
+    if (ta.value.trim()) {
+      if (!confirm('現在の内容をテンプレートで上書きしますか？')) return;
+    }
+    ta.value = CLUB_INTRO_TEMPLATE;
+    ta.dispatchEvent(new Event('input'));
+  }
+
+  // ============================================================
+  // HTMLユーティリティ（Task2/3）
+  // ============================================================
+  function htmlToPlainText(html) {
+    if (!html) return '';
+    const tmp = document.createElement('div');
+    tmp.textContent = html; // set as text first for safety check
+    // Use textContent approach via a detached DOM element
+    const div = document.createElement('div');
+    div.innerHTML = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<\/h[1-6]>/gi, '\n');
+    return (div.textContent || div.innerText || '').trim();
+  }
+
+  // ============================================================
+  // Quill リッチエディタ（Task2）
+  // ============================================================
+  let quillEditor = null;
+
+  function initQuillEditor() {
+    if (quillEditor) return;
+    if (typeof Quill === 'undefined') { console.warn('Quill not loaded'); return; }
+    quillEditor = new Quill('#post-editor', {
+      theme: 'snow',
+      placeholder: '活動の内容を詳しく記入してください...',
+      modules: {
+        toolbar: [
+          [{ header: [2, 3, false] }],
+          ['bold', 'italic', 'underline'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['link', 'image'],
+          ['blockquote', 'code-block'],
+          [{ 'color': [] }],
+          ['clean'],
+        ],
+      },
+    });
+    quillEditor.on('text-change', () => {
+      const plain = htmlToPlainText(quillEditor.root.innerHTML);
+      document.getElementById('df-content-counter').textContent = plain.length;
+    });
+  }
 
   // ============================================================
   // 初期化

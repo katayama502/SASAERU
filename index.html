@@ -675,7 +675,7 @@
           <p class="text-[10px] text-slate-400 mt-1.5">クリックで選択・解除できます。</p>
         </div>
         <div>
-          <label for="reg-activity" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介（テンプレートはこちら） <span class="text-red-500">*</span> <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]">📄 テンプレートはこちら</a></label>
+          <label for="reg-activity" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介（テンプレートはこちら） <span class="text-red-500">*</span> <a id="template-link" href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]" onclick="applyClubIntroTemplate(event)">📄 テンプレートはこちら</a></label>
           <textarea id="reg-activity" name="activity_how" rows="4" required maxlength="2000"
             placeholder="クラブの活動内容、現在直面している課題、必要な支援内容などをご記入ください。"
             oninput="updateCounter(this,'reg-activity-counter',2000)"
@@ -754,6 +754,64 @@
   </button>
 
   <script>
+  // ===================================================
+  // クラブ紹介テンプレート
+  // ===================================================
+  const CLUB_INTRO_TEMPLATE = `【地域クラブ紹介】構成テンプレート
+
+1. キャッチコピー
+一言で伝えるクラブの魅力
+
+2. 私たちの想い（ビジョン）
+活動の目的・きっかけ、目指す未来
+
+3. 活動内容
+具体的な取り組み、対象・規模
+
+4. 地域の声・実績
+これまでの成果
+
+5. 応援・協賛のお願い
+募集している支援、共に創る価値
+
+6. クラブ概要
+基本情報
+
+---
+【記載例①：スポーツクラブ】
+キャッチコピー：「サッカーを通じて、地域に愛され、自立して輝く子どもたちを育てる」
+ビジョン：単なる技術向上だけでなく、スポーツを通じた人間形成を重視。子どもたちが安全に活動できる居場所を提供。
+活動内容：毎週土日、小学校グラウンドで約50名を対象に活動。月1回の地域清掃ボランティアも実施。
+地域の声：保護者から「引っ込み思案だった子が挨拶できるようになり、学校で友達が増えた」との報告あり。
+応援・協賛のお願い：遠征費や練習用具、ビブスへの企業ロゴ掲載パートナーを募集。
+
+【記載例②：文化・音楽教室】
+キャッチコピー：「音でつながる、心が高鳴る。誰もが主役になれる地域の音楽コミュニティ」
+ビジョン：経済的理由で音楽を始められない子どもやシニア層を対象に、芸術に気軽に触れられる環境を構築。
+活動内容：毎週水・金に公民館で約30名が在籍。年2回、福祉施設などで街かどコンサートを開催。
+地域の声：シニア参加者から「ここで生きがいを感じている」との声。
+応援・協賛のお願い：眠っている楽器の寄付や発表会の会場費サポートを募集。
+
+【記載例③：子ども食堂（福祉）】
+キャッチコピー：「お腹も心も満たされる、子どもたちのサードプレイス」
+ビジョン：共働き世帯の増加や孤立化に対応し、温かい食事と大人の見守りを提供。地域全体での子育てを実現。
+活動内容：毎月第2・4水曜日に約40食の手作りご飯と学習サポートを提供。対象は幼児から中学生。
+地域の声：保護者から「安心して利用でき、食事も喜んでいる」との感謝の声。
+応援・協賛のお願い：食材提供、運営費寄付、調理ボランティアを募集。企業CSR活動としての協力も歓迎。`;
+
+  function applyClubIntroTemplate(event) {
+    event.preventDefault();
+    const ta = document.getElementById('reg-activity');
+    if (!ta) return;
+    if (ta.value.trim() !== '') {
+      if (!confirm('テンプレートで現在の入力内容を上書きしますか？')) return;
+    }
+    ta.value = CLUB_INTRO_TEMPLATE;
+    updateCounter(ta, 'reg-activity-counter', 2000);
+    ta.focus();
+    showToast('テンプレートを挿入しました。内容を参考に編集してください。');
+  }
+
   // ===================================================
   // Firebase 設定
   // ===================================================
