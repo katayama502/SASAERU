@@ -1981,7 +1981,7 @@
       }
       if (o.activity_how) {
         const actDiv = document.createElement('div');
-        actDiv.innerHTML = '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">活動内容</p>';
+        actDiv.innerHTML = '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">クラブ紹介 <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline normal-case font-normal">📄 テンプレート</a></p>';
         const p = document.createElement('p'); p.className = 'text-xs text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-3'; p.textContent = o.activity_how;
         actDiv.appendChild(p); card.appendChild(actDiv);
       }
