@@ -1723,17 +1723,23 @@
   // ============================================================
   async function loadAdmins() {
     const el = document.getElementById('admins-list');
-    if (!db) { el.innerHTML = demoMsg(); return; }
     try {
-      // Custom Claim が最新であることを保証するためトークンを強制リフレッシュ
-      if (auth && auth.currentUser) await auth.currentUser.getIdToken(true);
-      const snap = await db.collection('admins').orderBy('added_at', 'desc').get();
-      if (snap.empty) {
+      // Netlify Function (Firebase Admin SDK) 経由で取得 — Firestoreルールをバイパス
+      const idToken = await auth.currentUser.getIdToken(true);
+      const res = await fetch('/.netlify/functions/list-admins', {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + idToken },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const admins = data.admins || [];
+      if (admins.length === 0) {
         el.innerHTML = '<div class="px-6 py-6 text-xs text-slate-400 text-center">管理者情報がまだ登録されていません</div>';
         return;
       }
-      el.innerHTML = snap.docs.map(d => {
-        const a = d.data();
+      el.innerHTML = admins.map(a => {
+        const addedAt = a.added_at ? new Date(a.added_at) : null;
+        const dateStr = addedAt ? addedAt.toLocaleDateString('ja-JP') : '—';
         return `
           <div class="px-6 py-4 flex items-center gap-4">
             <div class="w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center shrink-0">
@@ -1741,9 +1747,9 @@
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-bold text-slate-900 truncate">${esc(a.email||'—')}</p>
-              <p class="text-xs text-slate-400 mt-0.5">追加者: ${esc(a.added_by||'—')} · ${fmtDate(a.added_at)}</p>
+              <p class="text-xs text-slate-400 mt-0.5">追加者: ${esc(a.added_by||'—')} · ${dateStr}</p>
             </div>
-            <button data-doc="${esc(d.id)}" data-email="${esc(a.email||'')}" data-uid="${esc(a.uid||'')}"
+            <button data-doc="${esc(a.id)}" data-email="${esc(a.email||'')}" data-uid="${esc(a.uid||'')}"
               onclick="revokeAdminRole(this.dataset.doc, this.dataset.email, this.dataset.uid)"
               class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all shrink-0">
               <i data-lucide="shield-off" width="12" height="12"></i>権限削除
