@@ -2025,25 +2025,54 @@
     if (_selectedOrgId === orgId) loadOrgDetail(orgId);
   }
 
+  function getOrgDrawerElements() {
+    return {
+      overlay: document.getElementById('org-drawer-overlay'),
+      panel: document.getElementById('org-drawer') || document.getElementById('org-detail-panel'),
+      header: document.getElementById('odp-header'),
+      body: document.getElementById('odp-body'),
+    };
+  }
+
   function openOrgDetail(orgId) {
+    if (!orgId) return;
     _selectedOrgId = orgId;
-    const overlay = document.getElementById('org-drawer-overlay');
-    const panel   = document.getElementById('org-drawer');
-    overlay.classList.remove('hidden');
+    const { overlay, panel } = getOrgDrawerElements();
+    if (!panel) {
+      console.error('団体詳細パネルが見つかりません');
+      showToast('団体詳細パネルが見つかりません', false);
+      return;
+    }
+    if (overlay) {
+      overlay.classList.remove('hidden');
+      overlay.setAttribute('aria-hidden', 'false');
+    }
+    panel.classList.add('open');
     panel.style.transform = 'translateX(0)';
+    panel.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
-    loadOrgDetail(orgId);
+    requestAnimationFrame(() => loadOrgDetail(orgId));
   }
 
   function closeOrgDetail() {
     _selectedOrgId = null;
-    const panel = document.getElementById('org-drawer');
-    panel.style.transform = 'translateX(100%)';
-    document.getElementById('org-drawer-overlay').classList.add('hidden');
+    const { overlay, panel } = getOrgDrawerElements();
+    if (panel) {
+      panel.classList.remove('open');
+      panel.style.transform = 'translateX(100%)';
+      panel.setAttribute('aria-hidden', 'true');
+    }
+    if (overlay) {
+      overlay.classList.add('hidden');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
     document.body.style.overflow = '';
   }
 
-  function renderOrgDetailPanel(orgSnap, menuDocs, matchesByMenuId) {
+  window.openOrgDetail = openOrgDetail;
+  window.closeOrgDetail = closeOrgDetail;
+
+  function renderOrgDetailPanel(orgSnap, menuDocs, matchesByMenuId, detailWarning) {
     const o  = orgSnap.data();
     const id = orgSnap.id;
     const areaDisplay  = Array.isArray(o.area) ? o.area.join('・') : (o.area || '—');
@@ -2093,6 +2122,9 @@
     actionHtml += '<button data-id="' + esc(id) + '" data-name="' + esc(o.name) + '" onclick="deleteOrg(this.dataset.id, this.dataset.name)" class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto"><i data-lucide="trash-2" width="12" height="12"></i>削除</button>';
 
     // ── メニュー一覧 ──────────────────────────────────────────
+    const detailWarningHtml = detailWarning
+      ? '<div class="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">' + esc(detailWarning) + '</div>'
+      : '';
     const menuSectionHtml = menuDocs.length === 0
       ? '<div class="text-xs text-slate-400 text-center py-8 bg-slate-50 rounded-xl border border-slate-100">支援メニューはありません</div>'
       : menuDocs.map(mDoc => renderMenuMatchCard(id, mDoc, matchesByMenuId[mDoc.id] || [])).join('');
@@ -2121,6 +2153,7 @@
       '</div>' +
       '<div class="px-6 py-5">' +
         '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-4">支援メニュー・マッチング履歴</p>' +
+        detailWarningHtml +
         menuSectionHtml +
       '</div>';
 
@@ -2178,8 +2211,11 @@
   }
 
   async function loadOrgDetail(orgId) {
-    const header = document.getElementById('odp-header');
-    const body   = document.getElementById('odp-body');
+    const { header, body } = getOrgDrawerElements();
+    if (!header || !body) {
+      console.error('団体詳細パネルの描画先が見つかりません');
+      return;
+    }
     header.textContent = '';
     const hWrap = document.createElement('div');
     hWrap.className = 'flex-1 min-w-0';
@@ -2200,19 +2236,29 @@
 
     if (!db) { body.textContent = ''; body.appendChild(function(){ const d=document.createElement('div'); d.className='text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 m-4 text-center'; d.textContent='Firebase未設定のため表示できません'; return d; }()); return; }
     try {
-      const [orgSnap, menusSnap] = await Promise.all([
-        db.collection('organizations').doc(orgId).get(),
-        db.collection('organizations').doc(orgId).collection('menus').orderBy('created_at','desc').get(),
-      ]);
+      const orgSnap = await db.collection('organizations').doc(orgId).get();
       if (!orgSnap.exists) { body.textContent = ''; const d=document.createElement('p'); d.className='p-6 text-xs text-red-400 text-center'; d.textContent='団体が見つかりません'; body.appendChild(d); return; }
+      let menuDocs = [];
       const matchesByMenuId = {};
-      await Promise.all(menusSnap.docs.map(async mDoc => {
-        const snap = await db.collection('organizations').doc(orgId)
-          .collection('menus').doc(mDoc.id)
-          .collection('matches').orderBy('matched_at','desc').get();
-        matchesByMenuId[mDoc.id] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      let detailWarning = '';
+      try {
+        const menusSnap = await db.collection('organizations').doc(orgId).collection('menus').orderBy('created_at','desc').get();
+        menuDocs = menusSnap.docs;
+      } catch(e) {
+        detailWarning = '支援メニューの取得に失敗しました: ' + e.message;
+      }
+      await Promise.all(menuDocs.map(async mDoc => {
+        try {
+          const snap = await db.collection('organizations').doc(orgId)
+            .collection('menus').doc(mDoc.id)
+            .collection('matches').orderBy('matched_at','desc').get();
+          matchesByMenuId[mDoc.id] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch(e) {
+          matchesByMenuId[mDoc.id] = [];
+          if (!detailWarning) detailWarning = 'マッチング履歴の取得に失敗しました: ' + e.message;
+        }
       }));
-      renderOrgDetailPanel(orgSnap, menusSnap.docs, matchesByMenuId);
+      renderOrgDetailPanel(orgSnap, menuDocs, matchesByMenuId, detailWarning);
     } catch(e) {
       body.textContent = '';
       const d = document.createElement('div');
