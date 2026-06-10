@@ -196,6 +196,10 @@
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
             <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="shield-check" width="16" height="16"></i>管理者管理
           </button>
+          <button onclick="switchTab('admins')" data-tab="admins"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="shield" width="16" height="16"></i>管理者設定
+          </button>
         </nav>
         <div class="px-4 py-4 border-t border-white/10">
           <div class="flex items-center gap-2.5 mb-3">
@@ -307,7 +311,7 @@
                   oninput="renderFilteredOrgs()"
                   class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-orange-400 outline-none transition-all">
               </div>
-              <div class="flex gap-2 flex-wrap">
+              <div class="flex gap-2 flex-wrap items-center">
                 <button onclick="filterOrgs('all')" data-filter="all"
                   class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
                 <button onclick="filterOrgs('public')" data-filter="public"
@@ -316,6 +320,10 @@
                   class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">審査中</button>
                 <button onclick="filterOrgs('rejected')" data-filter="rejected"
                   class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">却下済み</button>
+                <button onclick="exportOrgsCSV()"
+                  class="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all border border-slate-200">
+                  <i data-lucide="download" width="12" height="12"></i>CSVダウンロード
+                </button>
               </div>
             </div>
             <div id="orgs-list" class="space-y-3">
@@ -438,10 +446,45 @@
           <div id="tab-menus" class="hidden fade-in">
             <div class="flex items-center justify-between mb-4">
               <p class="text-xs text-slate-500">全団体の支援メニューを管理します</p>
-              <span id="menus-count" class="text-xs text-slate-400"></span>
+              <div class="flex items-center gap-3">
+                <span id="menus-count" class="text-xs text-slate-400"></span>
+                <button onclick="exportMenusCSV()"
+                  class="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all border border-slate-200">
+                  <i data-lucide="download" width="12" height="12"></i>CSVダウンロード
+                </button>
+              </div>
             </div>
             <div id="admin-menus-list" class="space-y-2">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
+          <!-- 管理者設定タブ -->
+          <div id="tab-admins" class="hidden fade-in">
+            <div class="max-w-2xl space-y-6">
+              <!-- 新規追加フォーム -->
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <h2 class="text-sm font-black text-slate-900 mb-1">管理者を追加</h2>
+                <p class="text-xs text-slate-400 mb-4">メールアドレスを入力して管理者権限を付与します。Firebaseアカウントが存在しない場合は自動作成され、パスワード設定メールが送信されます。</p>
+                <div class="flex gap-2">
+                  <input type="email" id="new-admin-email" placeholder="admin@example.com" maxlength="200"
+                    class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition-all">
+                  <button id="grant-admin-btn" onclick="grantAdmin()"
+                    class="flex items-center gap-1.5 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-all shrink-0">
+                    <i data-lucide="user-plus" width="14" height="14"></i>追加
+                  </button>
+                </div>
+                <p id="admin-grant-error" class="text-xs text-red-500 mt-2 min-h-[1rem]"></p>
+              </div>
+              <!-- 管理者一覧 -->
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100">
+                  <h2 class="text-sm font-black text-slate-900">管理者一覧</h2>
+                </div>
+                <div id="admins-list" class="divide-y divide-slate-50">
+                  <div class="px-6 py-4 text-xs text-slate-400 text-center">読み込み中...</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -586,7 +629,9 @@
   let orgFilter        = 'all';
   let allInquiriesData = [];
   let inquiryFilter    = 'all';
-  let confirmCallback  = null;
+  let allMenusData     = [];
+  let confirmCallback       = null;
+  let menuReasonCallback    = null;
 
   // ============================================================
   // 管理者認証
@@ -842,8 +887,9 @@
       unread:   ['badge-unread',   '未読'],
       read:     ['bg-slate-100 text-slate-500', '既読'],
     };
+    // XSS対策: mapにないstatusのフォールバック時も必ずesc()を通す
     const [cls, label] = map[status] || ['bg-slate-100 text-slate-500', status];
-    return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full ${cls}">${label}</span>`;
+    return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full ${cls}">${esc(label)}</span>`;
   }
   const CAT = { sports:'スポーツ', culture:'文化・芸術', welfare:'福祉', other:'その他' };
 
@@ -889,6 +935,47 @@
     if (e.key === 'Tab') {
       const btns = document.getElementById('confirm-dialog').querySelectorAll('button');
       const first = btns[0], last = btns[btns.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  // ============================================================
+  // メニュー操作・理由入力ダイアログ
+  // ============================================================
+  function showMenuReasonDialog(title, body, btnLabel, btnColor, callback) {
+    document.getElementById('menu-reason-title').textContent = title;
+    document.getElementById('menu-reason-body').textContent  = body;
+    document.getElementById('menu-reason-input').value       = '';
+    const okBtn = document.getElementById('menu-reason-ok');
+    okBtn.textContent = btnLabel;
+    okBtn.className   = `flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white ${btnColor}`;
+    menuReasonCallback = callback;
+    const d = document.getElementById('menu-reason-dialog');
+    d.classList.remove('hidden'); d.classList.add('flex');
+    setTimeout(() => document.getElementById('menu-reason-input').focus(), 50);
+  }
+  function closeMenuReasonDialog() {
+    const d = document.getElementById('menu-reason-dialog');
+    d.classList.add('hidden'); d.classList.remove('flex');
+    menuReasonCallback = null;
+  }
+  document.getElementById('menu-reason-ok').addEventListener('click', async () => {
+    const cb = menuReasonCallback;
+    menuReasonCallback = null;
+    if (cb) {
+      const okBtn = document.getElementById('menu-reason-ok');
+      okBtn.disabled = true;
+      const reason = document.getElementById('menu-reason-input').value.trim();
+      try { await cb(reason); } finally { okBtn.disabled = false; }
+    }
+    closeMenuReasonDialog();
+  });
+  document.getElementById('menu-reason-dialog').addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeMenuReasonDialog();
+    if (e.key === 'Tab') {
+      const focusable = document.getElementById('menu-reason-dialog').querySelectorAll('textarea, button');
+      const first = focusable[0], last = focusable[focusable.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
@@ -1514,18 +1601,18 @@
     el.innerHTML = '<div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>';
     try {
       const orgsSnap = await db.collection('organizations').get();
-      const allMenus = [];
+      allMenusData = [];
       await Promise.all(orgsSnap.docs.map(async orgDoc => {
         const org = orgDoc.data();
         const menusSnap = await db.collection('organizations').doc(orgDoc.id).collection('menus').get();
         menusSnap.docs.forEach(m => {
-          allMenus.push({ orgId: orgDoc.id, orgName: org.name || '—', menuId: m.id, ...m.data() });
+          allMenusData.push({ orgId: orgDoc.id, orgName: org.name || '—', menuId: m.id, ...m.data() });
         });
       }));
-      allMenus.sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
+      allMenusData.sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
       const countEl = document.getElementById('menus-count');
-      if (countEl) countEl.textContent = `全 ${allMenus.length} 件`;
-      if (allMenus.length === 0) {
+      if (countEl) countEl.textContent = `全 ${allMenusData.length} 件`;
+      if (allMenusData.length === 0) {
         el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援メニューはありません</div>';
         return;
       }
@@ -1542,7 +1629,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-50">
-              ${allMenus.map(m => `
+              ${allMenusData.map(m =>`
                 <tr class="hover:bg-slate-50 transition-colors">
                   <td class="px-5 py-3 text-xs font-bold text-slate-700">${esc(m.orgName)}</td>
                   <td class="px-5 py-3 text-xs text-slate-900 font-bold">${esc(m.title||'—')}</td>
@@ -1572,14 +1659,15 @@
   }
 
   function deleteAdminMenu(orgId, menuId, menuTitle) {
-    showConfirm(
+    showMenuReasonDialog(
       `「${menuTitle}」を削除しますか？`,
       'この操作は取り消せません。クラブページからも非表示になります。',
       '削除する', 'bg-red-500 hover:bg-red-600',
-      async () => {
+      async (reason) => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
           await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).delete();
+          if (reason) console.info(`メニュー削除 [${menuId}] 理由: ${reason}`);
           showToast('支援メニューを削除しました');
           loadAdminMenus();
         } catch(e) { showToast('エラー: ' + e.message, false); }
@@ -1588,14 +1676,19 @@
   }
 
   function forceHideMenu(orgId, menuId, menuTitle) {
-    showConfirm(
+    showMenuReasonDialog(
       `「${menuTitle}」を強制非公開にしますか？`,
       'メニューはオーナーのマイページで再公開できます。不適切なコンテンツの場合は削除を使用してください。',
       '非公開にする', 'bg-amber-500 hover:bg-amber-600',
-      async () => {
+      async (reason) => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
-          await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).update({ status: 'private', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
+          const updateData = {
+            status: 'private',
+            updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+          };
+          if (reason) updateData.admin_reason = reason;
+          await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).update(updateData);
           showToast('支援メニューを非公開にしました');
           loadAdminMenus();
         } catch(e) { showToast('エラー: ' + e.message, false); }

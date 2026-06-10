@@ -1277,7 +1277,7 @@
               <div class="col-span-3 text-center py-20 text-slate-400">
                 <i data-lucide="wifi-off" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
                 <p class="text-sm font-medium">データの取得に失敗しました</p>
-                <p class="text-xs mt-1 text-red-400">${err.code || err.message || '不明なエラー'}</p>
+                <p class="text-xs mt-1 text-red-400">${esc(err.code || err.message || '不明なエラー')}</p>
                 <button onclick="loadOrgs()" class="mt-4 px-4 py-2 bg-orange-500 text-white text-xs font-bold rounded-xl hover:bg-orange-600 transition-all">再試行</button>
               </div>`;
             lucide.createIcons();
@@ -1719,6 +1719,15 @@
           名前: data.name, メール: data.email,
           内容: (data.message || '').slice(0, 100),
         });
+        // 送信者への自動返信（失敗してもフォーム送信は成功扱い）
+        fetch('/.netlify/functions/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'contact_reply',
+            params: { toEmail: data.email, name: data.name, message: data.message || '' }
+          })
+        }).catch(() => {});
         result.textContent = 'お問い合わせを受け付けました。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();

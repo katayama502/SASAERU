@@ -2,6 +2,9 @@ const nodemailer = require('nodemailer');
 
 const GMAIL_USER     = process.env.GMAIL_USER;
 const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+// ADMIN_EMAIL はカンマ区切りで複数アドレスを指定可能
+// 例: "admin@gmail.com,sasaeru@scl.or.jp"
+// nodemailer は to フィールドにカンマ区切り文字列をそのまま渡せる
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || GMAIL_USER;
 
 // ============================================================
@@ -261,6 +264,35 @@ function buildMailOptions(type, rawParams) {
           '',
           'SASAERU 運営事務局',
         ].filter(l => l !== null).join('\n'),
+      };
+
+    // お問い合わせ自動返信（送信者向け）
+    case 'contact_reply':
+      requireFields(p, ['name']);
+      requireEmail(p, 'toEmail');
+      return {
+        from,
+        to: p.toEmail,
+        subject: '【SASAERU】お問い合わせを受け付けました',
+        text: [
+          `${p.name} 様`,
+          '',
+          'SASAERUへのお問い合わせありがとうございます。',
+          '以下の内容でお問い合わせを受け付けました。',
+          '',
+          '─────────────────────────',
+          `お名前　：${p.name}`,
+          `メール　：${p.toEmail}`,
+          '',
+          '■ お問い合わせ内容',
+          p.message || '（内容なし）',
+          '─────────────────────────',
+          '',
+          '内容を確認次第、担当者よりご連絡いたします。',
+          '今しばらくお待ちください。',
+          '',
+          'SASAERU 運営事務局',
+        ].join('\n'),
       };
 
     default:
