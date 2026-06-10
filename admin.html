@@ -1149,6 +1149,10 @@
           </div>
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+          <button data-id="${esc(id)}"
+            onclick="event.stopPropagation();openOrgDetail(this.dataset.id)"
+            class="flex items-center gap-1.5 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-all shadow-sm">
+            <i data-lucide="eye" width="12" height="12"></i>団体情報を見る</button>
           ${showApproveActions || o.status === 'pending' ? `
             ${o.emailVerified
               ? `<button onclick="event.stopPropagation();approveOrg('${id}')"
