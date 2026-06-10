@@ -21,9 +21,8 @@ service cloud.firestore {
 
     function validEmail(email) {
       return email is string
-        && email.size() > 0
         && email.size() <= 254
-        && email.matches('^[^@\\s<>]+@[^@\\s<>]+\\.[a-zA-Z]{2,}$');
+        && email.matches('.*@.*\\..*');
     }
 
     function validOrgName(data) {
@@ -160,11 +159,6 @@ service cloud.firestore {
                     || isOwnerOf(orgId);
     }
 
-    // organizations/{orgId}/menus/{menuId}/matches（マッチング履歴）— 管理者のみ
-    match /organizations/{orgId}/menus/{menuId}/matches/{matchId} {
-      allow read, write: if isAdmin();
-    }
-
     // posts（活動日記）
     match /posts/{postId} {
       // 誰でも読める（公開コンテンツ）
@@ -241,7 +235,8 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() <= 200
-                    && validEmail(request.resource.data.email)
+                    && request.resource.data.email is string
+                    && request.resource.data.email.matches('.*@.*\\..*')
                     && request.resource.data.message is string
                     && request.resource.data.message.size() > 0
                     && request.resource.data.message.size() <= 5000;

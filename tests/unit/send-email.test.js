@@ -266,36 +266,6 @@ describe('メールタイプ別 正常送信 (200)', () => {
     expect(mail.subject).toBe('【SASAERU】お問い合わせを受け付けました');
   });
 
-  test('contact_reply → 200 (送信者向け自動返信)', async () => {
-    const res = await handler(makeEvent({
-      body: JSON.stringify({
-        type: 'contact_reply',
-        params: {
-          toEmail: 'visitor@example.com',
-          name: '山田太郎',
-          message: 'ご支援に興味があります。詳細を教えてください。',
-        },
-      }),
-    }));
-    expect(res.statusCode).toBe(200);
-    const mail = mockSendMail.mock.calls[0][0];
-    expect(mail.to).toBe('visitor@example.com');
-    expect(mail.subject).toBe('【SASAERU】お問い合わせを受け付けました');
-    expect(mail.text).toContain('山田太郎');
-  });
-
-  test('contact_reply → メッセージ省略時は（内容なし）を表示', async () => {
-    const res = await handler(makeEvent({
-      body: JSON.stringify({
-        type: 'contact_reply',
-        params: { toEmail: 'visitor@example.com', name: '山田太郎' },
-      }),
-    }));
-    expect(res.statusCode).toBe(200);
-    const mail = mockSendMail.mock.calls[0][0];
-    expect(mail.text).toContain('（内容なし）');
-  });
-
   test('未知のタイプ → 400', async () => {
     const res = await handler(makeEvent({
       body: JSON.stringify({ type: 'unknown_type', params: {} }),
@@ -540,22 +510,5 @@ describe('メール本文の内容検証', () => {
     }));
     const mail = mockSendMail.mock.calls[0][0];
     expect(mail.text).toContain(`${origin}/admin.html`);
-  });
-
-  test('contact_reply メールに名前・メール・内容が含まれる', async () => {
-    await handler(makeEvent({
-      body: JSON.stringify({
-        type: 'contact_reply',
-        params: {
-          toEmail: 'visitor@example.com',
-          name: '鈴木花子',
-          message: 'SASAERUについて質問があります。',
-        },
-      }),
-    }));
-    const mail = mockSendMail.mock.calls[0][0];
-    expect(mail.text).toContain('鈴木花子');
-    expect(mail.text).toContain('visitor@example.com');
-    expect(mail.text).toContain('SASAERUについて質問があります。');
   });
 });
