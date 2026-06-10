@@ -160,6 +160,11 @@ service cloud.firestore {
                     || isOwnerOf(orgId);
     }
 
+    // organizations/{orgId}/menus/{menuId}/matches（マッチング履歴）— 管理者のみ
+    match /organizations/{orgId}/menus/{menuId}/matches/{matchId} {
+      allow read, write: if isAdmin();
+    }
+
     // posts（活動日記）
     match /posts/{postId} {
       // 誰でも読める（公開コンテンツ）
