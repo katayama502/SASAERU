@@ -32,6 +32,38 @@
     ::-webkit-scrollbar-thumb:hover { background: #ea580c; }
     #sidebar { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
     #sidebar-overlay { transition: opacity 0.3s ease; }
+    /* 団体詳細ドロワー */
+    #org-drawer { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+    #org-drawer.open { transform: translateX(0) !important; }
+    #org-drawer-overlay { transition: opacity 0.3s ease; }
+    /* ===== Kanban board ===== */
+    .kanban-board { display:none; }
+    @media (min-width:768px) { .kanban-board { display:grid; grid-template-columns:1fr 1fr; gap:1rem; } }
+    @media (min-width:768px) { .inq-list-view { display:none; } }
+    .kanban-col { background:#f8fafc; border-radius:1rem; padding:1rem; min-height:200px; transition:background 0.15s; }
+    .kanban-col.drag-over { background:#e0f2fe; outline:2px dashed #38bdf8; }
+    .kanban-card { cursor:grab; transition:opacity 0.15s,box-shadow 0.2s,transform 0.2s; }
+    .kanban-card:active { cursor:grabbing; }
+    .kanban-card.dragging { opacity:0.45; box-shadow:0 8px 24px rgba(0,0,0,0.15); transform:rotate(1deg) scale(1.02); }
+    .kanban-card .drag-handle { color:#94a3b8; cursor:grab; flex-shrink:0; }
+    .kanban-card .drag-handle:active { cursor:grabbing; }
+    /* ===== Skeleton shimmer ===== */
+    @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+    .skeleton { background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size:800px 100%; animation:shimmer 1.4s infinite; border-radius:0.5rem; }
+    /* ===== Sidebar nav drag-and-drop ===== */
+    .side-btn { cursor:default; }
+    .side-btn[draggable="true"] { cursor:grab; }
+    .side-btn[draggable="true"]:active { cursor:grabbing; }
+    .side-btn.dragging { opacity:0.4; background:rgba(255,255,255,0.05) !important; }
+    .side-btn.drag-over { background:rgba(251,146,60,0.25) !important; outline:2px dashed rgba(251,146,60,0.7); outline-offset:-2px; }
+    .side-drag-handle { color:rgba(255,255,255,0.25); flex-shrink:0; cursor:grab; transition:color 0.15s; }
+    .side-btn:hover .side-drag-handle { color:rgba(255,255,255,0.55); }
+    /* ===== Org/inquiry card hover ===== */
+    .card-lift { transition:box-shadow 0.2s,transform 0.2s; cursor:pointer; }
+    .card-lift:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); transform:translateY(-2px); }
+    /* ===== line-clamp ===== */
+    .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .line-clamp-3 { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   </style>
 </head>
 <noscript><div style="background:#ff4444;color:#fff;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999">このサイトの利用にはJavaScriptが必要です。ブラウザの設定を確認してください。</div></noscript>
@@ -77,6 +109,33 @@
       <p class="text-center text-xs text-slate-400 mt-6">
         <a href="index.html" class="hover:text-orange-600 underline underline-offset-2 transition-colors">← 公開サイトへ戻る</a>
       </p>
+
+      <!-- 初回管理者設定（ブートストラップ） -->
+      <div class="mt-8 border-t border-slate-100 pt-6">
+        <button type="button" id="bootstrap-toggle"
+          onclick="document.getElementById('bootstrap-form').classList.toggle('hidden'); this.classList.toggle('text-slate-500')"
+          class="w-full text-center text-[11px] text-slate-300 hover:text-slate-500 transition-colors">
+          初回セットアップ
+        </button>
+        <div id="bootstrap-form" class="hidden mt-4 space-y-3">
+          <p class="text-[11px] text-slate-400 text-center">初回管理者設定（セットアップ時のみ使用）</p>
+          <div>
+            <label for="bs-email" class="block text-[11px] font-bold text-slate-400 mb-1">メールアドレス</label>
+            <input type="email" id="bs-email" maxlength="200" autocomplete="off"
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-slate-300 outline-none text-xs transition-all text-slate-600">
+          </div>
+          <div>
+            <label for="bs-secret" class="block text-[11px] font-bold text-slate-400 mb-1">シークレットキー</label>
+            <input type="password" id="bs-secret" maxlength="200" autocomplete="off"
+              class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-slate-300 outline-none text-xs transition-all text-slate-600">
+          </div>
+          <button type="button" id="bs-submit-btn" onclick="runBootstrap()"
+            class="w-full bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 rounded-lg transition-all text-xs">
+            管理者に設定する
+          </button>
+          <p id="bs-msg" class="text-[11px] text-center min-h-[1rem]" aria-live="assertive"></p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -98,33 +157,44 @@
             </div>
           </div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-          <button onclick="switchTab('overview')" data-tab="overview"
+        <nav id="side-nav" class="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+          <button onclick="switchTab('overview')" data-tab="overview" draggable="true"
+            ondragstart="sideNavDragStart(event)" ondragover="sideNavDragOver(event)" ondragleave="sideNavDragLeave(event)" ondrop="sideNavDrop(event)" ondragend="sideNavDragEnd(event)"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="layout-dashboard" width="16" height="16"></i>概要
+            <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="layout-dashboard" width="16" height="16"></i>概要
           </button>
-          <button onclick="switchTab('pending')" data-tab="pending"
+          <button onclick="switchTab('pending')" data-tab="pending" draggable="true"
+            ondragstart="sideNavDragStart(event)" ondragover="sideNavDragOver(event)" ondragleave="sideNavDragLeave(event)" ondrop="sideNavDrop(event)" ondragend="sideNavDragEnd(event)"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="clock" width="16" height="16"></i>審査待ち
+            <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="clock" width="16" height="16"></i>審査待ち
             <span id="badge-pending" class="ml-auto bg-orange-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
-          <button onclick="switchTab('orgs')" data-tab="orgs"
+          <button onclick="switchTab('orgs')" data-tab="orgs" draggable="true"
+            ondragstart="sideNavDragStart(event)" ondragover="sideNavDragOver(event)" ondragleave="sideNavDragLeave(event)" ondrop="sideNavDrop(event)" ondragend="sideNavDragEnd(event)"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="building-2" width="16" height="16"></i>団体管理
+            <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="building-2" width="16" height="16"></i>団体管理
           </button>
-          <button onclick="switchTab('inquiries')" data-tab="inquiries"
+          <button onclick="switchTab('inquiries')" data-tab="inquiries" draggable="true"
+            ondragstart="sideNavDragStart(event)" ondragover="sideNavDragOver(event)" ondragleave="sideNavDragLeave(event)" ondrop="sideNavDrop(event)" ondragend="sideNavDragEnd(event)"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="mail" width="16" height="16"></i>支援申請
+            <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="mail" width="16" height="16"></i>支援申請
             <span id="badge-inquiries" class="ml-auto bg-blue-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
-          <button onclick="switchTab('contacts')" data-tab="contacts"
+          <button onclick="switchTab('contacts')" data-tab="contacts" draggable="true"
+            ondragstart="sideNavDragStart(event)" ondragover="sideNavDragOver(event)" ondragleave="sideNavDragLeave(event)" ondrop="sideNavDrop(event)" ondragend="sideNavDragEnd(event)"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="message-square" width="16" height="16"></i>お問い合わせ
+            <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="message-square" width="16" height="16"></i>お問い合わせ
             <span id="badge-contacts" class="ml-auto bg-purple-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
-          <button onclick="switchTab('menus')" data-tab="menus"
+          <button onclick="switchTab('menus')" data-tab="menus" draggable="true"
+            ondragstart="sideNavDragStart(event)" ondragover="sideNavDragOver(event)" ondragleave="sideNavDragLeave(event)" ondrop="sideNavDrop(event)" ondragend="sideNavDragEnd(event)"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="list-checks" width="16" height="16"></i>支援メニュー管理
+            <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="list-checks" width="16" height="16"></i>支援メニュー管理
+          </button>
+          <button onclick="switchTab('admins')" data-tab="admins" draggable="true"
+            ondragstart="sideNavDragStart(event)" ondragover="sideNavDragOver(event)" ondragleave="sideNavDragLeave(event)" ondrop="sideNavDrop(event)" ondragend="sideNavDragEnd(event)"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="shield-check" width="16" height="16"></i>管理者管理
           </button>
           <button onclick="switchTab('admins')" data-tab="admins"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
@@ -263,17 +333,56 @@
 
           <!-- 支援申請タブ -->
           <div id="tab-inquiries" class="hidden fade-in">
-            <div class="flex gap-2 mb-4 flex-wrap items-center">
-              <button onclick="filterInquiries('all')" data-inq-filter="all"
-                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
-              <button onclick="filterInquiries('new')" data-inq-filter="new"
-                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">未対応</button>
-              <button onclick="filterInquiries('done')" data-inq-filter="done"
-                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">対応済み</button>
-              <span id="inq-count" class="ml-auto text-xs text-slate-400"></span>
+            <!-- モバイル用フィルターバー（md未満で表示） -->
+            <div class="inq-list-view">
+              <div class="flex gap-2 mb-4 flex-wrap items-center">
+                <button onclick="filterInquiries('all')" data-inq-filter="all"
+                  class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
+                <button onclick="filterInquiries('new')" data-inq-filter="new"
+                  class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">未対応</button>
+                <button onclick="filterInquiries('done')" data-inq-filter="done"
+                  class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">対応済み</button>
+                <span id="inq-count" class="ml-auto text-xs text-slate-400"></span>
+                <button onclick="exportInquiriesCSV()"
+                  class="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold rounded-lg transition-all border border-green-200">
+                  <i data-lucide="download" width="13" height="13"></i>CSVエクスポート
+                </button>
+              </div>
+              <div id="inquiries-list" class="space-y-3">
+                <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+              </div>
             </div>
-            <div id="inquiries-list" class="space-y-3">
-              <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            <!-- デスクトップ用カンバンボード（md以上で表示） -->
+            <div class="kanban-board" id="kanban-board">
+              <!-- 未対応カラム -->
+              <div class="kanban-col" id="kanban-col-new"
+                ondragover="kanbanDragOver(event,'new')"
+                ondragleave="kanbanDragLeave(event,'new')"
+                ondrop="kanbanDrop(event,'new')">
+                <div class="flex items-center gap-2 mb-3 px-1">
+                  <div class="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                  <h3 class="text-xs font-black text-blue-700 uppercase tracking-wide">未対応</h3>
+                  <span id="kanban-count-new" class="ml-auto text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full"></span>
+                </div>
+                <div id="kanban-cards-new" class="space-y-2 min-h-[80px]">
+                  <div class="skeleton h-20 w-full"></div>
+                  <div class="skeleton h-20 w-full"></div>
+                </div>
+              </div>
+              <!-- 対応済みカラム -->
+              <div class="kanban-col" id="kanban-col-done"
+                ondragover="kanbanDragOver(event,'done')"
+                ondragleave="kanbanDragLeave(event,'done')"
+                ondrop="kanbanDrop(event,'done')">
+                <div class="flex items-center gap-2 mb-3 px-1">
+                  <div class="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                  <h3 class="text-xs font-black text-green-700 uppercase tracking-wide">対応済み</h3>
+                  <span id="kanban-count-done" class="ml-auto text-[10px] font-bold bg-green-100 text-green-600 px-2 py-0.5 rounded-full"></span>
+                </div>
+                <div id="kanban-cards-done" class="space-y-2 min-h-[80px]">
+                  <div class="skeleton h-20 w-full"></div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -288,6 +397,48 @@
             </div>
             <div id="contacts-list" class="space-y-3">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
+          <!-- 管理者管理タブ -->
+          <div id="tab-admins" class="hidden fade-in">
+            <!-- 管理者追加フォーム -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+              <h2 class="text-sm font-black text-slate-900 mb-4 flex items-center gap-2">
+                <i data-lucide="user-plus" width="16" height="16" class="text-orange-500"></i>
+                管理者を追加する
+              </h2>
+              <div class="flex gap-3 flex-col sm:flex-row">
+                <div class="flex-1">
+                  <label for="admin-target-email" class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス</label>
+                  <input type="email" id="admin-target-email" maxlength="254"
+                    placeholder="招待するユーザーのメールアドレス"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
+                </div>
+                <div class="flex-1">
+                  <label for="admin-temp-password" class="block text-xs font-bold text-slate-600 mb-1.5">仮パスワード</label>
+                  <input type="password" id="admin-temp-password" maxlength="200"
+                    placeholder="8文字以上"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all">
+                </div>
+                <div class="flex items-end gap-2">
+                  <button onclick="inviteAdmin()"
+                    class="flex items-center gap-1.5 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-sm whitespace-nowrap">
+                    <i data-lucide="user-plus" width="13" height="13"></i>管理者として招待
+                  </button>
+                </div>
+              </div>
+              <p id="admin-action-msg" class="text-xs mt-2 min-h-[1rem]" aria-live="assertive"></p>
+            </div>
+            <!-- 現在の管理者一覧 -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h2 class="text-sm font-black text-slate-900">現在の管理者一覧</h2>
+                <button onclick="loadAdmins()" class="text-xs text-orange-600 font-bold hover:underline">更新</button>
+              </div>
+              <div id="admins-list" class="divide-y divide-slate-50">
+                <div class="px-6 py-4 text-xs text-slate-400 text-center">読み込み中...</div>
+              </div>
             </div>
           </div>
 
@@ -355,6 +506,28 @@
     </div>
   </div>
 
+  <!-- 継続支援確認ダイアログ -->
+  <div id="continuous-support-dialog" class="fixed inset-0 z-[110] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    role="dialog" aria-modal="true" aria-labelledby="cs-dialog-title">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center mb-4">
+        <i data-lucide="handshake" class="text-green-500" width="20" height="20"></i>
+      </div>
+      <h3 id="cs-dialog-title" class="text-base font-black text-slate-900 mb-2">マッチング成立</h3>
+      <p class="text-sm text-slate-500 mb-6">この申請をマッチング成立（対応済み）にします。<br>継続支援を希望しますか？</p>
+      <div class="flex gap-3">
+        <button id="cs-no-btn"
+          class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">
+          いいえ（終了する）
+        </button>
+        <button id="cs-yes-btn"
+          class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white bg-green-500 hover:bg-green-600">
+          はい（継続する）
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 否認理由ダイアログ（TASK-03） -->
   <div id="reject-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
     role="dialog" aria-modal="true" aria-labelledby="reject-dialog-title">
@@ -372,19 +545,50 @@
     </div>
   </div>
 
-  <!-- メニュー操作・理由入力ダイアログ -->
-  <div id="menu-reason-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true" aria-labelledby="menu-reason-title">
-    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-      <h3 id="menu-reason-title" class="text-base font-black text-slate-900 mb-2"></h3>
-      <p id="menu-reason-body" class="text-sm text-slate-500 mb-3"></p>
-      <label for="menu-reason-input" class="block text-xs font-bold text-slate-600 mb-1.5">理由（任意）</label>
-      <textarea id="menu-reason-input" rows="3" maxlength="300"
-        placeholder="理由がある場合は入力してください。"
-        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-300 outline-none text-sm resize-none transition-all mb-5"></textarea>
-      <div class="flex gap-3">
-        <button onclick="closeMenuReasonDialog()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
-        <button id="menu-reason-ok" class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white"></button>
+  <!-- 団体詳細ドロワー -->
+  <div id="org-drawer-overlay"
+       class="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm hidden"
+       onclick="closeOrgDetail()"></div>
+  <div id="org-drawer"
+       class="fixed top-0 right-0 h-full w-full sm:w-[480px] z-[95] bg-white shadow-2xl flex flex-col"
+       style="transform:translateX(100%)"
+       role="dialog" aria-modal="true" aria-labelledby="org-drawer-name">
+    <!-- ドロワーヘッダー -->
+    <div class="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-slate-100 shrink-0">
+      <div id="org-drawer-img-wrap" class="shrink-0"></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap mb-1">
+          <h2 id="org-drawer-name" class="text-base font-black text-slate-900 truncate"></h2>
+          <span id="org-drawer-status"></span>
+        </div>
+        <div id="org-drawer-meta" class="flex flex-wrap gap-3 text-xs text-slate-400"></div>
+      </div>
+      <button onclick="closeOrgDetail()"
+        class="shrink-0 ml-1 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all">
+        <i data-lucide="x" width="18" height="18"></i>
+      </button>
+    </div>
+    <!-- クイックアクション -->
+    <div id="org-drawer-actions" class="px-5 py-3 bg-slate-50 border-b border-slate-100 flex flex-wrap gap-2 shrink-0"></div>
+    <!-- タブナビ -->
+    <div class="flex border-b border-slate-100 shrink-0 bg-white">
+      <button id="org-tab-btn-info" onclick="switchOrgDetailTab('info')"
+        class="px-5 py-3 text-xs font-black text-orange-500 border-b-2 border-orange-500 transition-all">基本情報</button>
+      <button id="org-tab-btn-menus" onclick="switchOrgDetailTab('menus')"
+        class="px-5 py-3 text-xs font-bold text-slate-400 hover:text-slate-700 border-b-2 border-transparent transition-all">支援メニュー</button>
+      <button id="org-tab-btn-inquiries" onclick="switchOrgDetailTab('inquiries')"
+        class="px-5 py-3 text-xs font-bold text-slate-400 hover:text-slate-700 border-b-2 border-transparent transition-all">支援申請</button>
+    </div>
+    <!-- タブコンテンツ（スクロール可） -->
+    <div class="flex-1 overflow-y-auto">
+      <div id="org-tab-info" class="p-5 space-y-4">
+        <div id="org-drawer-info-content" class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+      </div>
+      <div id="org-tab-menus" class="p-5 space-y-3 hidden">
+        <div id="org-drawer-menus-content" class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+      </div>
+      <div id="org-tab-inquiries" class="p-5 space-y-3 hidden">
+        <div id="org-drawer-inquiries-content" class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
       </div>
     </div>
   </div>
@@ -514,6 +718,60 @@
   }
 
   // ============================================================
+  // 初回管理者設定（ブートストラップ）
+  // ============================================================
+  async function runBootstrap() {
+    const email  = (document.getElementById('bs-email').value || '').trim();
+    const secret = (document.getElementById('bs-secret').value || '').trim();
+    const msgEl  = document.getElementById('bs-msg');
+    const btn    = document.getElementById('bs-submit-btn');
+
+    msgEl.textContent = '';
+    msgEl.className   = 'text-[11px] text-center min-h-[1rem]';
+
+    if (!email || !secret) {
+      msgEl.textContent = 'メールアドレスとシークレットキーを入力してください';
+      msgEl.classList.add('text-red-500');
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = '処理中...';
+
+    try {
+      const res  = await fetch('/.netlify/functions/set-first-admin', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, secret }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.ok) {
+        msgEl.textContent = '管理者権限を設定しました。上記のアカウントでログインしてください。';
+        msgEl.classList.add('text-green-600');
+        document.getElementById('bs-email').value  = '';
+        document.getElementById('bs-secret').value = '';
+      } else {
+        const errMsgs = {
+          'Invalid secret':   'シークレットキーが正しくありません',
+          'user-not-found':   'このメールアドレスのユーザーが見つかりません',
+          'Bootstrap disabled': 'ブートストラップ機能が無効です（環境変数未設定）',
+          'Invalid email':    'メールアドレスの形式が正しくありません',
+          'Too Many Requests': 'リクエストが多すぎます。しばらく待ってください',
+        };
+        msgEl.textContent = errMsgs[data.error] || (data.error ? `エラー: ${data.error}` : '管理者権限の設定に失敗しました');
+        msgEl.classList.add('text-red-500');
+      }
+    } catch (e) {
+      msgEl.textContent = 'ネットワークエラーが発生しました';
+      msgEl.classList.add('text-red-500');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '管理者に設定する';
+    }
+  }
+
+  // ============================================================
   // ログアウト
   // ============================================================
   async function doSignOut() {
@@ -548,7 +806,7 @@
     inquiries: { title: '支援申請一覧',     subtitle: '企業からの問い合わせ' },
     contacts:  { title: 'お問い合わせ',     subtitle: 'お問い合わせ一覧' },
     menus:     { title: '支援メニュー管理', subtitle: '全団体の支援メニューを管理' },
-    admins:    { title: '管理者設定',       subtitle: '管理者アカウントの管理' },
+    admins:    { title: '管理者管理',       subtitle: '管理者権限の付与・削除' },
   };
 
   function toggleSidebar() {
@@ -740,10 +998,10 @@
         db.collection('contacts').get(),
       ]);
       const unreadContactCount = conSnap.docs.filter(d => !d.data().read_at).length;
-      document.getElementById('ov-pending').textContent   = pendSnap.size;
-      document.getElementById('ov-public').textContent    = pubSnap.size;
-      document.getElementById('ov-inquiries').textContent = inqNewSnap.size;
-      document.getElementById('ov-contacts').textContent  = unreadContactCount;
+      animateCount('ov-pending',   pendSnap.size);
+      animateCount('ov-public',    pubSnap.size);
+      animateCount('ov-inquiries', inqNewSnap.size);
+      animateCount('ov-contacts',  unreadContactCount);
       updateBadge('badge-pending',   pendSnap.size);
       updateBadge('badge-inquiries', inqNewSnap.size);
       updateBadge('badge-contacts',  unreadContactCount);
@@ -851,7 +1109,12 @@
       });
     }
     if (list.length === 0) {
-      el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">該当する団体はありません</div>';
+      el.innerHTML = `<div class="text-center py-16 text-slate-400">
+        <i data-lucide="building-2" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
+        <p class="text-sm font-medium">該当する団体はありません</p>
+        <p class="text-xs mt-1">フィルター条件を変えてお試しください</p>
+      </div>`;
+      lucide.createIcons();
       return;
     }
     el.innerHTML = list.map(d => renderOrgCard(d, false)).join('');
@@ -862,7 +1125,8 @@
     const o  = d.data();
     const id = d.id;
     return `
-      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden card-lift cursor-pointer hover:border-orange-200"
+           onclick="openOrgDetail('${esc(id)}')">
         <div class="p-5">
           <div class="flex items-start gap-4">
             ${o.main_image
@@ -891,24 +1155,25 @@
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 flex-wrap">
           ${showApproveActions || o.status === 'pending' ? `
             ${o.emailVerified
-              ? `<button onclick="approveOrg('${id}')"
+              ? `<button onclick="event.stopPropagation();approveOrg('${id}')"
                   class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
                   <i data-lucide="check" width="12" height="12"></i>承認・公開</button>`
               : `<span class="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-500 border border-amber-200 text-xs font-bold rounded-lg cursor-not-allowed select-none" title="メールアドレスが未確認のため承認できません">
                   <i data-lucide="lock" width="12" height="12"></i>承認不可</span>`}
             <button data-id="${esc(id)}" data-name="${esc(o.name)}"
-              onclick="rejectOrg(this.dataset.id, this.dataset.name)"
+              onclick="event.stopPropagation();rejectOrg(this.dataset.id, this.dataset.name)"
               class="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-all">
               <i data-lucide="x" width="12" height="12"></i>却下</button>` : ''}
           ${o.status === 'public' ? `
-            <button onclick="changeOrgStatus('${id}','pending','審査中に戻しますか？','このクラブを一時非公開にして再審査状態に戻します。')"
+            <button onclick="event.stopPropagation();changeOrgStatus('${id}','pending','審査中に戻しますか？','このクラブを一時非公開にして再審査状態に戻します。')"
               class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
               <i data-lucide="rotate-ccw" width="12" height="12"></i>審査中に戻す</button>` : ''}
           <a href="club.html?id=${id}&preview=1" target="_blank" rel="noopener"
+            onclick="event.stopPropagation()"
             class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
             <i data-lucide="external-link" width="12" height="12"></i>${o.status === 'public' ? '公開ページ' : 'プレビュー'}</a>
           <button data-id="${esc(id)}" data-name="${esc(o.name)}"
-            onclick="deleteOrg(this.dataset.id, this.dataset.name)"
+            onclick="event.stopPropagation();deleteOrg(this.dataset.id, this.dataset.name)"
             class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all ml-auto">
             <i data-lucide="trash-2" width="12" height="12"></i>削除</button>
         </div>
@@ -1020,60 +1285,239 @@
     renderFilteredInquiries();
   }
 
+  function renderInquiryListCard(d) {
+    const q  = d.data();
+    const id = d.id;
+    return `
+      <div class="bg-white rounded-2xl border ${q.status === 'new' ? 'border-blue-100' : 'border-slate-100'} shadow-sm p-5 card-lift">
+        <div class="flex items-start justify-between gap-4 mb-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              <p class="text-sm font-black text-slate-900">${esc(q.company_name||'—')}</p>
+              ${statusBadge(q.status||'new')}
+            </div>
+            <div class="flex flex-wrap gap-3 text-xs text-slate-400">
+              <span>${esc(q.pic_name||'—')} 様</span>
+              <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(q.sender_email||'—')}</span>
+              ${q.phone ? `<span class="flex items-center gap-1"><i data-lucide="phone" width="11" height="11"></i>${esc(q.phone)}</span>` : ''}
+              <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(q.created_at)}</span>
+            </div>
+          </div>
+        </div>
+        ${q.message ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 mb-3 leading-relaxed">${esc(q.message)}</p>` : ''}
+        <div class="flex flex-wrap gap-2">
+          ${q.status !== 'done' ? `
+            <button onclick="updateInquiryStatus('${id}','done')"
+              class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
+              <i data-lucide="check" width="12" height="12"></i>対応済みにする</button>` : `
+            <button onclick="updateInquiryStatus('${id}','new')"
+              class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
+              <i data-lucide="undo-2" width="12" height="12"></i>未対応に戻す</button>`}
+          <a href="mailto:${esc(q.sender_email)}?subject=${encodeURIComponent('【SASAERU】支援申請についてのご連絡')}"
+            class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
+            <i data-lucide="mail" width="12" height="12"></i>返信する</a>
+        </div>
+      </div>`;
+  }
+
+  function renderKanbanCard(d) {
+    const q  = d.data();
+    const id = d.id;
+    const isDone = q.status === 'done';
+    return `
+      <div class="kanban-card bg-white rounded-xl border ${isDone ? 'border-slate-100' : 'border-blue-100'} shadow-sm p-3 flex items-start gap-2"
+        draggable="true"
+        data-id="${esc(id)}"
+        data-status="${esc(q.status||'new')}"
+        ondragstart="kanbanDragStart(event)"
+        ondragend="kanbanDragEnd(event)">
+        <i data-lucide="grip-vertical" class="drag-handle mt-0.5 shrink-0" width="14" height="14"></i>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-black text-slate-900 truncate">${esc(q.company_name||'—')}</p>
+          <p class="text-[10px] text-slate-400 mt-0.5 truncate">${esc(q.pic_name||'—')} 様</p>
+          <p class="text-[10px] text-slate-400 truncate">${fmtDate(q.created_at)}</p>
+          <div class="flex flex-wrap gap-1 mt-1.5">
+            ${q.menu_title ? `<span class="text-[9px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">${esc(q.menu_title)}</span>` : ''}
+            ${isDone ? `<span class="text-[9px] font-bold bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">対応済み</span>` : `<span class="text-[9px] font-bold bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">未対応</span>`}
+          </div>
+        </div>
+      </div>`;
+  }
+
   function renderFilteredInquiries() {
     const el   = document.getElementById('inquiries-list');
     const list = inquiryFilter === 'all' ? allInquiriesData : allInquiriesData.filter(d => d.data().status === inquiryFilter);
     const countEl = document.getElementById('inq-count');
     if (countEl) countEl.textContent = `${list.length}件`;
+
+    // モバイルリストビュー
     if (!list.length) {
-      el.innerHTML = `<div class="text-xs text-slate-400 text-center py-10">${allInquiriesData.length === 0 ? '支援申請はありません' : '該当する申請はありません'}</div>`;
-      return;
+      const emptyMsg = allInquiriesData.length === 0 ? '支援申請はありません' : '該当する申請はありません';
+      el.innerHTML = `<div class="text-center py-16 text-slate-400">
+        <i data-lucide="inbox" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
+        <p class="text-sm font-medium">${emptyMsg}</p>
+        <p class="text-xs mt-1">条件を変えて再度お試しください</p>
+      </div>`;
+    } else {
+      el.innerHTML = list.map(d => renderInquiryListCard(d)).join('');
     }
-    el.innerHTML = list.map(d => {
-      const q  = d.data();
-      const id = d.id;
-      return `
-        <div class="bg-white rounded-2xl border ${q.status === 'new' ? 'border-blue-100' : 'border-slate-100'} shadow-sm p-5">
-          <div class="flex items-start justify-between gap-4 mb-3">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-1 flex-wrap">
-                <p class="text-sm font-black text-slate-900">${esc(q.company_name||'—')}</p>
-                ${statusBadge(q.status||'new')}
-              </div>
-              <div class="flex flex-wrap gap-3 text-xs text-slate-400">
-                <span>${esc(q.pic_name||'—')} 様</span>
-                <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(q.sender_email||'—')}</span>
-                ${q.phone ? `<span class="flex items-center gap-1"><i data-lucide="phone" width="11" height="11"></i>${esc(q.phone)}</span>` : ''}
-                <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(q.created_at)}</span>
-              </div>
-            </div>
-          </div>
-          ${q.message ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 mb-3 leading-relaxed">${esc(q.message)}</p>` : ''}
-          <div class="flex flex-wrap gap-2">
-            ${q.status !== 'done' ? `
-              <button onclick="updateInquiryStatus('${id}','done')"
-                class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
-                <i data-lucide="check" width="12" height="12"></i>対応済みにする</button>` : `
-              <button onclick="updateInquiryStatus('${id}','new')"
-                class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
-                <i data-lucide="undo-2" width="12" height="12"></i>未対応に戻す</button>`}
-            <a href="mailto:${esc(q.sender_email)}?subject=${encodeURIComponent('【SASAERU】支援申請についてのご連絡')}"
-              class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
-              <i data-lucide="mail" width="12" height="12"></i>返信する</a>
-          </div>
-        </div>`;
-    }).join('');
+
+    // カンバンボード（デスクトップ）
+    renderKanban();
     lucide.createIcons();
+  }
+
+  function renderKanban() {
+    const newCards  = document.getElementById('kanban-cards-new');
+    const doneCards = document.getElementById('kanban-cards-done');
+    const cntNew    = document.getElementById('kanban-count-new');
+    const cntDone   = document.getElementById('kanban-count-done');
+    if (!newCards || !doneCards) return;
+
+    const newList  = allInquiriesData.filter(d => d.data().status !== 'done');
+    const doneList = allInquiriesData.filter(d => d.data().status === 'done');
+
+    cntNew.textContent  = newList.length;
+    cntDone.textContent = doneList.length;
+
+    if (newList.length === 0) {
+      newCards.innerHTML = `<div class="text-center py-8 text-slate-400">
+        <i data-lucide="check-circle-2" width="28" height="28" class="mx-auto mb-2 text-green-300"></i>
+        <p class="text-xs">未対応はありません</p></div>`;
+    } else {
+      newCards.innerHTML = newList.map(d => renderKanbanCard(d)).join('');
+    }
+
+    if (doneList.length === 0) {
+      doneCards.innerHTML = `<div class="text-center py-8 text-slate-400">
+        <p class="text-xs">まだありません</p></div>`;
+    } else {
+      doneCards.innerHTML = doneList.map(d => renderKanbanCard(d)).join('');
+    }
+    lucide.createIcons();
+  }
+
+  // ============================================================
+  // カンバン ドラッグ＆ドロップ
+  // ============================================================
+  let _dragId     = null;
+  let _dragStatus = null;
+
+  function kanbanDragStart(e) {
+    const card = e.currentTarget;
+    _dragId     = card.dataset.id;
+    _dragStatus = card.dataset.status;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', _dragId);
+  }
+
+  function kanbanDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+  }
+
+  function kanbanDragOver(e, colStatus) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+    document.getElementById('kanban-col-' + colStatus).classList.add('drag-over');
+  }
+
+  function kanbanDragLeave(e, colStatus) {
+    const col = document.getElementById('kanban-col-' + colStatus);
+    if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over');
+  }
+
+  async function kanbanDrop(e, newStatus) {
+    e.preventDefault();
+    document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+    const id = _dragId;
+    const oldStatus = _dragStatus;
+    _dragId = null; _dragStatus = null;
+    if (!id || oldStatus === newStatus) return;
+    await updateInquiryStatus(id, newStatus);
   }
 
   async function updateInquiryStatus(id, status) {
     if (!db) return;
+    if (status === 'done') {
+      // マッチング成立時は継続支援確認ダイアログを表示
+      showContinuousSupportDialog(id);
+      return;
+    }
     try {
       await db.collection('inquiries').doc(id).update({ status });
-      showToast(status === 'done' ? '対応済みにしました' : '未対応に戻しました');
+      showToast('未対応に戻しました');
       loadInquiries();
     } catch(e) { showToast('エラー: ' + e.message, false); }
   }
+
+  // ============================================================
+  // 継続支援確認ダイアログ制御
+  // ============================================================
+  let _csPendingInquiryId = null;
+  function showContinuousSupportDialog(inquiryId) {
+    _csPendingInquiryId = inquiryId;
+    const d = document.getElementById('continuous-support-dialog');
+    d.classList.remove('hidden'); d.classList.add('flex');
+    lucide.createIcons();
+    setTimeout(() => document.getElementById('cs-yes-btn').focus(), 50);
+  }
+  function closeContinuousSupportDialog() {
+    const d = document.getElementById('continuous-support-dialog');
+    d.classList.add('hidden'); d.classList.remove('flex');
+    _csPendingInquiryId = null;
+  }
+  async function completeContinuousSupportChoice(continuous) {
+    const id = _csPendingInquiryId;
+    closeContinuousSupportDialog();
+    if (!id || !db) return;
+    try {
+      // inquiryドキュメントを取得してmenu_idを取得
+      const inqSnap = await db.collection('inquiries').doc(id).get();
+      if (!inqSnap.exists) { showToast('申請が見つかりません', false); return; }
+      const inqData = inqSnap.data();
+
+      // inquiryをdoneにする（継続支援フラグ付き）
+      await db.collection('inquiries').doc(id).update({
+        status: 'done',
+        continuous_support: continuous,
+      });
+
+      // menu_idがある場合は対応するメニューを更新
+      if (inqData.menu_id && inqData.org_id) {
+        const menuRef = db.collection('organizations').doc(inqData.org_id).collection('menus').doc(inqData.menu_id);
+        const menuSnap = await menuRef.get();
+        if (menuSnap.exists) {
+          const currentCount = menuSnap.data().matched_count || 0;
+          const updateData = {
+            matched_count: currentCount + 1,
+            updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+          };
+          if (!continuous) {
+            // 継続支援なし → is_matched=true にして新規申請を停止
+            updateData.is_matched = true;
+          }
+          await menuRef.update(updateData);
+        }
+      }
+
+      showToast(continuous ? 'マッチング成立（継続支援）にしました' : 'マッチング成立（終了）にしました');
+      loadInquiries();
+    } catch(e) { showToast('エラー: ' + e.message, false); }
+  }
+  document.getElementById('cs-yes-btn').addEventListener('click', () => completeContinuousSupportChoice(true));
+  document.getElementById('cs-no-btn').addEventListener('click', () => completeContinuousSupportChoice(false));
+  document.getElementById('continuous-support-dialog').addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeContinuousSupportDialog(); return; }
+    if (e.key === 'Tab') {
+      const btns = document.getElementById('continuous-support-dialog').querySelectorAll('button');
+      const first = btns[0], last = btns[btns.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
 
   // ============================================================
   // お問い合わせ（Contacts）- Bug Fix: sort result stored
@@ -1255,6 +1699,34 @@
   // ============================================================
   // ヘルパー
   // ============================================================
+  function animateCount(id, target) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (target === 0) { el.textContent = '0'; return; }
+    let start = 0;
+    const step = Math.max(1, Math.ceil(target / 25));
+    const timer = setInterval(() => {
+      start = Math.min(start + step, target);
+      el.textContent = start;
+      if (start >= target) clearInterval(timer);
+    }, 40);
+  }
+
+  function skeletonCards(n) {
+    return Array.from({length: n}, () =>
+      `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-5">
+        <div class="flex items-start gap-4">
+          <div class="skeleton w-16 h-16 rounded-xl shrink-0"></div>
+          <div class="flex-1 space-y-2">
+            <div class="skeleton h-4 w-2/5 rounded"></div>
+            <div class="skeleton h-3 w-3/5 rounded"></div>
+            <div class="skeleton h-3 w-4/5 rounded"></div>
+          </div>
+        </div>
+      </div>`
+    ).join('');
+  }
+
   function demoMsg() {
     return '<div class="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">Firebase未設定のため表示できません</div>';
   }
@@ -1340,197 +1812,427 @@
   }
 
   // ============================================================
-  // CSV エクスポート
-  // ============================================================
-  function downloadCSV(rows, filename) {
-    const BOM = '\uFEFF'; // Excel で文字化けしないよう UTF-8 BOM を付与
-    const csv = BOM + rows.map(row =>
-      row.map(cell => {
-        const s = String(cell ?? '');
-        return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-      }).join(',')
-    ).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  function exportOrgsCSV() {
-    if (!allOrgsData.length) { showToast('先に団体管理タブを開いてデータを読み込んでください', false); return; }
-    const STATUS_JA = { pending: '審査中', public: '公開中', rejected: '却下', private: '非公開' };
-    const rows = [['団体名', 'カテゴリ', '地域', 'ステータス', 'メールアドレス', 'メール確認', '登録日']];
-    allOrgsData.forEach(d => {
-      const o = d.data();
-      rows.push([
-        o.name             || '',
-        CAT[o.category]    || o.category || '',
-        Array.isArray(o.area) ? o.area.join('／') : (o.area || ''),
-        STATUS_JA[o.status] || o.status || '',
-        o.contact_email    || '',
-        o.emailVerified    ? '確認済み' : '未確認',
-        o.created_at       ? fmtDate(o.created_at) : '',
-      ]);
-    });
-    const date = new Date().toLocaleDateString('ja-JP').replace(/\//g, '-');
-    downloadCSV(rows, `SASAERU_団体一覧_${date}.csv`);
-    showToast(`${allOrgsData.length}件をCSVでダウンロードしました`);
-  }
-
-  function exportMenusCSV() {
-    if (!allMenusData.length) { showToast('先に支援メニュー管理タブを開いてデータを読み込んでください', false); return; }
-    const STATUS_JA = { public: '公開中', private: '非公開' };
-    const rows = [['団体名', 'メニュー名', '支援種別', '目標金額', '状態', '登録日']];
-    allMenusData.forEach(m => {
-      rows.push([
-        m.orgName         || '',
-        m.title           || '',
-        m.support_type    || '',
-        m.target_amount != null ? String(m.target_amount) : '',
-        STATUS_JA[m.status] || m.status || '',
-        m.created_at      ? fmtDate(m.created_at) : '',
-      ]);
-    });
-    const date = new Date().toLocaleDateString('ja-JP').replace(/\//g, '-');
-    downloadCSV(rows, `SASAERU_支援メニュー一覧_${date}.csv`);
-    showToast(`${allMenusData.length}件をCSVでダウンロードしました`);
-  }
-
-  // ============================================================
-  // 管理者設定
+  // 管理者管理（Task 4）
   // ============================================================
   async function loadAdmins() {
     const el = document.getElementById('admins-list');
-    if (!db) { el.innerHTML = demoMsg(); return; }
     try {
-      const snap   = await db.collection('admins').get();
-      const sorted = snap.docs.slice().sort((a, b) =>
-        (a.data().granted_at?.toMillis?.() ?? 0) - (b.data().granted_at?.toMillis?.() ?? 0)
-      );
-      if (!sorted.length) {
-        el.innerHTML = '<div class="px-6 py-5 text-xs text-slate-400 text-center">管理者が登録されていません</div>';
+      // Netlify Function (Firebase Admin SDK) 経由で取得 — Firestoreルールをバイパス
+      const idToken = await auth.currentUser.getIdToken(true);
+      const res = await fetch('/.netlify/functions/list-admins', {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + idToken },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const admins = data.admins || [];
+      if (admins.length === 0) {
+        el.innerHTML = '<div class="px-6 py-6 text-xs text-slate-400 text-center">管理者情報がまだ登録されていません</div>';
         return;
       }
-      const selfUid = auth?.currentUser?.uid;
-      el.innerHTML = sorted.map(d => {
-        const a      = d.data();
-        const isSelf = a.uid === selfUid;
+      el.innerHTML = admins.map(a => {
+        const addedAt = a.added_at ? new Date(a.added_at) : null;
+        const dateStr = addedAt ? addedAt.toLocaleDateString('ja-JP') : '—';
         return `
-          <div class="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
+          <div class="px-6 py-4 flex items-center gap-4">
             <div class="w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center shrink-0">
-              <i data-lucide="shield-check" class="text-orange-500" width="16" height="16"></i>
+              <i data-lucide="shield-check" class="text-orange-500" width="15" height="15"></i>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-bold text-slate-900">${esc(a.email || '—')}</p>
-              <p class="text-xs text-slate-400 mt-0.5">
-                ${a.granted_at ? `追加日: ${fmtDate(a.granted_at)}` : ''}
-                ${a.granted_by ? ` · 追加者: ${esc(a.granted_by)}` : ''}
-              </p>
+              <p class="text-sm font-bold text-slate-900 truncate">${esc(a.email||'—')}</p>
+              <p class="text-xs text-slate-400 mt-0.5">追加者: ${esc(a.added_by||'—')} · ${dateStr}</p>
             </div>
-            ${isSelf
-              ? '<span class="text-xs text-slate-400 shrink-0 px-3 py-1.5">自分</span>'
-              : `<button data-uid="${esc(d.id)}" data-email="${esc(a.email || '')}"
-                  onclick="revokeAdmin(this.dataset.uid, this.dataset.email)"
-                  class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all shrink-0">
-                  <i data-lucide="user-minus" width="12" height="12"></i>削除
-                </button>`}
+            <button data-doc="${esc(a.id)}" data-email="${esc(a.email||'')}" data-uid="${esc(a.uid||'')}"
+              onclick="revokeAdminRole(this.dataset.doc, this.dataset.email, this.dataset.uid)"
+              class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all shrink-0">
+              <i data-lucide="shield-off" width="12" height="12"></i>権限削除
+            </button>
           </div>`;
       }).join('');
       lucide.createIcons();
     } catch(e) { el.innerHTML = errMsg(e); }
   }
 
-  async function grantAdmin() {
-    const emailInput = document.getElementById('new-admin-email');
-    const errEl      = document.getElementById('admin-grant-error');
-    const btn        = document.getElementById('grant-admin-btn');
-    const email      = (emailInput?.value || '').trim();
-    errEl.textContent = '';
+  async function inviteAdmin() {
+    const emailInput    = document.getElementById('admin-target-email');
+    const passwordInput = document.getElementById('admin-temp-password');
+    const msgEl         = document.getElementById('admin-action-msg');
+    const email         = (emailInput.value || '').trim();
+    const password      = passwordInput.value;
+    msgEl.textContent = '';
+    msgEl.className   = 'text-xs mt-2 min-h-[1rem]';
 
-    if (!email || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) {
-      errEl.textContent = '有効なメールアドレスを入力してください';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      msgEl.textContent = 'メールアドレスを正しく入力してください';
+      msgEl.classList.add('text-red-500');
       return;
     }
-    if (!auth?.currentUser) { errEl.textContent = '認証情報が取得できません。再ログインしてください。'; return; }
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>';
+    if (!password || password.length < 8) {
+      msgEl.textContent = '仮パスワードは8文字以上で入力してください';
+      msgEl.classList.add('text-red-500');
+      return;
+    }
+    if (!auth || !db) { msgEl.textContent = 'Firebase未設定です'; msgEl.classList.add('text-red-500'); return; }
 
     try {
-      const idToken = await auth.currentUser.getIdToken();
-      const res     = await fetch('/.netlify/functions/set-admin', {
-        method:  'POST',
+      const user    = auth.currentUser;
+      const idToken = await user.getIdToken(true);
+      const res = await fetch('/.netlify/functions/invite-admin', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body:    JSON.stringify({ action: 'grant', email }),
+        body: JSON.stringify({ targetEmail: email, tempPassword: password }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        errEl.textContent = data.error === 'Cannot modify own admin status'
-          ? '自分自身の権限は変更できません'
-          : (data.error || '権限の付与に失敗しました');
+        const errMsgs = {
+          'user-already-exists': 'このメールアドレスはすでに登録されています',
+          'invalid-email':       'メールアドレスの形式が正しくありません',
+          'weak-password':       'パスワードが弱すぎます（8文字以上にしてください）',
+        };
+        msgEl.textContent = errMsgs[data.error] || (data.error ? `エラー: ${data.error}` : '招待に失敗しました');
+        msgEl.classList.add('text-red-500');
         return;
       }
-
-      // Firestore の admins コレクションに記録
-      if (db) {
-        await db.collection('admins').doc(data.uid).set({
-          email,
-          uid:        data.uid,
-          granted_by: auth.currentUser.email || '',
-          granted_at: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-
-      // 新規作成ユーザーにはパスワード設定メールを送信
-      if (data.created) {
-        try { await auth.sendPasswordResetEmail(email); } catch(_) {}
-        showToast('管理者を追加しました。パスワード設定メールを送信しました');
-      } else {
-        showToast('管理者権限を付与しました');
-      }
-
-      emailInput.value = '';
+      emailInput.value    = '';
+      passwordInput.value = '';
+      msgEl.textContent   = `${email} に招待メールを送信しました`;
+      msgEl.classList.add('text-green-600');
+      showToast('招待メールを送信しました');
       loadAdmins();
     } catch(e) {
-      errEl.textContent = 'エラー: ' + e.message;
-    } finally {
-      btn.disabled  = false;
-      btn.innerHTML = '<i data-lucide="user-plus" width="14" height="14"></i>追加';
-      lucide.createIcons();
+      msgEl.textContent = 'エラー: ' + e.message;
+      msgEl.classList.add('text-red-500');
     }
   }
 
-  function revokeAdmin(uid, email) {
+  function revokeAdminRole(docId, email, uid) {
     showConfirm(
       `「${email}」の管理者権限を削除しますか？`,
-      '削除後はこのアカウントで管理画面にアクセスできなくなります。',
+      'このユーザーはダッシュボードにアクセスできなくなります。',
       '削除する', 'bg-red-500 hover:bg-red-600',
       async () => {
-        if (!auth?.currentUser) { showToast('認証情報が取得できません', false); return; }
+        if (!auth || !db) { showToast('Firebase未設定です', false); return; }
         try {
-          const idToken = await auth.currentUser.getIdToken();
-          const res     = await fetch('/.netlify/functions/set-admin', {
-            method:  'POST',
+          const idToken = await auth.currentUser.getIdToken(true);
+          const res = await fetch('/.netlify/functions/set-admin-claim', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-            body:    JSON.stringify({ action: 'revoke', email }),
+            body: JSON.stringify({ targetEmail: email, action: 'remove' }),
           });
+          const data = await res.json();
           if (!res.ok) {
-            const data = await res.json();
-            showToast(data.error || '権限の削除に失敗しました', false);
+            showToast(data.error || '削除に失敗しました', false);
             return;
           }
-          if (db) await db.collection('admins').doc(uid).delete();
+          await db.collection('admins').doc(docId).delete();
           showToast('管理者権限を削除しました');
           loadAdmins();
         } catch(e) { showToast('エラー: ' + e.message, false); }
       }
     );
   }
+
+  // ============================================================
+  // CSVエクスポート（Task 7）
+  // ============================================================
+  function csvEscape(val) {
+    const s = String(val ?? '');
+    if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function fmtDateCSV(val) {
+    if (!val) return '';
+    const d = val.toDate ? val.toDate() : new Date(val);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  }
+
+  async function exportInquiriesCSV() {
+    if (!db) { showToast('Firebase未設定です', false); return; }
+    showToast('CSVを生成中...');
+    try {
+      const inqSnap = await db.collection('inquiries').get();
+      if (inqSnap.empty) { showToast('エクスポートするデータがありません', false); return; }
+
+      const orgMenuMap = {};
+      for (const doc of inqSnap.docs) {
+        const q = doc.data();
+        if (q.org_id && !orgMenuMap[q.org_id]) orgMenuMap[q.org_id] = {};
+        if (q.org_id && q.menu_id && !orgMenuMap[q.org_id][q.menu_id]) orgMenuMap[q.org_id][q.menu_id] = null;
+      }
+
+      const orgNames   = {};
+      const menuTitles = {};
+      await Promise.all(Object.keys(orgMenuMap).map(async orgId => {
+        try {
+          const orgDoc = await db.collection('organizations').doc(orgId).get();
+          if (orgDoc.exists) orgNames[orgId] = orgDoc.data().name || '';
+          await Promise.all(Object.keys(orgMenuMap[orgId]).map(async menuId => {
+            try {
+              const mDoc = await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).get();
+              if (mDoc.exists) menuTitles[orgId + '__' + menuId] = mDoc.data().title || '';
+            } catch(e) { /* skip */ }
+          }));
+        } catch(e) { /* skip */ }
+      }));
+
+      const headers = ['団体名','支援メニュー','登録日','状況','進捗','支援実施日','支援企業名','支援企業担当者名','支援企業担当者電話番号','支援企業担当者メールアドレス'];
+      const statusMap = { new: '対応中', done: '完了' };
+
+      const rows = inqSnap.docs
+        .slice()
+        .sort((a,b) => (b.data().created_at?.toMillis?.()??0) - (a.data().created_at?.toMillis?.()??0))
+        .map(doc => {
+          const q = doc.data();
+          const orgName   = orgNames[q.org_id]  || q.org_id  || '';
+          const menuTitle = menuTitles[q.org_id + '__' + q.menu_id] || q.menu_id || '';
+          const statusJp  = statusMap[q.status] || q.status || '';
+          const doneDate  = q.done_at ? fmtDateCSV(q.done_at) : (q.status === 'done' ? fmtDateCSV(q.updated_at) : '');
+          return [orgName, menuTitle, fmtDateCSV(q.created_at), statusJp, statusJp, doneDate,
+                  q.company_name||'', q.pic_name||'', q.phone||'', q.sender_email||''].map(csvEscape).join(',');
+        });
+
+      const csvContent = '﻿' + [headers.map(csvEscape).join(','), ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = '支援データ_' + dateStr + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(inqSnap.size + '件のデータをエクスポートしました');
+    } catch(e) {
+      console.error('CSV export error:', e);
+      showToast('エクスポートに失敗しました: ' + e.message, false);
+    }
+  }
+
+  // ============================================================
+  // 団体詳細ドロワー
+  // ============================================================
+  let _orgDrawerCurrentId  = null;
+  let _orgDrawerCurrentTab = 'info';
+
+  async function openOrgDetail(orgId) {
+    if (!db) { showToast('Firebase未設定です', false); return; }
+    _orgDrawerCurrentId  = orgId;
+    _orgDrawerCurrentTab = 'info';
+    const drawer  = document.getElementById('org-drawer');
+    const overlay = document.getElementById('org-drawer-overlay');
+    overlay.classList.remove('hidden');
+    drawer.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    ['org-drawer-name','org-drawer-status','org-drawer-meta','org-drawer-img-wrap','org-drawer-actions',
+     'org-drawer-info-content','org-drawer-menus-content','org-drawer-inquiries-content'].forEach(id => {
+      const el = document.getElementById(id);
+      if (id === 'org-drawer-name') el.textContent = '読み込み中...';
+      else el.innerHTML = id.includes('content') ? '<div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>' : '';
+    });
+    switchOrgDetailTab('info');
+    try {
+      const snap = await db.collection('organizations').doc(orgId).get();
+      if (!snap.exists) { showToast('団体が見つかりません', false); closeOrgDetail(); return; }
+      const o = snap.data();
+      const imgWrap = document.getElementById('org-drawer-img-wrap');
+      if (o.main_image) {
+        const img = document.createElement('img');
+        img.src = o.main_image; img.alt = '';
+        img.className = 'w-14 h-14 rounded-xl object-cover bg-slate-100';
+        img.onerror = () => img.style.display = 'none';
+        imgWrap.appendChild(img);
+      } else {
+        imgWrap.innerHTML = '<div class="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center"><i data-lucide="image" class="text-slate-300" width="22" height="22"></i></div>';
+      }
+      document.getElementById('org-drawer-name').textContent = o.name || '—';
+      document.getElementById('org-drawer-status').innerHTML = statusBadge(o.status);
+      const meta = document.getElementById('org-drawer-meta');
+      meta.innerHTML = '';
+      [{icon:'tag',val:CAT[o.category]||o.category||'—'},{icon:'map-pin',val:o.area||'—'},{icon:'clock',val:fmtDate(o.created_at)}].forEach(({icon,val}) => {
+        const s = document.createElement('span'); s.className = 'flex items-center gap-1';
+        s.innerHTML = `<i data-lucide="${icon}" width="11" height="11"></i>${esc(val)}`; meta.appendChild(s);
+      });
+      const actionsEl = document.getElementById('org-drawer-actions');
+      actionsEl.innerHTML = '';
+      if (o.status === 'pending' && o.emailVerified) {
+        const btn = document.createElement('button');
+        btn.className = 'flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all';
+        btn.innerHTML = '<i data-lucide="check" width="12" height="12"></i>承認する';
+        btn.onclick = () => approveOrg(orgId);
+        actionsEl.appendChild(btn);
+      }
+      if (o.status === 'pending') {
+        const btn = document.createElement('button');
+        btn.className = 'flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-all';
+        btn.innerHTML = '<i data-lucide="x" width="12" height="12"></i>却下する';
+        btn.onclick = () => rejectOrg(orgId, o.name);
+        actionsEl.appendChild(btn);
+      }
+      const link = document.createElement('a');
+      link.href = 'club.html?id=' + encodeURIComponent(orgId); link.target = '_blank'; link.rel = 'noopener';
+      link.className = 'flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all ml-auto';
+      link.innerHTML = '<i data-lucide="external-link" width="12" height="12"></i>公開サイトで見る';
+      actionsEl.appendChild(link);
+      const infoEl = document.getElementById('org-drawer-info-content');
+      infoEl.innerHTML = '';
+      const card = document.createElement('div'); card.className = 'space-y-3';
+      const fields = [
+        {icon:'mail', label:'メール', val:o.contact_email||'—'},
+        {icon:'shield-check', label:'メール確認', val:o.emailVerified?'確認済み':'未確認', cls:o.emailVerified?'text-green-600 font-bold':'text-amber-600 font-bold'},
+        {icon:'calendar', label:'登録日時', val:fmtDate(o.created_at)}
+      ];
+      const fieldRow = document.createElement('div'); fieldRow.className = 'bg-slate-50 rounded-xl p-4 space-y-2';
+      fields.forEach(f => {
+        const row = document.createElement('div'); row.className = 'flex items-center gap-2 text-xs';
+        row.innerHTML = `<i data-lucide="${f.icon}" width="13" height="13" class="text-slate-400 shrink-0"></i><span class="text-slate-500 font-bold w-20 shrink-0">${f.label}</span><span class="${f.cls||'text-slate-700'} break-all">${esc(f.val)}</span>`;
+        fieldRow.appendChild(row);
+      });
+      card.appendChild(fieldRow);
+      if ((o.tags||[]).length) {
+        const tagDiv = document.createElement('div');
+        tagDiv.innerHTML = '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">タグ</p>';
+        const tagWrap = document.createElement('div'); tagWrap.className = 'flex flex-wrap gap-1';
+        o.tags.forEach(t => { const s = document.createElement('span'); s.className = 'text-[10px] bg-orange-50 text-orange-500 border border-orange-100 px-2 py-0.5 rounded-full'; s.textContent = t; tagWrap.appendChild(s); });
+        tagDiv.appendChild(tagWrap); card.appendChild(tagDiv);
+      }
+      if (o.activity_how) {
+        const actDiv = document.createElement('div');
+        actDiv.innerHTML = '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">クラブ紹介 <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline normal-case font-normal">📄 テンプレート</a></p>';
+        const p = document.createElement('p'); p.className = 'text-xs text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-3'; p.textContent = o.activity_how;
+        actDiv.appendChild(p); card.appendChild(actDiv);
+      }
+      infoEl.appendChild(card);
+      lucide.createIcons();
+      loadOrgDetailMenus(orgId);
+      loadOrgDetailInquiries(orgId);
+    } catch(e) { showToast('読み込みエラー: ' + e.message, false); }
+  }
+
+  function closeOrgDetail() {
+    document.getElementById('org-drawer').classList.remove('open');
+    document.getElementById('org-drawer-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    _orgDrawerCurrentId = null;
+  }
+
+  function switchOrgDetailTab(tab) {
+    _orgDrawerCurrentTab = tab;
+    ['info','menus','inquiries'].forEach(t => {
+      document.getElementById('org-tab-' + t).classList.toggle('hidden', t !== tab);
+      const btn = document.getElementById('org-tab-btn-' + t);
+      if (t === tab) { btn.classList.add('text-orange-500','border-orange-500'); btn.classList.remove('text-slate-400','border-transparent','hover:text-slate-700'); }
+      else { btn.classList.remove('text-orange-500','border-orange-500'); btn.classList.add('text-slate-400','border-transparent','hover:text-slate-700'); }
+    });
+  }
+
+  async function loadOrgDetailMenus(orgId) {
+    const el = document.getElementById('org-drawer-menus-content');
+    if (!db) { el.textContent = 'Firebase未設定'; return; }
+    try {
+      const snap = await db.collection('organizations').doc(orgId).collection('menus').get();
+      el.innerHTML = '';
+      if (snap.empty) { el.textContent = '支援メニューはありません'; return; }
+      const typeLabel = {subsidy:'補助金・助成',space:'場所提供',hr:'人材・ボランティア',goods:'物品提供',pr:'広報支援',other:'その他'};
+      snap.docs.slice().sort((a,b)=>(b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0)).forEach(m => {
+        const d = m.data(); const mid = m.id;
+        const card = document.createElement('div'); card.className = 'bg-white rounded-xl border border-slate-100 shadow-sm p-4';
+        const topRow = document.createElement('div'); topRow.className = 'flex items-start justify-between gap-3 mb-2';
+        const titleDiv = document.createElement('div'); titleDiv.className = 'flex-1 min-w-0';
+        const title = document.createElement('p'); title.className = 'text-sm font-black text-slate-900 leading-tight mb-1'; title.textContent = d.title||'—'; titleDiv.appendChild(title);
+        const meta = document.createElement('div'); meta.className = 'flex flex-wrap gap-2 text-[10px] text-slate-400';
+        if (d.support_type) { const s = document.createElement('span'); s.textContent = typeLabel[d.support_type]||d.support_type; meta.appendChild(s); }
+        const dt = document.createElement('span'); dt.textContent = fmtDate(d.created_at); meta.appendChild(dt);
+        if (d.matched_count) { const mc = document.createElement('span'); mc.textContent = 'マッチ ' + d.matched_count + '件'; meta.appendChild(mc); }
+        titleDiv.appendChild(meta); topRow.appendChild(titleDiv);
+        const badges = document.createElement('div'); badges.className = 'flex items-center gap-2 shrink-0';
+        badges.innerHTML = statusBadge(d.status||'private');
+        if (d.is_matched) { const b = document.createElement('span'); b.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-100 text-blue-600'; b.textContent = 'マッチ済'; badges.appendChild(b); }
+        topRow.appendChild(badges); card.appendChild(topRow);
+        const actions = document.createElement('div'); actions.className = 'flex gap-2';
+        const toggleBtn = document.createElement('button');
+        if (d.status !== 'private') {
+          toggleBtn.className = 'flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-600 text-[10px] font-bold rounded-lg transition-all';
+          toggleBtn.innerHTML = '<i data-lucide="eye-off" width="11" height="11"></i>非公開にする';
+          toggleBtn.onclick = () => toggleOrgDetailMenuStatus(orgId, mid, 'private');
+        } else {
+          toggleBtn.className = 'flex items-center gap-1 px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-600 text-[10px] font-bold rounded-lg transition-all';
+          toggleBtn.innerHTML = '<i data-lucide="eye" width="11" height="11"></i>公開にする';
+          toggleBtn.onclick = () => toggleOrgDetailMenuStatus(orgId, mid, 'public');
+        }
+        actions.appendChild(toggleBtn); card.appendChild(actions); el.appendChild(card);
+      });
+      lucide.createIcons();
+    } catch(e) { el.textContent = 'エラー: ' + e.message; }
+  }
+
+  async function toggleOrgDetailMenuStatus(orgId, menuId, newStatus) {
+    if (!db) return;
+    try {
+      await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).update({ status: newStatus, updated_at: firebase.firestore.FieldValue.serverTimestamp() });
+      showToast(newStatus === 'public' ? '公開しました' : '非公開にしました');
+      loadOrgDetailMenus(orgId);
+    } catch(e) { showToast('エラー: ' + e.message, false); }
+  }
+
+  async function loadOrgDetailInquiries(orgId) {
+    const el = document.getElementById('org-drawer-inquiries-content');
+    if (!db) { el.textContent = 'Firebase未設定'; return; }
+    try {
+      const snap = await db.collection('inquiries').where('org_id','==',orgId).get();
+      el.innerHTML = '';
+      if (snap.empty) { el.textContent = '支援申請はありません'; return; }
+      snap.docs.slice().sort((a,b)=>(b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0)).forEach(doc => {
+        const q = doc.data(); const id = doc.id;
+        const card = document.createElement('div'); card.className = 'bg-white rounded-xl border ' + (q.status==='new'?'border-blue-100':'border-slate-100') + ' shadow-sm p-4';
+        const topRow = document.createElement('div'); topRow.className = 'flex items-start justify-between gap-3 mb-2';
+        const info = document.createElement('div'); info.className = 'flex-1 min-w-0';
+        const nameRow = document.createElement('div'); nameRow.className = 'flex items-center gap-2 flex-wrap mb-1';
+        const name = document.createElement('p'); name.className = 'text-sm font-black text-slate-900'; name.textContent = q.company_name||'—'; nameRow.appendChild(name);
+        nameRow.innerHTML += statusBadge(q.status||'new'); info.appendChild(nameRow);
+        const meta = document.createElement('div'); meta.className = 'flex flex-wrap gap-2 text-[10px] text-slate-400';
+        if (q.pic_name) { const s = document.createElement('span'); s.textContent = q.pic_name + ' 様'; meta.appendChild(s); }
+        const dt = document.createElement('span'); dt.textContent = fmtDate(q.created_at); meta.appendChild(dt);
+        if (q.menu_title) { const s = document.createElement('span'); s.textContent = q.menu_title; meta.appendChild(s); }
+        info.appendChild(meta); topRow.appendChild(info); card.appendChild(topRow);
+        if (q.message) { const p = document.createElement('p'); p.className = 'text-xs text-slate-600 bg-slate-50 rounded-xl p-3 mb-3 leading-relaxed line-clamp-2'; p.textContent = q.message; card.appendChild(p); }
+        const btns = document.createElement('div'); btns.className = 'flex flex-wrap gap-2';
+        const statusBtn = document.createElement('button');
+        if (q.status !== 'done') {
+          statusBtn.className = 'flex items-center gap-1 px-2.5 py-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold rounded-lg transition-all';
+          statusBtn.innerHTML = '<i data-lucide="check" width="11" height="11"></i>対応済みにする';
+          statusBtn.onclick = () => updateInquiryStatusFromDrawer(id, 'done', orgId);
+        } else {
+          statusBtn.className = 'flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-lg transition-all';
+          statusBtn.innerHTML = '<i data-lucide="undo-2" width="11" height="11"></i>未対応に戻す';
+          statusBtn.onclick = () => updateInquiryStatusFromDrawer(id, 'new', orgId);
+        }
+        btns.appendChild(statusBtn);
+        if (q.sender_email) { const a = document.createElement('a'); a.href = 'mailto:' + q.sender_email; a.className = 'flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-lg transition-all'; a.innerHTML = '<i data-lucide="mail" width="11" height="11"></i>返信する'; btns.appendChild(a); }
+        card.appendChild(btns); el.appendChild(card);
+      });
+      lucide.createIcons();
+    } catch(e) { el.textContent = 'エラー: ' + e.message; }
+  }
+
+  async function updateInquiryStatusFromDrawer(inqId, status, orgId) {
+    if (!db) return;
+    if (status === 'done') { showContinuousSupportDialog(inqId); return; }
+    try {
+      await db.collection('inquiries').doc(inqId).update({ status });
+      showToast('未対応に戻しました');
+      loadOrgDetailInquiries(orgId);
+      if (currentTab === 'inquiries') loadInquiries();
+    } catch(e) { showToast('エラー: ' + e.message, false); }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && _orgDrawerCurrentId) closeOrgDetail();
+  });
 
   // ============================================================
   // BFCache（戻るボタン）対策: キャッシュから復元された場合も認証チェック
@@ -1549,9 +2251,72 @@
   }
 
   // ============================================================
+  // サイドバーナビ ドラッグ&ドロップ並び替え
+  // ============================================================
+  const SIDE_NAV_ORDER_KEY = 'sasaeru_admin_side_nav_order';
+  let _sideNavDragging = null;
+
+  function sideNavDragStart(e) {
+    _sideNavDragging = e.currentTarget;
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', e.currentTarget.dataset.tab);
+  }
+  function sideNavDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.currentTarget;
+    if (target !== _sideNavDragging) target.classList.add('drag-over');
+  }
+  function sideNavDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+  function sideNavDrop(e) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    target.classList.remove('drag-over');
+    if (!_sideNavDragging || _sideNavDragging === target) return;
+    const nav = document.getElementById('side-nav');
+    const buttons = [...nav.querySelectorAll(':scope > button')];
+    const fromIdx = buttons.indexOf(_sideNavDragging);
+    const toIdx   = buttons.indexOf(target);
+    if (fromIdx === -1 || toIdx === -1) return;
+    if (fromIdx < toIdx) {
+      nav.insertBefore(_sideNavDragging, target.nextSibling);
+    } else {
+      nav.insertBefore(_sideNavDragging, target);
+    }
+    saveSideNavOrder();
+    lucide.createIcons();
+  }
+  function sideNavDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    document.querySelectorAll('.side-btn').forEach(b => b.classList.remove('drag-over'));
+    _sideNavDragging = null;
+  }
+
+  function saveSideNavOrder() {
+    const nav = document.getElementById('side-nav');
+    const order = [...nav.querySelectorAll(':scope > button')].map(b => b.dataset.tab);
+    localStorage.setItem(SIDE_NAV_ORDER_KEY, JSON.stringify(order));
+  }
+
+  function restoreSideNavOrder() {
+    let order;
+    try { order = JSON.parse(localStorage.getItem(SIDE_NAV_ORDER_KEY)); } catch(e) { return; }
+    if (!Array.isArray(order) || order.length === 0) return;
+    const nav = document.getElementById('side-nav');
+    order.forEach(tab => {
+      const btn = nav.querySelector(`button[data-tab="${tab}"]`);
+      if (btn) nav.appendChild(btn);
+    });
+  }
+
+  // ============================================================
   // 初期化
   // ============================================================
   document.addEventListener('DOMContentLoaded', () => {
+    restoreSideNavOrder();
     lucide.createIcons();
   });
   </script>

@@ -52,6 +52,11 @@
     /* 地域マルチセレクト */
     .area-dropdown { position:absolute; top:100%; left:0; right:0; z-index:50; background:#fff; border:1px solid #e2e8f0; border-top:none; border-radius:0 0 0.75rem 0.75rem; max-height:200px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.08); }
     .area-dropdown li { padding:0.5rem 1rem; font-size:0.8125rem; cursor:pointer; color:#334155; }
+    /* ===== 団体一覧フェードトランジション ===== */
+    @keyframes gridFadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .grid-fade { animation: gridFadeIn 0.25s ease forwards; }
+    #clubs-container { transition: opacity 0.15s ease; }
+    #clubs-container.searching { opacity: 0.4; pointer-events: none; }
     .area-dropdown li:hover, .area-dropdown li.active { background:#fff7ed; color:#ea580c; }
     .area-chip { display:inline-flex; align-items:center; gap:0.25rem; background:#fff7ed; color:#ea580c; border:1px solid #fed7aa; border-radius:9999px; padding:0.15rem 0.6rem; font-size:0.75rem; font-weight:700; }
     .area-chip button { background:none; border:none; cursor:pointer; color:#f97316; padding:0; line-height:1; font-size:0.875rem; }
@@ -231,7 +236,7 @@
           <h3 class="text-lg font-black mb-4">企業・法人</h3>
           <ul class="space-y-3 text-sm text-orange-50">
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-white shrink-0 mt-0.5" width="16" height="16"></i>効果的なSCR・CSR活動</li>
-            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-white shrink-0 mt-0.5" width="16" height="16"></i>内部留保の有効活用</li>
+            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-white shrink-0 mt-0.5" width="16" height="16"></i>利益の有効活用</li>
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-white shrink-0 mt-0.5" width="16" height="16"></i>地域の認知度・ブランド向上</li>
           </ul>
         </div>
@@ -241,7 +246,7 @@
           </div>
           <h3 class="text-lg font-black mb-4 text-slate-900">学校・子ども</h3>
           <ul class="space-y-3 text-sm text-slate-600">
-            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>部活動の地域移行を加速</li>
+            <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>部活動の地域移行の支援</li>
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>多様な体験機会の確保</li>
             <li class="flex gap-2 items-start"><i data-lucide="check-circle-2" class="text-green-500 shrink-0 mt-0.5" width="16" height="16"></i>地域社会との繋がり</li>
           </ul>
@@ -260,12 +265,71 @@
           <p class="text-slate-500 text-sm">あなたの企業の力が、子どもたちの夢を支えます。</p>
         </div>
         <div class="flex bg-white p-1 rounded-full shadow-sm border border-slate-200 flex-wrap gap-1" id="tab-container">
-          <button data-tab="all" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
-          <button data-tab="sports" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">スポーツ</button>
-          <button data-tab="culture" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">文化・芸術</button>
-          <button data-tab="welfare" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">福祉</button>
+          <button data-tab="all" data-tab-label="すべて" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
+          <button data-tab="sports" data-tab-label="スポーツ" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">スポーツ</button>
+          <button data-tab="culture" data-tab-label="文化・芸術" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">文化・芸術</button>
+          <button data-tab="welfare" data-tab-label="福祉" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">福祉</button>
         </div>
       </div>
+      <!-- 3軸検索バー -->
+      <div class="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <div class="flex flex-col sm:flex-row gap-3">
+          <!-- フリーワード -->
+          <div class="flex-1 relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="15" height="15"></i>
+            <input type="text" id="search-keyword" placeholder="フリーワードで検索..."
+              class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
+              oninput="onSearchInput()">
+          </div>
+          <!-- 地域 -->
+          <div class="sm:w-44">
+            <select id="search-area" onchange="onSearchInput()"
+              class="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white appearance-none">
+              <option value="">地域（すべて）</option>
+              <option value="松江市">松江市</option>
+              <option value="出雲市">出雲市</option>
+              <option value="浜田市">浜田市</option>
+              <option value="益田市">益田市</option>
+              <option value="大田市">大田市</option>
+              <option value="安来市">安来市</option>
+              <option value="江津市">江津市</option>
+              <option value="雲南市">雲南市</option>
+              <option value="奥出雲町">奥出雲町</option>
+              <option value="飯南町">飯南町</option>
+              <option value="川本町">川本町</option>
+              <option value="美郷町">美郷町</option>
+              <option value="邑南町">邑南町</option>
+              <option value="津和野町">津和野町</option>
+              <option value="吉賀町">吉賀町</option>
+              <option value="海士町">海士町</option>
+              <option value="西ノ島町">西ノ島町</option>
+              <option value="知夫村">知夫村</option>
+              <option value="隠岐の島町">隠岐の島町</option>
+            </select>
+          </div>
+          <!-- カテゴリー -->
+          <div class="sm:w-44">
+            <select id="search-category" onchange="onSearchInput()"
+              class="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white appearance-none">
+              <option value="">カテゴリー（すべて）</option>
+              <option value="sports">スポーツ</option>
+              <option value="culture">文化・芸術</option>
+              <option value="welfare">福祉</option>
+              <option value="other">その他</option>
+            </select>
+          </div>
+          <!-- クリアボタン（フィルター有効時のみ表示） -->
+          <button id="search-clear-btn" onclick="clearSearch()" style="display:none"
+            class="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold rounded-xl transition-all shrink-0">
+            <i data-lucide="x" width="14" height="14"></i>クリア
+          </button>
+        </div>
+        <!-- 結果カウント -->
+        <div class="flex items-center gap-2 mt-3 min-h-[1.25rem]">
+          <span id="search-result-label" class="text-xs text-slate-400 transition-all"></span>
+        </div>
+      </div>
+
       <div class="grid md:grid-cols-3 gap-7" id="clubs-container">
         <div class="col-span-3 text-center py-20 text-slate-400">
           <i data-lucide="loader-2" width="32" height="32" class="mx-auto mb-3 animate-spin text-orange-400"></i>
@@ -303,7 +367,7 @@
         <div>
           <span class="text-xs font-bold text-orange-500 tracking-widest uppercase">For Companies</span>
           <h2 class="text-3xl md:text-4xl font-black text-slate-900 mt-2 mb-8 leading-tight">
-            企業の内部留保を、<br>地域の<span class="text-orange-500">「笑顔」</span>へ投資しませんか？
+            地域の<span class="text-orange-500">「笑顔」</span><br>を一緒に作りませんか？
           </h2>
           <div class="space-y-6">
           <div class="flex gap-4">
@@ -312,7 +376,7 @@
             </div>
             <div>
               <h4 class="font-bold text-base mb-1 text-slate-900">利益の有効活用</h4>
-              <p class="text-slate-500 text-sm leading-relaxed">余剰利益を地域活動へ支援することで、効果的な節税対策と社会貢献を両立できます。</p>
+              <p class="text-slate-500 text-sm leading-relaxed">地域活動への支援で、地域の活性化を促進。</p>
             </div>
           </div>
           <div class="flex gap-4">
@@ -321,7 +385,7 @@
             </div>
             <div>
               <h4 class="font-bold text-base mb-1 text-slate-900">企業PRの場として</h4>
-              <p class="text-slate-500 text-sm leading-relaxed">支援先クラブのウェアや看板に企業ロゴを掲載。地域住民への好感度を向上させます。</p>
+              <p class="text-slate-500 text-sm leading-relaxed">支援先クラブのウェアや看板に企業ロゴを掲載。地域住民へ認知を高ます。</p>
             </div>
           </div>
           <div class="flex gap-4">
@@ -392,8 +456,8 @@
             地域の子どもたちが夢を追いかけられる環境を、地域の企業と共に創り上げます。掲載料は無料です。まずはお気軽にご登録ください。
           </p>
           <div class="space-y-2 text-sm text-slate-500">
-            <p class="flex items-center gap-2"><i data-lucide="map-pin" width="14" height="14" class="text-orange-400"></i>島根県松江市</p>
-            <p class="flex items-center gap-2"><i data-lucide="mail" width="14" height="14" class="text-orange-400"></i>info@sasaeru.jp</p>
+            <p class="flex items-center gap-2"><i data-lucide="map-pin" width="14" height="14" class="text-orange-400"></i>〒690-0842　島根県松江市東本町2-25-1 東本町ビル4階</p>
+            <p class="flex items-center gap-2"><i data-lucide="mail" width="14" height="14" class="text-orange-400"></i>sasaeru@scl.or.jp</p>
           </div>
         </div>
         <!-- Contact Form -->
@@ -611,7 +675,7 @@
           <p class="text-[10px] text-slate-400 mt-1.5">クリックで選択・解除できます。</p>
         </div>
         <div>
-          <label for="reg-activity" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介・現状 <span class="text-red-500">*</span></label>
+          <label for="reg-activity" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介（テンプレートはこちら） <span class="text-red-500">*</span> <a id="template-link" href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]" onclick="applyClubIntroTemplate(event)">📄 テンプレートはこちら</a></label>
           <textarea id="reg-activity" name="activity_how" rows="4" required maxlength="2000"
             placeholder="クラブの活動内容、現在直面している課題、必要な支援内容などをご記入ください。"
             oninput="updateCounter(this,'reg-activity-counter',2000)"
@@ -690,6 +754,64 @@
   </button>
 
   <script>
+  // ===================================================
+  // クラブ紹介テンプレート
+  // ===================================================
+  const CLUB_INTRO_TEMPLATE = `【地域クラブ紹介】構成テンプレート
+
+1. キャッチコピー
+一言で伝えるクラブの魅力
+
+2. 私たちの想い（ビジョン）
+活動の目的・きっかけ、目指す未来
+
+3. 活動内容
+具体的な取り組み、対象・規模
+
+4. 地域の声・実績
+これまでの成果
+
+5. 応援・協賛のお願い
+募集している支援、共に創る価値
+
+6. クラブ概要
+基本情報
+
+---
+【記載例①：スポーツクラブ】
+キャッチコピー：「サッカーを通じて、地域に愛され、自立して輝く子どもたちを育てる」
+ビジョン：単なる技術向上だけでなく、スポーツを通じた人間形成を重視。子どもたちが安全に活動できる居場所を提供。
+活動内容：毎週土日、小学校グラウンドで約50名を対象に活動。月1回の地域清掃ボランティアも実施。
+地域の声：保護者から「引っ込み思案だった子が挨拶できるようになり、学校で友達が増えた」との報告あり。
+応援・協賛のお願い：遠征費や練習用具、ビブスへの企業ロゴ掲載パートナーを募集。
+
+【記載例②：文化・音楽教室】
+キャッチコピー：「音でつながる、心が高鳴る。誰もが主役になれる地域の音楽コミュニティ」
+ビジョン：経済的理由で音楽を始められない子どもやシニア層を対象に、芸術に気軽に触れられる環境を構築。
+活動内容：毎週水・金に公民館で約30名が在籍。年2回、福祉施設などで街かどコンサートを開催。
+地域の声：シニア参加者から「ここで生きがいを感じている」との声。
+応援・協賛のお願い：眠っている楽器の寄付や発表会の会場費サポートを募集。
+
+【記載例③：子ども食堂（福祉）】
+キャッチコピー：「お腹も心も満たされる、子どもたちのサードプレイス」
+ビジョン：共働き世帯の増加や孤立化に対応し、温かい食事と大人の見守りを提供。地域全体での子育てを実現。
+活動内容：毎月第2・4水曜日に約40食の手作りご飯と学習サポートを提供。対象は幼児から中学生。
+地域の声：保護者から「安心して利用でき、食事も喜んでいる」との感謝の声。
+応援・協賛のお願い：食材提供、運営費寄付、調理ボランティアを募集。企業CSR活動としての協力も歓迎。`;
+
+  function applyClubIntroTemplate(event) {
+    event.preventDefault();
+    const ta = document.getElementById('reg-activity');
+    if (!ta) return;
+    if (ta.value.trim() !== '') {
+      if (!confirm('テンプレートで現在の入力内容を上書きしますか？')) return;
+    }
+    ta.value = CLUB_INTRO_TEMPLATE;
+    updateCounter(ta, 'reg-activity-counter', 2000);
+    ta.focus();
+    showToast('テンプレートを挿入しました。内容を参考に編集してください。');
+  }
+
   // ===================================================
   // Firebase 設定
   // ===================================================
@@ -971,11 +1093,56 @@
   // ===================================================
   // 状態
   // ===================================================
-  let currentFilter = 'all';
-  let allOrgs = [];
-  let _unsubStats = null;
-  let _unsubOrgs  = null;
+  let currentFilter  = 'all';
+  let allOrgs        = [];
+  let _unsubStats    = null;
+  let _unsubOrgs     = null;
+  let _searchTimer   = null;
   // _regTags / _selectedAreas / _selectedSupportCats は上部で定義済み
+
+  // ===================================================
+  // 3軸検索ヘルパー
+  // ===================================================
+  function getSearchValues() {
+    return {
+      keyword:  (document.getElementById('search-keyword')?.value  || '').trim().toLowerCase(),
+      area:     (document.getElementById('search-area')?.value     || ''),
+      category: (document.getElementById('search-category')?.value || ''),
+    };
+  }
+
+  function isSearchActive(s) {
+    return s.keyword || s.area || s.category;
+  }
+
+  function onSearchInput() {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => {
+      // カテゴリ検索が選択されている場合、タブを「すべて」に戻す（二重フィルター防止）
+      const catSel = document.getElementById('search-category');
+      if (catSel && catSel.value) {
+        currentFilter = 'all';
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          const isAll = b.getAttribute('data-tab') === 'all';
+          b.classList.toggle('bg-orange-500', isAll);
+          b.classList.toggle('text-white', isAll);
+          b.classList.toggle('text-slate-500', !isAll);
+          b.classList.toggle('hover:bg-slate-100', !isAll);
+        });
+      }
+      renderOrgs();
+    }, 180);
+  }
+
+  function clearSearch() {
+    const kw = document.getElementById('search-keyword');
+    const ar = document.getElementById('search-area');
+    const ca = document.getElementById('search-category');
+    if (kw) kw.value = '';
+    if (ar) ar.value = '';
+    if (ca) ca.value = '';
+    renderOrgs();
+  }
 
   // ===================================================
   // ユーティリティ
@@ -1046,14 +1213,10 @@
   }
 
   const CATEGORY_LABEL = {
-    sports:      'スポーツ',
-    culture:     '文化・芸術',
-    arts:        '芸術・文化',
-    welfare:     '福祉',
-    community:   '地域・コミュニティ',
-    education:   '教育',
-    environment: '環境',
-    other:       'その他',
+    sports:  'スポーツ',
+    culture: '文化・芸術',
+    welfare: '福祉',
+    other:   'その他',
   };
   const CATEGORY_COLOR = {
     sports:  'bg-blue-50 text-blue-700 border-blue-100',
@@ -1123,58 +1286,132 @@
       );
   }
 
-  function renderOrgs() {
-    const container = document.getElementById('clubs-container');
-    const list = currentFilter === 'all' ? allOrgs : allOrgs.filter(o => o.category === currentFilter);
-    if (list.length === 0) {
-      container.innerHTML = `
-        <div class="col-span-3 text-center py-20 text-slate-400">
-          <i data-lucide="search-x" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
-          <p class="text-sm font-medium">該当するクラブはありません</p>
-          <p class="text-xs mt-1">別のカテゴリをお試しください</p>
-        </div>`;
-      lucide.createIcons();
-      return;
+  // 各タブボタンに現在の keyword・area フィルター適用後の件数を表示する
+  function updateTabCounts(s) {
+    // keyword・area だけを適用したベースリストを作る（カテゴリタブは除く）
+    let base = allOrgs.slice();
+    if (s && s.keyword) {
+      base = base.filter(o =>
+        (o.name         || '').toLowerCase().includes(s.keyword) ||
+        (o.activity_how || '').toLowerCase().includes(s.keyword) ||
+        ((o.tags || []).join(' ')).toLowerCase().includes(s.keyword)
+      );
     }
-    container.innerHTML = list.map(o => {
-      const catLabel = CATEGORY_LABEL[o.category] || o.category || 'その他';
-      const catColor = CATEGORY_COLOR[o.category] || CATEGORY_COLOR.other;
-      const tags = Array.isArray(o.tags)
-        ? o.tags
-        : (typeof o.tags === 'string' ? o.tags.split(',').map(t => t.trim()).filter(Boolean) : []);
-      const img = o.main_image || FALLBACK_IMG;
-      const desc = o.activity_how || '';
-      const orgId = esc(o.id);
-      const orgName = esc(o.name || '');
-      return `
-        <div class="card-hover bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 flex flex-col">
-          <div class="h-48 relative overflow-hidden">
-            <img src="${esc(img)}" alt="${orgName}" loading="lazy" class="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
-              onerror="this.onerror=null;this.src='${FALLBACK_IMG}'">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
-            <div class="absolute top-3 left-3">
-              <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border ${catColor}">${esc(catLabel)}</span>
+    if (s && s.area) {
+      base = base.filter(o => {
+        const areas = Array.isArray(o.area) ? o.area : [o.area];
+        return areas.some(a => (a || '').includes(s.area));
+      });
+    }
+    // search-category セレクトによる絞り込みも反映（タブとは独立）
+    if (s && s.category) {
+      base = base.filter(o => o.category === s.category);
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      const tab   = btn.getAttribute('data-tab');
+      const label = btn.getAttribute('data-tab-label') || tab;
+      const count = tab === 'all' ? base.length : base.filter(o => o.category === tab).length;
+      btn.textContent = label + ' (' + count + '件)';
+    });
+  }
+
+  function renderOrgs() {
+    const container  = document.getElementById('clubs-container');
+    const s          = getSearchValues();
+    const clearBtn   = document.getElementById('search-clear-btn');
+    const resultLbl  = document.getElementById('search-result-label');
+
+    // タブフィルター × 3軸フィルターを合成
+    let list = currentFilter === 'all' ? allOrgs : allOrgs.filter(o => o.category === currentFilter);
+
+    if (s.keyword) {
+      list = list.filter(o =>
+        (o.name           || '').toLowerCase().includes(s.keyword) ||
+        (o.activity_how   || '').toLowerCase().includes(s.keyword) ||
+        ((o.tags || []).join(' ')).toLowerCase().includes(s.keyword)
+      );
+    }
+    if (s.area) {
+      list = list.filter(o => {
+        const areas = Array.isArray(o.area) ? o.area : [o.area];
+        return areas.some(a => (a || '').includes(s.area));
+      });
+    }
+    if (s.category) {
+      list = list.filter(o => o.category === s.category);
+    }
+
+    // クリアボタン表示制御
+    if (clearBtn) clearBtn.style.display = isSearchActive(s) ? '' : 'none';
+
+    // タブごとの件数更新
+    updateTabCounts(s);
+
+    // 結果件数ラベル更新
+    if (resultLbl) {
+      resultLbl.style.opacity = '0';
+      setTimeout(() => {
+        resultLbl.textContent = isSearchActive(s) ? (list.length + '件のクラブが見つかりました') : '';
+        resultLbl.style.opacity = '1';
+        resultLbl.style.transition = 'opacity 0.3s';
+      }, 100);
+    }
+
+    // フェードして結果を表示
+    container.classList.add('searching');
+    setTimeout(() => {
+      container.classList.remove('searching');
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-3 text-center py-20 text-slate-400 grid-fade">
+            <i data-lucide="search-x" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
+            <p class="text-sm font-medium">該当するクラブはありません</p>
+            <p class="text-xs mt-1">条件を変えてお試しください</p>
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+      container.innerHTML = list.map(o => {
+        const catLabel = CATEGORY_LABEL[o.category] || o.category || 'その他';
+        const catColor = CATEGORY_COLOR[o.category] || CATEGORY_COLOR.other;
+        const tags = Array.isArray(o.tags)
+          ? o.tags
+          : (typeof o.tags === 'string' ? o.tags.split(',').map(t => t.trim()).filter(Boolean) : []);
+        const img     = o.main_image || FALLBACK_IMG;
+        const desc    = o.activity_how || '';
+        const orgId   = esc(o.id);
+        const orgName = esc(o.name || '');
+        return `
+          <div class="card-hover grid-fade bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 flex flex-col">
+            <div class="h-48 relative overflow-hidden">
+              <img src="${esc(img)}" alt="${orgName}" loading="lazy" class="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
+                onerror="this.onerror=null;this.src='${FALLBACK_IMG}'">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+              <div class="absolute top-3 left-3">
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border ${catColor}">${esc(catLabel)}</span>
+              </div>
+              ${o.area ? `<div class="absolute bottom-3 left-3 flex items-center gap-1 text-white text-[10px]">
+                <i data-lucide="map-pin" width="10" height="10"></i>${esc(Array.isArray(o.area) ? o.area.join('・') : o.area)}
+              </div>` : ''}
             </div>
-            ${o.area ? `<div class="absolute bottom-3 left-3 flex items-center gap-1 text-white text-[10px]">
-              <i data-lucide="map-pin" width="10" height="10"></i>${esc(Array.isArray(o.area) ? o.area.join('・') : o.area)}
-            </div>` : ''}
-          </div>
-          <div class="p-5 flex-grow">
-            <h3 class="text-base font-black text-slate-900 mb-3">${orgName}</h3>
-            ${tags.length ? `<div class="flex flex-wrap gap-1.5 mb-3">
-              ${tags.map(t => `<span class="text-[10px] font-bold bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-100">${esc(t)}</span>`).join('')}
-            </div>` : ''}
-            <p class="text-sm text-slate-500 leading-relaxed line-clamp-3">${esc(desc)}</p>
-          </div>
-          <div class="px-5 pb-5 mt-auto">
-            <a href="club.html?id=${orgId}" class="w-full bg-slate-50 hover:bg-orange-500 hover:text-white border border-slate-200 hover:border-orange-500 text-slate-900 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
-              詳細を見る
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </a>
-          </div>
-        </div>`;
-    }).join('');
-    lucide.createIcons();
+            <div class="p-5 flex-grow">
+              <h3 class="text-base font-black text-slate-900 mb-3">${orgName}</h3>
+              ${tags.length ? `<div class="flex flex-wrap gap-1.5 mb-3">
+                ${tags.map(t => `<span class="text-[10px] font-bold bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-100">${esc(t)}</span>`).join('')}
+              </div>` : ''}
+              <p class="text-sm text-slate-500 leading-relaxed line-clamp-3">${esc(desc)}</p>
+            </div>
+            <div class="px-5 pb-5 mt-auto">
+              <a href="club.html?id=${orgId}" class="w-full bg-slate-50 hover:bg-orange-500 hover:text-white border border-slate-200 hover:border-orange-500 text-slate-900 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
+                詳細を見る
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+            </div>
+          </div>`;
+      }).join('');
+      lucide.createIcons();
+    }, 150);
   }
 
   // ===================================================
@@ -1351,10 +1588,12 @@
   let _inquiryContactEmail = '';
   let _inquiryMenuTitle    = '';
   let _inquiryOrgName      = '';
-  function openInquiryModal(orgId, orgName, contactEmail, menuTitle) {
+  let _inquiryMenuId       = '';
+  function openInquiryModal(orgId, orgName, contactEmail, menuTitle, menuId) {
     _inquiryContactEmail = contactEmail || '';
-    _inquiryMenuTitle    = menuTitle    || orgName;
+    _inquiryMenuTitle    = menuTitle    || '';
     _inquiryOrgName      = orgName      || '';
+    _inquiryMenuId       = menuId       || '';
     document.getElementById('inquiry-target').textContent = menuTitle
       ? `支援先: ${orgName}（${menuTitle}）`
       : `支援先: ${orgName}`;
@@ -1373,6 +1612,7 @@
     _inquiryContactEmail = '';
     _inquiryMenuTitle    = '';
     _inquiryOrgName      = '';
+    _inquiryMenuId       = '';
     const m = document.getElementById('inquiry-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
     document.body.style.overflow = '';
@@ -1395,6 +1635,7 @@
       org_id: orgId, company_name: data.company_name, pic_name: data.pic_name,
       sender_email: data.sender_email, phone: data.phone || null,
       message: data.message, status: 'new',
+      ...(_inquiryMenuId ? { menu_id: _inquiryMenuId, menu_title: _inquiryMenuTitle } : {}),
     };
 
     if (db) {
@@ -1519,6 +1760,9 @@
       btn.classList.remove('text-slate-500', 'hover:bg-slate-100');
       btn.classList.add('bg-orange-500', 'text-white');
       currentFilter = btn.getAttribute('data-tab');
+      // タブ切り替え時はカテゴリ検索セレクトをリセット（二重フィルター防止）
+      const catSel = document.getElementById('search-category');
+      if (catSel) catSel.value = '';
       renderOrgs();
     });
   });

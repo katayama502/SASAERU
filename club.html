@@ -59,6 +59,35 @@
     }
     .activity-prose p { margin-bottom: 1em; }
     .activity-prose p:last-child { margin-bottom: 0; }
+    /* 活動日記リッチコンテンツ表示用スタイル */
+    .post-content h1, .post-content h2, .post-content h3,
+    .post-content h4, .post-content h5, .post-content h6 {
+      font-weight: 900; color: #0f0e2e; margin-top: 1.25em; margin-bottom: 0.5em; line-height: 1.3;
+    }
+    .post-content h1 { font-size: 1.5em; }
+    .post-content h2 { font-size: 1.3em; }
+    .post-content h3 { font-size: 1.1em; }
+    .post-content p  { margin-bottom: 0.9em; }
+    .post-content p:last-child { margin-bottom: 0; }
+    .post-content ul, .post-content ol { padding-left: 1.5em; margin-bottom: 0.9em; }
+    .post-content ul { list-style-type: disc; }
+    .post-content ol { list-style-type: decimal; }
+    .post-content li { margin-bottom: 0.25em; }
+    .post-content strong, .post-content b { font-weight: 700; }
+    .post-content em, .post-content i { font-style: italic; }
+    .post-content u { text-decoration: underline; }
+    .post-content s { text-decoration: line-through; }
+    .post-content a { color: #f97316; text-decoration: underline; }
+    .post-content blockquote {
+      border-left: 4px solid #f97316; padding-left: 1em; margin: 1em 0;
+      color: #64748b; font-style: italic;
+    }
+    .post-content pre, .post-content code {
+      background: #f1f5f9; border-radius: 6px; font-family: monospace; font-size: 0.875em;
+    }
+    .post-content pre { padding: 0.75em 1em; overflow-x: auto; margin-bottom: 0.9em; }
+    .post-content code { padding: 0.1em 0.3em; }
+    .post-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.5em 0; }
     /* Floating CTA */
     #floating-cta { transition: opacity 0.3s, transform 0.3s; }
     #floating-cta.hidden-cta { opacity: 0; transform: translateY(20px); pointer-events: none; }
@@ -198,6 +227,7 @@
             <div>
               <p class="text-xs font-bold text-orange-400 tracking-widest uppercase mb-0.5">About Us</p>
               <h2 class="text-2xl md:text-3xl font-black text-[#0f0e2e]">私たちについて</h2>
+              <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-500 underline mt-1">📄 クラブ紹介テンプレートはこちら</a>
             </div>
           </div>
           <div id="about-content" class="activity-prose text-slate-600 leading-relaxed text-base space-y-4"></div>
@@ -325,7 +355,7 @@
         <!-- タイトル -->
         <h2 id="post-modal-title" class="text-xl sm:text-2xl font-black text-[#0f0e2e] mb-5 leading-snug"></h2>
         <!-- 本文 -->
-        <div id="post-modal-content" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap flex-grow mb-8"></div>
+        <div id="post-modal-content" class="post-content text-sm text-slate-600 leading-relaxed flex-grow mb-8"></div>
         <!-- 支援ボタン -->
         <div class="border-t border-slate-100 pt-6">
           <p class="text-xs text-slate-500 mb-3 text-center">このクラブの活動を支援しませんか？</p>
@@ -498,6 +528,106 @@
     other:   'bg-slate-100 text-slate-600'
   };
   const SUPPORT_TYPE_ICON = { '資金':'💰','物品':'📦','人材':'👤','場所':'🏠','その他':'🤝' };
+
+  // ===================================================
+  // HTML ユーティリティ（投稿コンテンツ用）
+  // ===================================================
+
+  /**
+   * Quill.js 等が生成したHTMLからプレーンテキストを抽出する。
+   * 投稿カードのプレビュー表示に使用。
+   */
+  function htmlToPlainText(html) {
+    if (!html) return '';
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      return doc.body.textContent || '';
+    } catch(e) {
+      // DOMParser が使えない環境用フォールバック
+      return html.replace(/<[^>]*>/g, '');
+    }
+  }
+
+  /**
+   * 投稿HTMLを許可タグのみに制限してサニタイズする。
+   * Quill.js が出力するタグ範囲のみ許可し、script/iframe等は除去。
+   * Firestore に保存されたコンテンツ（審査済みクラブオーナーのみ投稿可能）の
+   * モーダル表示に使用する。
+   */
+  function sanitizePostHtml(html) {
+    if (!html) return '';
+    // 許可するタグ（Quillが生成する範囲 + 一般的なリッチテキスト要素）
+    const ALLOWED_TAGS = new Set([
+      'p','br','b','strong','i','em','u','s','strike','del',
+      'h1','h2','h3','h4','h5','h6',
+      'ul','ol','li',
+      'blockquote','pre','code',
+      'a','img','span',
+      'div','hr',
+    ]);
+    // 許可する属性（タグごとに制限）
+    const ALLOWED_ATTRS = {
+      a:   ['href', 'target', 'rel'],
+      img: ['src', 'alt', 'width', 'height'],
+      span: ['class', 'style'],
+      div:  ['class'],
+      p:    ['class'],
+      pre:  ['class'],
+      code: ['class'],
+    };
+
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+
+      function walk(node) {
+        for (let i = node.childNodes.length - 1; i >= 0; i--) {
+          const child = node.childNodes[i];
+          if (child.nodeType === Node.TEXT_NODE) continue;
+          if (child.nodeType === Node.ELEMENT_NODE) {
+            const tag = child.tagName.toLowerCase();
+            if (!ALLOWED_TAGS.has(tag)) {
+              // 許可外タグは子ノードをそのまま持ち上げて自身を削除
+              while (child.firstChild) node.insertBefore(child.firstChild, child);
+              node.removeChild(child);
+              continue;
+            }
+            // 許可外属性を除去
+            const allowedForTag = ALLOWED_ATTRS[tag] || [];
+            const attrsToRemove = [];
+            for (const attr of child.attributes) {
+              const attrName = attr.name.toLowerCase();
+              if (!allowedForTag.includes(attrName)) {
+                attrsToRemove.push(attrName);
+              }
+            }
+            attrsToRemove.forEach(a => child.removeAttribute(a));
+            // a タグは安全化: href を https/http/mailto のみ許可、target="_blank" に rel 付与
+            if (tag === 'a') {
+              const href = child.getAttribute('href') || '';
+              if (!/^(https?:|mailto:)/.test(href)) child.setAttribute('href', '#');
+              child.setAttribute('target', '_blank');
+              child.setAttribute('rel', 'noopener noreferrer');
+            }
+            // img の src を https のみ許可
+            if (tag === 'img') {
+              const src = child.getAttribute('src') || '';
+              if (!/^https?:/.test(src)) child.removeAttribute('src');
+            }
+            walk(child);
+          } else {
+            // コメントノード等は除去
+            node.removeChild(child);
+          }
+        }
+      }
+
+      walk(doc.body);
+      return doc.body.innerHTML;
+    } catch(e) {
+      // パース失敗時はプレーンテキストのみ返す
+      return esc(htmlToPlainText(html));
+    }
+  }
 
   // ===================================================
   // グローバル状態
@@ -732,16 +862,20 @@
       const snap = await db.collection('organizations').doc(orgId).collection('menus')
         .where('status', '==', 'public').get();
       if (snap.empty) { container.classList.add('hidden'); emptyEl.classList.remove('hidden'); return; }
-      const menus = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const menus = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
       container.innerHTML = menus.map(m => {
         const icon = SUPPORT_TYPE_ICON[m.support_type] || SUPPORT_TYPE_ICON['その他'];
         const amountStr = (m.target_amount !== undefined && m.target_amount !== null && m.target_amount !== '')
           ? String(m.target_amount) : '';
+        const isMatched = m.is_matched === true;
+        // esc() で全ての動的値をサニタイズしているため XSS のリスクはありません
         return `
-          <div class="card-hover bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col">
+          <div class="${isMatched ? '' : 'card-hover '}bg-white rounded-2xl shadow-sm border ${isMatched ? 'border-slate-200 opacity-70' : 'border-slate-100'} p-6 flex flex-col">
             <div class="flex items-center gap-3 mb-4">
               <span class="text-2xl">${icon}</span>
               <span class="text-xs font-bold bg-orange-50 text-orange-600 px-3 py-1 rounded-full border border-orange-100">${esc(m.support_type||'その他')}</span>
+              ${isMatched ? `<span class="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full ml-auto">マッチング済み</span>` : ''}
             </div>
             <h3 class="text-lg font-black text-[#0f0e2e] mb-2">${esc(m.title||'')}</h3>
             ${amountStr ? `<p class="text-orange-500 font-black text-xl mb-3">${esc(amountStr)}</p>` : ''}
@@ -753,11 +887,15 @@
                 </p>
                 <p class="leading-relaxed">${esc(m.return_merit).replace(/\n/g,'<br>')}</p>
               </div>` : ''}
-            <button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}" data-menu-title="${esc(m.title||'')}"
-              onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName, this.dataset.menuTitle)"
-              class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 mt-auto">
-              <i data-lucide="mail" width="15" height="15"></i>支援・問い合わせ
-            </button>
+            ${isMatched
+              ? `<div class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 mt-auto cursor-not-allowed">
+                  <i data-lucide="check-circle" width="15" height="15"></i>このメニューはマッチング済みです
+                </div>`
+              : `<button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}" data-menu-id="${esc(m.id)}" data-menu-title="${esc(m.title||'')}"
+                  onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName, this.dataset.menuTitle, this.dataset.menuId)"
+                  class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 mt-auto">
+                  <i data-lucide="mail" width="15" height="15"></i>支援・問い合わせ
+                </button>`}
           </div>`;
       }).join('');
       emptyEl.classList.add('hidden');
@@ -796,7 +934,7 @@
               ${dateStr ? `<p class="text-xs text-slate-400 font-medium mb-2 flex items-center gap-1">
                 <i data-lucide="calendar" width="11" height="11"></i>${esc(dateStr)}</p>` : ''}
               <h3 class="text-base font-black text-[#0f0e2e] mb-2 leading-snug">${esc(p.title||'（タイトルなし）')}</h3>
-              ${p.content ? `<p class="text-sm text-slate-500 leading-relaxed line-clamp-3 flex-grow">${esc(p.content)}</p>` : ''}
+              ${p.content ? `<p class="text-sm text-slate-500 leading-relaxed line-clamp-3 flex-grow">${esc(htmlToPlainText(p.content).slice(0, 150))}</p>` : ''}
               <p class="text-xs text-orange-500 font-bold mt-3 flex items-center gap-1">
                 <i data-lucide="book-open" width="12" height="12"></i>続きを読む
               </p>
@@ -872,8 +1010,13 @@
       : '';
 
     // タイトル・本文
-    document.getElementById('post-modal-title').textContent   = p.title   || '（タイトルなし）';
-    document.getElementById('post-modal-content').textContent = p.content || '';
+    document.getElementById('post-modal-title').textContent = p.title || '（タイトルなし）';
+    // content は Quill.js が生成した HTML を含む可能性があるため sanitizePostHtml() を通して表示
+    const contentEl = document.getElementById('post-modal-content');
+    contentEl.textContent = ''; // 既存内容をクリア
+    const safeHtml = sanitizePostHtml(p.content || '');
+    const frag = document.createRange().createContextualFragment(safeHtml);
+    contentEl.appendChild(frag);
 
     // 支援ボタン
     document.getElementById('post-modal-support-btn').onclick = () => {
@@ -905,8 +1048,10 @@
   // ===================================================
   // 支援申請モーダル
   // ===================================================
-  function openInquiryModal(orgId, orgName, menuTitle) {
+  let currentMenuId = '';
+  function openInquiryModal(orgId, orgName, menuTitle, menuId) {
     currentMenuTitle = menuTitle || orgName;
+    currentMenuId    = menuId    || '';
     document.getElementById('inquiry-target').textContent = menuTitle
       ? `支援先: ${orgName}（${menuTitle}）`
       : `支援先: ${orgName}`;
@@ -942,7 +1087,9 @@
     const payload = {
       org_id: orgId, company_name: data.company_name, pic_name: data.pic_name,
       sender_email: data.sender_email, phone: data.phone || null,
-      message: data.message, status: 'new'
+      message: data.message, status: 'new',
+      // menu_id / menu_title は特定の支援メニューから申請した場合のみ付与
+      ...(currentMenuId ? { menu_id: currentMenuId, menu_title: currentMenuTitle } : {}),
     };
 
     if (db) {

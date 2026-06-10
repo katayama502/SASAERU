@@ -11,6 +11,8 @@
     tailwind.config = { theme: { extend: { colors: { brand: { DEFAULT: '#f97316', dark: '#ea580c' } } } } }
   </script>
   <script src="https://unpkg.com/lucide@0.344.0"></script>
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -35,6 +37,29 @@
     /* Unsaved indicator */
     .unsaved-dot { display:none; }
     .unsaved-dot.show { display:inline-block; }
+    /* ===== Menu card drag-reorder ===== */
+    .menu-card { transition:box-shadow 0.2s,transform 0.2s,opacity 0.15s; }
+    .menu-card.dragging { opacity:0.45; box-shadow:0 8px 24px rgba(0,0,0,0.15); transform:scale(1.02); }
+    .menu-card.drag-over-top { border-top:2px solid #f97316 !important; }
+    .menu-card.drag-over-bot { border-bottom:2px solid #f97316 !important; }
+    .menu-drag-handle { color:#94a3b8; cursor:grab; flex-shrink:0; }
+    .menu-drag-handle:active { cursor:grabbing; }
+    .menu-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
+    /* ===== Quill Rich Editor (活動日記) ===== */
+    #post-editor { min-height:300px; font-family:'Noto Sans JP',sans-serif; font-size:14px; overflow-y:auto; }
+    .ql-toolbar.ql-snow { border-color:#e2e8f0 !important; border-radius:0.75rem 0.75rem 0 0; background:#f8fafc; }
+    .ql-container.ql-snow { border-color:#e2e8f0 !important; border-radius:0 0 0.75rem 0.75rem; font-family:'Noto Sans JP',sans-serif; }
+    .ql-container.ql-snow:focus-within { box-shadow:0 0 0 2px #fb923c; border-color:#fb923c !important; }
+    .ql-toolbar.ql-snow + .ql-container.ql-snow:focus-within { border-top-color:#fb923c !important; }
+    .ql-snow .ql-picker { color:#475569; }
+    .ql-snow .ql-stroke { stroke:#475569; }
+    .ql-snow .ql-fill { fill:#475569; }
+    .ql-snow.ql-toolbar button:hover .ql-stroke,
+    .ql-snow .ql-toolbar button:hover .ql-stroke { stroke:#f97316; }
+    .ql-snow.ql-toolbar button:hover .ql-fill,
+    .ql-snow .ql-toolbar button:hover .ql-fill { fill:#f97316; }
+    .ql-snow .ql-editor { min-height:300px; padding:12px 16px; line-height:1.75; }
+    .ql-snow .ql-editor.ql-blank::before { color:#94a3b8; font-style:normal; }
   </style>
 </head>
 <noscript><div style="background:#ff4444;color:#fff;text-align:center;padding:12px;font-family:sans-serif;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999">このサイトの利用にはJavaScriptが必要です。ブラウザの設定を確認してください。</div></noscript>
@@ -246,6 +271,14 @@
                   </div>
                 </div>
                 <div>
+                  <label for="f-contact-email" class="block text-xs font-bold text-slate-600 mb-1.5">連絡先メールアドレス <span class="text-red-400">*</span></label>
+                  <input type="email" id="f-contact-email" required maxlength="254"
+                    oninput="markUnsaved()"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
+                    placeholder="例: info@example.com">
+                  <p class="text-[10px] text-slate-400 mt-1">企業からの支援申請通知が届くメールアドレスです。</p>
+                </div>
+                <div>
                   <label class="block text-xs font-bold text-slate-600 mb-1.5">支援ニーズタグ</label>
                   <div id="f-tags-container"
                     class="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-orange-400 bg-white flex flex-wrap gap-1.5 items-center cursor-text"
@@ -260,7 +293,7 @@
                   <p class="text-[10px] text-slate-400 mt-1">Enterキーで追加。×で個別削除できます。</p>
                 </div>
                 <div>
-                  <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">活動内容・現状</label>
+                  <label for="f-activity-how" class="block text-xs font-bold text-slate-600 mb-1.5">クラブ紹介 <a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" onclick="applyClubIntroTemplate(event)" class="text-orange-400 hover:text-orange-500 underline font-normal text-[10px]">📄 テンプレートはこちら</a></label>
                   <textarea id="f-activity-how" rows="5" maxlength="2000"
                     oninput="markUnsaved(); document.getElementById('profile-char-counter').textContent=this.value.length"
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
@@ -383,12 +416,11 @@
                       placeholder="例: 秋季大会に参加しました！">
                   </div>
                   <div>
-                    <label for="df-content" class="block text-xs font-bold text-slate-600 mb-1.5">本文 <span class="text-red-400">*</span></label>
-                    <textarea id="df-content" rows="8" required maxlength="5000"
-                      oninput="document.getElementById('df-content-counter').textContent=this.value.length"
-                      class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all resize-none leading-relaxed"
-                      placeholder="活動の内容を詳しく記入してください..."></textarea>
-                    <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="df-content-counter">0</span>/5000</p>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">本文 <span class="text-red-400">*</span></label>
+                    <div id="post-editor" class="border border-slate-200 rounded-xl"></div>
+                    <input type="hidden" id="post-content-html">
+                    <input type="hidden" id="df-content">
+                    <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="df-content-counter">0</span>/10000</p>
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">画像（任意）</label>
@@ -1008,10 +1040,14 @@
           <div>
             <p class="text-sm font-bold text-slate-900">${esc(d.company_name || '—')}</p>
             <p class="text-xs text-slate-400 mt-0.5">${esc(d.pic_name || '')}　${dt}</p>
+            ${d.menu_title ? `<p class="text-xs text-orange-600 font-bold mt-1">支援メニュー: ${esc(d.menu_title)}</p>` : ''}
           </div>
-          <span class="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${isDone ? 'bg-slate-100 text-slate-400' : 'bg-red-50 text-red-500 border border-red-200'}">
-            ${isDone ? '対応済み' : '未対応'}
-          </span>
+          <div class="flex flex-col items-end gap-1 shrink-0">
+            <span class="text-[10px] font-bold px-2 py-1 rounded-full ${isDone ? 'bg-slate-100 text-slate-400' : 'bg-red-50 text-red-500 border border-red-200'}">
+              ${isDone ? '対応済み' : '未対応'}
+            </span>
+            ${d.continuous_support === true ? `<span class="text-[10px] font-bold px-2 py-1 rounded-full bg-green-50 text-green-600 border border-green-200">継続支援</span>` : ''}
+          </div>
         </div>
         ${d.message ? `<p class="text-sm text-slate-600 leading-relaxed mb-3 bg-slate-50 rounded-xl px-4 py-3">${esc(d.message).replace(/\n/g,'<br>')}</p>` : ''}
         <div class="flex items-center gap-3 flex-wrap text-xs text-slate-500">
@@ -1096,8 +1132,9 @@
       banner.classList.add('hidden');
     }
 
-    document.getElementById('f-name').value          = org.name         || '';
-    document.getElementById('f-category').value      = org.category     || '';
+    document.getElementById('f-name').value          = org.name          || '';
+    document.getElementById('f-category').value      = org.category      || '';
+    document.getElementById('f-contact-email').value = org.contact_email || '';
     // area は登録時に配列で保存されることがあるため、表示用に区切り文字で結合
     document.getElementById('f-area').value          = Array.isArray(org.area) ? org.area.join('・') : (org.area || '');
     document.getElementById('f-main-image').value    = org.main_image   || '';
@@ -1123,13 +1160,14 @@
 
     const tags = [..._profileTags];
     const data    = {
-      name:         document.getElementById('f-name').value.trim(),
-      category:     document.getElementById('f-category').value,
-      area:         document.getElementById('f-area').value.trim(),
-      main_image:   document.getElementById('f-main-image').value.trim() || null,
+      name:          document.getElementById('f-name').value.trim(),
+      category:      document.getElementById('f-category').value,
+      contact_email: document.getElementById('f-contact-email').value.trim(),
+      area:          document.getElementById('f-area').value.trim(),
+      main_image:    document.getElementById('f-main-image').value.trim() || null,
       tags,
-      activity_how: document.getElementById('f-activity-how').value.trim(),
-      updated_at:   db ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+      activity_how:  document.getElementById('f-activity-how').value.trim(),
+      updated_at:    db ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
     };
 
     if (!db) {
@@ -1201,17 +1239,29 @@
       return;
     }
     _menuCache.clear();
-    menus.forEach(m => _menuCache.set(m.id, m));
-    el.innerHTML = menus.map(m => `
-      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden fade-in">
+    // sort_order があれば従い、なければ登録順
+    const sorted = menus.slice().sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
+    sorted.forEach(m => _menuCache.set(m.id, m));
+    el.innerHTML = sorted.map((m, idx) => `
+      <div class="menu-card bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden fade-in"
+        draggable="true"
+        data-menu-id="${esc(m.id)}"
+        data-sort-idx="${idx}"
+        ondragstart="menuDragStart(event)"
+        ondragover="menuDragOver(event)"
+        ondragleave="menuDragLeave(event)"
+        ondrop="menuDrop(event)"
+        ondragend="menuDragEnd(event)">
         <div class="p-5">
-          <div class="flex items-start justify-between gap-3 mb-3">
+          <div class="flex items-start gap-3 mb-3">
+            <i data-lucide="grip-vertical" class="menu-drag-handle mt-0.5" width="16" height="16"></i>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1 flex-wrap">
                 <h3 class="text-sm font-black text-slate-900">${esc(m.title)}</h3>
                 <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${m.status === 'public' ? 'badge-public border border-green-200' : 'bg-slate-100 text-slate-500'}">
                   ${m.status === 'public' ? '公開中' : '非公開'}
                 </span>
+                ${m.is_matched === true ? `<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center gap-1"><i data-lucide="check-circle" width="10" height="10"></i>マッチング済み${(m.matched_count && m.matched_count > 0) ? ` ${m.matched_count}件` : ''}</span>` : ''}
               </div>
               <div class="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span class="flex items-center gap-1"><i data-lucide="tag" width="11" height="11"></i>${esc(m.support_type||'—')}</span>
@@ -1242,6 +1292,74 @@
         </div>
       </div>`).join('');
     lucide.createIcons();
+  }
+
+  // ============================================================
+  // メニューカード ドラッグ＆ドロップ（並べ替え）
+  // ============================================================
+  let _menuDragEl = null;
+
+  function menuDragStart(e) {
+    _menuDragEl = e.currentTarget;
+    _menuDragEl.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', _menuDragEl.dataset.menuId || '');
+  }
+
+  function menuDragOver(e) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    if (target === _menuDragEl) return;
+    e.dataTransfer.dropEffect = 'move';
+    const rect = target.getBoundingClientRect();
+    const mid  = rect.top + rect.height / 2;
+    target.classList.toggle('drag-over-top', e.clientY < mid);
+    target.classList.toggle('drag-over-bot', e.clientY >= mid);
+  }
+
+  function menuDragLeave(e) {
+    const target = e.currentTarget;
+    if (!target.contains(e.relatedTarget)) {
+      target.classList.remove('drag-over-top', 'drag-over-bot');
+    }
+  }
+
+  function menuDrop(e) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    target.classList.remove('drag-over-top', 'drag-over-bot');
+    if (!_menuDragEl || target === _menuDragEl) return;
+    const rect   = target.getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+    const container = document.getElementById('menus-list');
+    if (before) {
+      container.insertBefore(_menuDragEl, target);
+    } else {
+      container.insertBefore(_menuDragEl, target.nextSibling);
+    }
+    saveMenuOrder();
+  }
+
+  function menuDragEnd(e) {
+    if (_menuDragEl) _menuDragEl.classList.remove('dragging');
+    document.querySelectorAll('.menu-card').forEach(c => c.classList.remove('drag-over-top', 'drag-over-bot'));
+    _menuDragEl = null;
+  }
+
+  async function saveMenuOrder() {
+    if (!db || !currentOrg) return;
+    const cards = document.querySelectorAll('#menus-list .menu-card');
+    const batch = db.batch();
+    cards.forEach((card, idx) => {
+      const menuId = card.dataset.menuId;
+      if (!menuId) return;
+      const ref = db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId);
+      batch.update(ref, { sort_order: idx });
+    });
+    try {
+      await batch.commit();
+      showToast('並び順を保存しました');
+    } catch(err) { showToast('並び順の保存に失敗しました', false); }
   }
 
   function toggleMenuForm() {
@@ -1402,7 +1520,7 @@
         <div class="p-5">
           <p class="text-[10px] text-slate-400 font-bold mb-1.5">${fmtDate(p.created_at)}</p>
           <h3 class="text-sm font-black text-slate-900 mb-2">${esc(p.title)}</h3>
-          <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${esc(p.content)}</p>
+          <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${esc(htmlToPlainText(p.content).slice(0,100))}</p>
         </div>
         <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
           <button onclick="editDiary('${esc(p.id)}')"
@@ -1425,28 +1543,44 @@
     document.getElementById('diary-form').reset();
     document.getElementById('df-id').value = '';
     document.getElementById('df-content-counter').textContent = '0';
+    document.getElementById('post-content-html').value = '';
+    if (quillEditor) quillEditor.setContents([]);
     document.getElementById('diary-img-preview').classList.add('hidden');
     const wrap = document.getElementById('diary-form-wrap');
     wrap.classList.toggle('hidden');
-    if (!wrap.classList.contains('hidden')) wrap.scrollIntoView({ behavior:'smooth', block:'start' });
+    if (!wrap.classList.contains('hidden')) {
+      wrap.scrollIntoView({ behavior:'smooth', block:'start' });
+      // Quill初期化（まだ未初期化の場合）
+      if (!quillEditor) initQuillEditor();
+    }
     lucide.createIcons();
   }
 
   function cancelDiaryForm() {
     document.getElementById('diary-form-wrap').classList.add('hidden');
     editingDiaryId = null;
+    if (quillEditor) quillEditor.setContents([]);
+    document.getElementById('post-content-html').value = '';
+    document.getElementById('df-content-counter').textContent = '0';
   }
 
   function editDiary(postId) {
     const postData = _diaryCache.get(postId);
     if (!postData) return;
     editingDiaryId = postData.id;
-    document.getElementById('diary-form-title').textContent    = '投稿を編集';
-    document.getElementById('df-id').value                    = postData.id;
-    document.getElementById('df-title').value                 = postData.title     || '';
-    document.getElementById('df-content').value               = postData.content   || '';
-    document.getElementById('df-image-url').value             = postData.image_url || '';
-    document.getElementById('df-content-counter').textContent = (postData.content || '').length;
+    document.getElementById('diary-form-title').textContent = '投稿を編集';
+    document.getElementById('df-id').value                  = postData.id;
+    document.getElementById('df-title').value               = postData.title     || '';
+    document.getElementById('df-image-url').value           = postData.image_url || '';
+    // Quill初期化（まだ未初期化の場合）
+    if (!quillEditor) initQuillEditor();
+    if (quillEditor) {
+      const raw = postData.content || '';
+      // HTMLコンテンツをQuillにロード
+      quillEditor.clipboard.dangerouslyPasteHTML(raw);
+      const plainLen = htmlToPlainText(raw).length;
+      document.getElementById('df-content-counter').textContent = plainLen;
+    }
     if (postData.image_url) previewDiaryImage(postData.image_url);
     const wrap = document.getElementById('diary-form-wrap');
     wrap.classList.remove('hidden');
@@ -1459,9 +1593,21 @@
     if (!db) { showToast('Firebase未接続のため保存できません', false); return; }
     const btn = document.getElementById('diary-save-btn');
     btn.disabled = true; btn.textContent = '送信中...';
+    // Quill コンテンツをチェック
+    const rawHtml = quillEditor ? quillEditor.root.innerHTML : '';
+    const plainText = htmlToPlainText(rawHtml);
+    if (!plainText.trim()) {
+      showToast('本文を入力してください', false);
+      btn.disabled = false; btn.innerHTML = '<i data-lucide="send" width="14" height="14"></i> 投稿する'; lucide.createIcons(); return;
+    }
+    if (plainText.length > 10000) {
+      showToast('本文は10,000文字以内にしてください', false);
+      btn.disabled = false; btn.innerHTML = '<i data-lucide="send" width="14" height="14"></i> 投稿する'; lucide.createIcons(); return;
+    }
+    document.getElementById('post-content-html').value = rawHtml;
     const data = {
       title:     document.getElementById('df-title').value.trim(),
-      content:   document.getElementById('df-content').value.trim(),
+      content:   rawHtml,
       image_url: document.getElementById('df-image-url').value.trim() || null,
     };
     try {
@@ -1597,6 +1743,106 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
   });
+
+  // ============================================================
+  // クラブ紹介テンプレート（Task1）
+  // ============================================================
+  const CLUB_INTRO_TEMPLATE = `みなさんこんにちは！
+
+SASAERUの運営会社である一般社団法人しまね創生ラボの藤田です。
+
+この度はクラブ登録をご検討いただきありがとうございます。
+
+この登録をきっかけにみなさんのクラブを応援してくれる個人や団体、企業が増えていくことを願っております。
+
+私は、子どもたちの体験を大人が守っていく地域を、国や自治体に頼り過ぎるのではなく、自分たちで支える社会を作っていきたい。
+
+子どもたちが将来、「島根に生まれて良かった」と心から思える社会を一緒に創っていきましょう！
+
+一般社団法人しまね創生ラボ
+代表理事 藤田優太朗
+
+---
+
+【地域クラブ紹介】構成テンプレート
+
+こちらに企業登録時に使用できるテンプレートをご用意しております。
+
+具体例なども記載しておりますので、参考になさってください。
+
+1. キャッチコピー
+一言で伝えるクラブの魅力：（例：〇〇を通じて、地域の笑顔をつなぐ）
+
+2. 私たちの想い（ビジョン）
+- 活動の目的・きっかけ：（なぜこの活動をしているのか、地域のどんな課題を解決したいのか）
+- 目指す未来：（この活動の先に、地域をどう良くしていきたいか）
+
+3. 活動内容
+- 具体的な取り組み：（誰に、いつ、どこで、何を、どんな風に提供しているか）
+- 対象・規模：（参加者の年齢層や、現在のメンバー数など）
+
+4. 地域の声・実績
+これまでの成果：（参加者、保護者、地域住民からのポジティブな反響やエピソード）
+
+5. 応援・協賛のお願い
+- 募集している支援：（寄付、物品、ボランティア、企業パートナーシップなど）
+- 共に創る価値：（応援してくれる企業・個人と一緒にどんな地域貢献ができるか）
+
+6. クラブ概要
+基本情報：（代表者名、活動拠点、連絡先、HP・SNSリンク）`;
+
+  function applyClubIntroTemplate(event) {
+    event.preventDefault();
+    const ta = document.getElementById('f-activity-how');
+    if (!ta) return;
+    if (ta.value.trim()) {
+      if (!confirm('現在の内容をテンプレートで上書きしますか？')) return;
+    }
+    ta.value = CLUB_INTRO_TEMPLATE;
+    ta.dispatchEvent(new Event('input'));
+  }
+
+  // ============================================================
+  // HTMLユーティリティ（Task2/3）
+  // ============================================================
+  function htmlToPlainText(html) {
+    if (!html) return '';
+    const tmp = document.createElement('div');
+    tmp.textContent = html; // set as text first for safety check
+    // Use textContent approach via a detached DOM element
+    const div = document.createElement('div');
+    div.innerHTML = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<\/h[1-6]>/gi, '\n');
+    return (div.textContent || div.innerText || '').trim();
+  }
+
+  // ============================================================
+  // Quill リッチエディタ（Task2）
+  // ============================================================
+  let quillEditor = null;
+
+  function initQuillEditor() {
+    if (quillEditor) return;
+    if (typeof Quill === 'undefined') { console.warn('Quill not loaded'); return; }
+    quillEditor = new Quill('#post-editor', {
+      theme: 'snow',
+      placeholder: '活動の内容を詳しく記入してください...',
+      modules: {
+        toolbar: [
+          [{ header: [2, 3, false] }],
+          ['bold', 'italic', 'underline'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['link', 'image'],
+          ['blockquote', 'code-block'],
+          [{ 'color': [] }],
+          ['clean'],
+        ],
+      },
+    });
+    quillEditor.on('text-change', () => {
+      const plain = htmlToPlainText(quillEditor.root.innerHTML);
+      document.getElementById('df-content-counter').textContent = plain.length;
+    });
+  }
 
   // ============================================================
   // 初期化

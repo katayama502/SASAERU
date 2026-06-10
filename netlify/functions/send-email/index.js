@@ -210,13 +210,14 @@ function buildMailOptions(type, rawParams) {
 
     // 問い合わせ通知（オーナー向け）
     case 'inquiry_owner':
-      requireFields(p, ['orgName', 'menuTitle', 'companyName', 'picName']);
+      requireFields(p, ['orgName', 'companyName', 'picName']);
       requireEmail(p, 'toEmail');
       requireEmail(p, 'senderEmail');
       return {
         from,
         to: p.toEmail,
-        subject: `【SASAERU】「${p.menuTitle}」にお問い合わせがありました`,
+        cc: 'sasaeru@scl.or.jp',
+        subject: `【SASAERU】${p.menuTitle ? `「${p.menuTitle}」に` : ''}お問い合わせがありました`,
         text: [
           `${p.orgName} 様`,
           '',
@@ -242,7 +243,7 @@ function buildMailOptions(type, rawParams) {
 
     // 問い合わせ自動返信（申請企業向け）
     case 'inquiry_reply':
-      requireFields(p, ['companyName', 'picName', 'orgName', 'menuTitle']);
+      requireFields(p, ['companyName', 'picName', 'orgName']);
       requireEmail(p, 'toEmail');
       return {
         from,
@@ -256,13 +257,13 @@ function buildMailOptions(type, rawParams) {
           '以下の内容でお問い合わせを受け付けました。',
           '',
           `対象団体　　：${p.orgName}`,
-          `対象メニュー：${p.menuTitle}`,
+          p.menuTitle ? `対象メニュー：${p.menuTitle}` : null,
           '',
           '近日中に、対象団体の担当者より本メールアドレス宛にご連絡がございます。',
           '今しばらくお待ちください。',
           '',
           'SASAERU 運営事務局',
-        ].join('\n'),
+        ].filter(l => l !== null).join('\n'),
       };
 
     // お問い合わせ自動返信（送信者向け）
