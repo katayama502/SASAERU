@@ -8,6 +8,11 @@
 
 # admin.html は直接配信（SPAリダイレクト対象外）
 [[redirects]]
+  from = "/SASAERU/admin.html"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
   from = "/admin.html"
   to = "/admin.html"
   status = 200
