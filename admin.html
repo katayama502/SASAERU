@@ -2068,15 +2068,20 @@
 
   function openOrgDetail(orgId) {
     _selectedOrgId = orgId;
-    document.getElementById('org-detail-overlay').classList.remove('hidden');
-    document.getElementById('org-detail-panel').classList.add('open');
+    const overlay = document.getElementById('org-detail-overlay');
+    const panel   = document.getElementById('org-detail-panel');
+    overlay.classList.remove('hidden');
+    panel.style.transform = 'translateX(0)';
+    document.body.style.overflow = 'hidden';
     loadOrgDetail(orgId);
   }
 
   function closeOrgDetail() {
     _selectedOrgId = null;
-    document.getElementById('org-detail-panel').classList.remove('open');
+    const panel = document.getElementById('org-detail-panel');
+    panel.style.transform = 'translateX(100%)';
     document.getElementById('org-detail-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
   }
 
   function renderOrgDetailPanel(orgSnap, menuDocs, matchesByMenuId) {
