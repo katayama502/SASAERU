@@ -21,8 +21,9 @@ service cloud.firestore {
 
     function validEmail(email) {
       return email is string
+        && email.size() > 0
         && email.size() <= 254
-        && email.matches('.*@.*\\..*');
+        && email.matches('^[^@\\s<>]+@[^@\\s<>]+\\.[a-zA-Z]{2,}$');
     }
 
     function validOrgName(data) {
@@ -189,8 +190,10 @@ service cloud.firestore {
                     && request.resource.data.company_name is string
                     && request.resource.data.company_name.size() > 0
                     && request.resource.data.company_name.size() <= 200
-                    && request.resource.data.sender_email is string
-                    && request.resource.data.sender_email.matches('.*@.*\\..*');
+                    && validEmail(request.resource.data.sender_email)
+                    && (!('message' in request.resource.data)
+                        || (request.resource.data.message is string
+                            && request.resource.data.message.size() <= 5000));
       // 読み取り: 管理者 または 問い合わせ先の団体オーナー
       allow get, list: if isAdmin()
                        || (isAuth() && isOwnerOf(resource.data.org_id));
@@ -204,6 +207,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // admins（管理者一覧）— 管理者のみ読み書き可
+    match /admins/{adminId} {
+      allow read, write: if isAdmin();
+    }
+
     // contacts（お問い合わせ）— 管理者のみ閲覧・操作可
     match /contacts/{contactId} {
       // S-1 + S-5 + M-1: hasOnly で read_at など管理フィールドの不正書き込みを防止
@@ -212,8 +220,7 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() <= 200
-                    && request.resource.data.email is string
-                    && request.resource.data.email.matches('.*@.*\\..*')
+                    && validEmail(request.resource.data.email)
                     && request.resource.data.message is string
                     && request.resource.data.message.size() > 0
                     && request.resource.data.message.size() <= 5000;

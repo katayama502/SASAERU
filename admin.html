@@ -126,6 +126,10 @@
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
             <i data-lucide="list-checks" width="16" height="16"></i>支援メニュー管理
           </button>
+          <button onclick="switchTab('admins')" data-tab="admins"
+            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
+            <i data-lucide="shield" width="16" height="16"></i>管理者設定
+          </button>
         </nav>
         <div class="px-4 py-4 border-t border-white/10">
           <div class="flex items-center gap-2.5 mb-3">
@@ -237,7 +241,7 @@
                   oninput="renderFilteredOrgs()"
                   class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-orange-400 outline-none transition-all">
               </div>
-              <div class="flex gap-2 flex-wrap">
+              <div class="flex gap-2 flex-wrap items-center">
                 <button onclick="filterOrgs('all')" data-filter="all"
                   class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
                 <button onclick="filterOrgs('public')" data-filter="public"
@@ -246,6 +250,10 @@
                   class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">審査中</button>
                 <button onclick="filterOrgs('rejected')" data-filter="rejected"
                   class="filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">却下済み</button>
+                <button onclick="exportOrgsCSV()"
+                  class="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all border border-slate-200">
+                  <i data-lucide="download" width="12" height="12"></i>CSVダウンロード
+                </button>
               </div>
             </div>
             <div id="orgs-list" class="space-y-3">
@@ -287,10 +295,45 @@
           <div id="tab-menus" class="hidden fade-in">
             <div class="flex items-center justify-between mb-4">
               <p class="text-xs text-slate-500">全団体の支援メニューを管理します</p>
-              <span id="menus-count" class="text-xs text-slate-400"></span>
+              <div class="flex items-center gap-3">
+                <span id="menus-count" class="text-xs text-slate-400"></span>
+                <button onclick="exportMenusCSV()"
+                  class="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all border border-slate-200">
+                  <i data-lucide="download" width="12" height="12"></i>CSVダウンロード
+                </button>
+              </div>
             </div>
             <div id="admin-menus-list" class="space-y-2">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
+            </div>
+          </div>
+
+          <!-- 管理者設定タブ -->
+          <div id="tab-admins" class="hidden fade-in">
+            <div class="max-w-2xl space-y-6">
+              <!-- 新規追加フォーム -->
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <h2 class="text-sm font-black text-slate-900 mb-1">管理者を追加</h2>
+                <p class="text-xs text-slate-400 mb-4">メールアドレスを入力して管理者権限を付与します。Firebaseアカウントが存在しない場合は自動作成され、パスワード設定メールが送信されます。</p>
+                <div class="flex gap-2">
+                  <input type="email" id="new-admin-email" placeholder="admin@example.com" maxlength="200"
+                    class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition-all">
+                  <button id="grant-admin-btn" onclick="grantAdmin()"
+                    class="flex items-center gap-1.5 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-all shrink-0">
+                    <i data-lucide="user-plus" width="14" height="14"></i>追加
+                  </button>
+                </div>
+                <p id="admin-grant-error" class="text-xs text-red-500 mt-2 min-h-[1rem]"></p>
+              </div>
+              <!-- 管理者一覧 -->
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100">
+                  <h2 class="text-sm font-black text-slate-900">管理者一覧</h2>
+                </div>
+                <div id="admins-list" class="divide-y divide-slate-50">
+                  <div class="px-6 py-4 text-xs text-slate-400 text-center">読み込み中...</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -325,6 +368,23 @@
       <div class="flex gap-3">
         <button onclick="closeRejectDialog()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
         <button id="reject-ok" class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white bg-red-500 hover:bg-red-600">却下する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- メニュー操作・理由入力ダイアログ -->
+  <div id="menu-reason-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    role="dialog" aria-modal="true" aria-labelledby="menu-reason-title">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <h3 id="menu-reason-title" class="text-base font-black text-slate-900 mb-2"></h3>
+      <p id="menu-reason-body" class="text-sm text-slate-500 mb-3"></p>
+      <label for="menu-reason-input" class="block text-xs font-bold text-slate-600 mb-1.5">理由（任意）</label>
+      <textarea id="menu-reason-input" rows="3" maxlength="300"
+        placeholder="理由がある場合は入力してください。"
+        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-300 outline-none text-sm resize-none transition-all mb-5"></textarea>
+      <div class="flex gap-3">
+        <button onclick="closeMenuReasonDialog()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">キャンセル</button>
+        <button id="menu-reason-ok" class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white"></button>
       </div>
     </div>
   </div>
@@ -365,7 +425,9 @@
   let orgFilter        = 'all';
   let allInquiriesData = [];
   let inquiryFilter    = 'all';
-  let confirmCallback  = null;
+  let allMenusData     = [];
+  let confirmCallback       = null;
+  let menuReasonCallback    = null;
 
   // ============================================================
   // 管理者認証
@@ -486,6 +548,7 @@
     inquiries: { title: '支援申請一覧',     subtitle: '企業からの問い合わせ' },
     contacts:  { title: 'お問い合わせ',     subtitle: 'お問い合わせ一覧' },
     menus:     { title: '支援メニュー管理', subtitle: '全団体の支援メニューを管理' },
+    admins:    { title: '管理者設定',       subtitle: '管理者アカウントの管理' },
   };
 
   function toggleSidebar() {
@@ -504,7 +567,7 @@
   function switchTab(name) {
     currentTab = name;
     closeSidebar();
-    ['overview','pending','orgs','inquiries','contacts','menus'].forEach(t => {
+    ['overview','pending','orgs','inquiries','contacts','menus','admins'].forEach(t => {
       document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
     });
     document.querySelectorAll('.side-btn').forEach(btn => {
@@ -528,6 +591,7 @@
     if (name === 'inquiries') loadInquiries();
     if (name === 'contacts')  loadContacts();
     if (name === 'menus')     loadAdminMenus();
+    if (name === 'admins')    loadAdmins();
   }
 
   // ============================================================
@@ -565,8 +629,9 @@
       unread:   ['badge-unread',   '未読'],
       read:     ['bg-slate-100 text-slate-500', '既読'],
     };
+    // XSS対策: mapにないstatusのフォールバック時も必ずesc()を通す
     const [cls, label] = map[status] || ['bg-slate-100 text-slate-500', status];
-    return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full ${cls}">${label}</span>`;
+    return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full ${cls}">${esc(label)}</span>`;
   }
   const CAT = { sports:'スポーツ', culture:'文化・芸術', welfare:'福祉', other:'その他' };
 
@@ -612,6 +677,47 @@
     if (e.key === 'Tab') {
       const btns = document.getElementById('confirm-dialog').querySelectorAll('button');
       const first = btns[0], last = btns[btns.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  // ============================================================
+  // メニュー操作・理由入力ダイアログ
+  // ============================================================
+  function showMenuReasonDialog(title, body, btnLabel, btnColor, callback) {
+    document.getElementById('menu-reason-title').textContent = title;
+    document.getElementById('menu-reason-body').textContent  = body;
+    document.getElementById('menu-reason-input').value       = '';
+    const okBtn = document.getElementById('menu-reason-ok');
+    okBtn.textContent = btnLabel;
+    okBtn.className   = `flex-1 py-2.5 rounded-xl font-bold text-sm transition-all text-white ${btnColor}`;
+    menuReasonCallback = callback;
+    const d = document.getElementById('menu-reason-dialog');
+    d.classList.remove('hidden'); d.classList.add('flex');
+    setTimeout(() => document.getElementById('menu-reason-input').focus(), 50);
+  }
+  function closeMenuReasonDialog() {
+    const d = document.getElementById('menu-reason-dialog');
+    d.classList.add('hidden'); d.classList.remove('flex');
+    menuReasonCallback = null;
+  }
+  document.getElementById('menu-reason-ok').addEventListener('click', async () => {
+    const cb = menuReasonCallback;
+    menuReasonCallback = null;
+    if (cb) {
+      const okBtn = document.getElementById('menu-reason-ok');
+      okBtn.disabled = true;
+      const reason = document.getElementById('menu-reason-input').value.trim();
+      try { await cb(reason); } finally { okBtn.disabled = false; }
+    }
+    closeMenuReasonDialog();
+  });
+  document.getElementById('menu-reason-dialog').addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeMenuReasonDialog();
+    if (e.key === 'Tab') {
+      const focusable = document.getElementById('menu-reason-dialog').querySelectorAll('textarea, button');
+      const first = focusable[0], last = focusable[focusable.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
@@ -1051,18 +1157,18 @@
     el.innerHTML = '<div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>';
     try {
       const orgsSnap = await db.collection('organizations').get();
-      const allMenus = [];
+      allMenusData = [];
       await Promise.all(orgsSnap.docs.map(async orgDoc => {
         const org = orgDoc.data();
         const menusSnap = await db.collection('organizations').doc(orgDoc.id).collection('menus').get();
         menusSnap.docs.forEach(m => {
-          allMenus.push({ orgId: orgDoc.id, orgName: org.name || '—', menuId: m.id, ...m.data() });
+          allMenusData.push({ orgId: orgDoc.id, orgName: org.name || '—', menuId: m.id, ...m.data() });
         });
       }));
-      allMenus.sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
+      allMenusData.sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
       const countEl = document.getElementById('menus-count');
-      if (countEl) countEl.textContent = `全 ${allMenus.length} 件`;
-      if (allMenus.length === 0) {
+      if (countEl) countEl.textContent = `全 ${allMenusData.length} 件`;
+      if (allMenusData.length === 0) {
         el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援メニューはありません</div>';
         return;
       }
@@ -1079,7 +1185,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-50">
-              ${allMenus.map(m => `
+              ${allMenusData.map(m =>`
                 <tr class="hover:bg-slate-50 transition-colors">
                   <td class="px-5 py-3 text-xs font-bold text-slate-700">${esc(m.orgName)}</td>
                   <td class="px-5 py-3 text-xs text-slate-900 font-bold">${esc(m.title||'—')}</td>
@@ -1109,14 +1215,15 @@
   }
 
   function deleteAdminMenu(orgId, menuId, menuTitle) {
-    showConfirm(
+    showMenuReasonDialog(
       `「${menuTitle}」を削除しますか？`,
       'この操作は取り消せません。クラブページからも非表示になります。',
       '削除する', 'bg-red-500 hover:bg-red-600',
-      async () => {
+      async (reason) => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
           await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).delete();
+          if (reason) console.info(`メニュー削除 [${menuId}] 理由: ${reason}`);
           showToast('支援メニューを削除しました');
           loadAdminMenus();
         } catch(e) { showToast('エラー: ' + e.message, false); }
@@ -1125,14 +1232,19 @@
   }
 
   function forceHideMenu(orgId, menuId, menuTitle) {
-    showConfirm(
+    showMenuReasonDialog(
       `「${menuTitle}」を強制非公開にしますか？`,
       'メニューはオーナーのマイページで再公開できます。不適切なコンテンツの場合は削除を使用してください。',
       '非公開にする', 'bg-amber-500 hover:bg-amber-600',
-      async () => {
+      async (reason) => {
         if (!db) { showToast('Firebase未設定です', false); return; }
         try {
-          await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).update({ status: 'private', updated_at: firebase.firestore.FieldValue.serverTimestamp() });
+          const updateData = {
+            status: 'private',
+            updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+          };
+          if (reason) updateData.admin_reason = reason;
+          await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).update(updateData);
           showToast('支援メニューを非公開にしました');
           loadAdminMenus();
         } catch(e) { showToast('エラー: ' + e.message, false); }
@@ -1225,6 +1337,199 @@
       body: JSON.stringify({ type, params }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  }
+
+  // ============================================================
+  // CSV エクスポート
+  // ============================================================
+  function downloadCSV(rows, filename) {
+    const BOM = '\uFEFF'; // Excel で文字化けしないよう UTF-8 BOM を付与
+    const csv = BOM + rows.map(row =>
+      row.map(cell => {
+        const s = String(cell ?? '');
+        return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      }).join(',')
+    ).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportOrgsCSV() {
+    if (!allOrgsData.length) { showToast('先に団体管理タブを開いてデータを読み込んでください', false); return; }
+    const STATUS_JA = { pending: '審査中', public: '公開中', rejected: '却下', private: '非公開' };
+    const rows = [['団体名', 'カテゴリ', '地域', 'ステータス', 'メールアドレス', 'メール確認', '登録日']];
+    allOrgsData.forEach(d => {
+      const o = d.data();
+      rows.push([
+        o.name             || '',
+        CAT[o.category]    || o.category || '',
+        Array.isArray(o.area) ? o.area.join('／') : (o.area || ''),
+        STATUS_JA[o.status] || o.status || '',
+        o.contact_email    || '',
+        o.emailVerified    ? '確認済み' : '未確認',
+        o.created_at       ? fmtDate(o.created_at) : '',
+      ]);
+    });
+    const date = new Date().toLocaleDateString('ja-JP').replace(/\//g, '-');
+    downloadCSV(rows, `SASAERU_団体一覧_${date}.csv`);
+    showToast(`${allOrgsData.length}件をCSVでダウンロードしました`);
+  }
+
+  function exportMenusCSV() {
+    if (!allMenusData.length) { showToast('先に支援メニュー管理タブを開いてデータを読み込んでください', false); return; }
+    const STATUS_JA = { public: '公開中', private: '非公開' };
+    const rows = [['団体名', 'メニュー名', '支援種別', '目標金額', '状態', '登録日']];
+    allMenusData.forEach(m => {
+      rows.push([
+        m.orgName         || '',
+        m.title           || '',
+        m.support_type    || '',
+        m.target_amount != null ? String(m.target_amount) : '',
+        STATUS_JA[m.status] || m.status || '',
+        m.created_at      ? fmtDate(m.created_at) : '',
+      ]);
+    });
+    const date = new Date().toLocaleDateString('ja-JP').replace(/\//g, '-');
+    downloadCSV(rows, `SASAERU_支援メニュー一覧_${date}.csv`);
+    showToast(`${allMenusData.length}件をCSVでダウンロードしました`);
+  }
+
+  // ============================================================
+  // 管理者設定
+  // ============================================================
+  async function loadAdmins() {
+    const el = document.getElementById('admins-list');
+    if (!db) { el.innerHTML = demoMsg(); return; }
+    try {
+      const snap   = await db.collection('admins').get();
+      const sorted = snap.docs.slice().sort((a, b) =>
+        (a.data().granted_at?.toMillis?.() ?? 0) - (b.data().granted_at?.toMillis?.() ?? 0)
+      );
+      if (!sorted.length) {
+        el.innerHTML = '<div class="px-6 py-5 text-xs text-slate-400 text-center">管理者が登録されていません</div>';
+        return;
+      }
+      const selfUid = auth?.currentUser?.uid;
+      el.innerHTML = sorted.map(d => {
+        const a      = d.data();
+        const isSelf = a.uid === selfUid;
+        return `
+          <div class="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
+            <div class="w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center shrink-0">
+              <i data-lucide="shield-check" class="text-orange-500" width="16" height="16"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-bold text-slate-900">${esc(a.email || '—')}</p>
+              <p class="text-xs text-slate-400 mt-0.5">
+                ${a.granted_at ? `追加日: ${fmtDate(a.granted_at)}` : ''}
+                ${a.granted_by ? ` · 追加者: ${esc(a.granted_by)}` : ''}
+              </p>
+            </div>
+            ${isSelf
+              ? '<span class="text-xs text-slate-400 shrink-0 px-3 py-1.5">自分</span>'
+              : `<button data-uid="${esc(d.id)}" data-email="${esc(a.email || '')}"
+                  onclick="revokeAdmin(this.dataset.uid, this.dataset.email)"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all shrink-0">
+                  <i data-lucide="user-minus" width="12" height="12"></i>削除
+                </button>`}
+          </div>`;
+      }).join('');
+      lucide.createIcons();
+    } catch(e) { el.innerHTML = errMsg(e); }
+  }
+
+  async function grantAdmin() {
+    const emailInput = document.getElementById('new-admin-email');
+    const errEl      = document.getElementById('admin-grant-error');
+    const btn        = document.getElementById('grant-admin-btn');
+    const email      = (emailInput?.value || '').trim();
+    errEl.textContent = '';
+
+    if (!email || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) {
+      errEl.textContent = '有効なメールアドレスを入力してください';
+      return;
+    }
+    if (!auth?.currentUser) { errEl.textContent = '認証情報が取得できません。再ログインしてください。'; return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>';
+
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res     = await fetch('/.netlify/functions/set-admin', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+        body:    JSON.stringify({ action: 'grant', email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error === 'Cannot modify own admin status'
+          ? '自分自身の権限は変更できません'
+          : (data.error || '権限の付与に失敗しました');
+        return;
+      }
+
+      // Firestore の admins コレクションに記録
+      if (db) {
+        await db.collection('admins').doc(data.uid).set({
+          email,
+          uid:        data.uid,
+          granted_by: auth.currentUser.email || '',
+          granted_at: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 新規作成ユーザーにはパスワード設定メールを送信
+      if (data.created) {
+        try { await auth.sendPasswordResetEmail(email); } catch(_) {}
+        showToast('管理者を追加しました。パスワード設定メールを送信しました');
+      } else {
+        showToast('管理者権限を付与しました');
+      }
+
+      emailInput.value = '';
+      loadAdmins();
+    } catch(e) {
+      errEl.textContent = 'エラー: ' + e.message;
+    } finally {
+      btn.disabled  = false;
+      btn.innerHTML = '<i data-lucide="user-plus" width="14" height="14"></i>追加';
+      lucide.createIcons();
+    }
+  }
+
+  function revokeAdmin(uid, email) {
+    showConfirm(
+      `「${email}」の管理者権限を削除しますか？`,
+      '削除後はこのアカウントで管理画面にアクセスできなくなります。',
+      '削除する', 'bg-red-500 hover:bg-red-600',
+      async () => {
+        if (!auth?.currentUser) { showToast('認証情報が取得できません', false); return; }
+        try {
+          const idToken = await auth.currentUser.getIdToken();
+          const res     = await fetch('/.netlify/functions/set-admin', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+            body:    JSON.stringify({ action: 'revoke', email }),
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            showToast(data.error || '権限の削除に失敗しました', false);
+            return;
+          }
+          if (db) await db.collection('admins').doc(uid).delete();
+          showToast('管理者権限を削除しました');
+          loadAdmins();
+        } catch(e) { showToast('エラー: ' + e.message, false); }
+      }
+    );
   }
 
   // ============================================================
