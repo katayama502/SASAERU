@@ -21,6 +21,7 @@ service cloud.firestore {
 
     function validEmail(email) {
       return email is string
+        && email.size() > 0
         && email.size() <= 254
         && email.matches('.*@.*\\..*');
     }
@@ -197,6 +198,8 @@ service cloud.firestore {
                     && request.resource.data.company_name.size() > 0
                     && request.resource.data.company_name.size() <= 200
                     && request.resource.data.sender_email is string
+                    && request.resource.data.sender_email.size() > 0
+                    && request.resource.data.sender_email.size() <= 254
                     && request.resource.data.sender_email.matches('.*@.*\\..*')
                     && (!('menu_id'    in request.resource.data) || request.resource.data.menu_id    is string)
                     && (!('menu_title' in request.resource.data) || (request.resource.data.menu_title is string && request.resource.data.menu_title.size() <= 100));
@@ -236,6 +239,8 @@ service cloud.firestore {
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() <= 200
                     && request.resource.data.email is string
+                    && request.resource.data.email.size() > 0
+                    && request.resource.data.email.size() <= 254
                     && request.resource.data.email.matches('.*@.*\\..*')
                     && request.resource.data.message is string
                     && request.resource.data.message.size() > 0

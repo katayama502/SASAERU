@@ -842,7 +842,7 @@
       unread:   ['badge-unread',   '未読'],
       read:     ['bg-slate-100 text-slate-500', '既読'],
     };
-    const [cls, label] = map[status] || ['bg-slate-100 text-slate-500', status];
+    const [cls, label] = map[status] || ['bg-slate-100 text-slate-500', esc(status)];
     return `<span class="text-[10px] font-black px-2 py-0.5 rounded-full ${cls}">${label}</span>`;
   }
   const CAT = { sports:'スポーツ', culture:'文化・芸術', welfare:'福祉', other:'その他' };
