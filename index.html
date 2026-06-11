@@ -266,9 +266,7 @@
         </div>
         <div class="flex bg-white p-1 rounded-full shadow-sm border border-slate-200 flex-wrap gap-1" id="tab-container">
           <button data-tab="all" data-tab-label="すべて" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
-          <button data-tab="sports" data-tab-label="スポーツ" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">スポーツ</button>
-          <button data-tab="culture" data-tab-label="文化・芸術" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">文化・芸術</button>
-          <button data-tab="welfare" data-tab-label="福祉" class="tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100">福祉</button>
+          <!-- カテゴリタブは loadCategories() で動的に追加 -->
         </div>
       </div>
       <!-- 3軸検索バー -->
@@ -312,10 +310,7 @@
             <select id="search-category" onchange="onSearchInput()"
               class="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white appearance-none">
               <option value="">カテゴリー（すべて）</option>
-              <option value="sports">スポーツ</option>
-              <option value="culture">文化・芸術</option>
-              <option value="welfare">福祉</option>
-              <option value="other">その他</option>
+              <!-- カテゴリは loadCategories() で動的に追加 -->
             </select>
           </div>
           <!-- クリアボタン（フィルター有効時のみ表示） -->
@@ -588,10 +583,7 @@
             <select id="reg-category" name="category" required
               class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm bg-white">
               <option value="">選択してください</option>
-              <option value="sports">スポーツ</option>
-              <option value="culture">文化・芸術</option>
-              <option value="welfare">福祉</option>
-              <option value="other">その他</option>
+              <!-- カテゴリは loadCategories() で動的に追加 -->
             </select>
           </div>
           <div>
@@ -1236,6 +1228,80 @@
     welfare: 'bg-green-50 text-green-700 border-green-100',
     other:   'bg-slate-50 text-slate-700 border-slate-100'
   };
+
+  // ===================================================
+  // カテゴリ動的読み込み（Firestore `categories` コレクション）
+  // ===================================================
+  const CATEGORY_COLOR_PALETTE = [
+    'bg-blue-50 text-blue-700 border-blue-100',
+    'bg-purple-50 text-purple-700 border-purple-100',
+    'bg-green-50 text-green-700 border-green-100',
+    'bg-slate-50 text-slate-700 border-slate-100',
+    'bg-amber-50 text-amber-700 border-amber-100',
+    'bg-rose-50 text-rose-700 border-rose-100',
+  ];
+
+  const DEFAULT_CATEGORIES = [
+    { id: 'sports',  label: 'スポーツ',  sort_order: 1 },
+    { id: 'culture', label: '文化・芸術', sort_order: 2 },
+    { id: 'welfare', label: '福祉',       sort_order: 3 },
+    { id: 'other',   label: 'その他',     sort_order: 4 },
+  ];
+
+  async function loadCategories() {
+    let cats = DEFAULT_CATEGORIES;
+    if (db) {
+      try {
+        const snap = await db.collection('categories').orderBy('sort_order').get();
+        if (!snap.empty) cats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (e) {
+        console.warn('categories 取得失敗、デフォルト値を使用:', e);
+      }
+    }
+
+    cats.forEach((cat, i) => {
+      CATEGORY_LABEL[cat.id] = cat.label;
+      if (!CATEGORY_COLOR[cat.id]) {
+        CATEGORY_COLOR[cat.id] = CATEGORY_COLOR_PALETTE[i % CATEGORY_COLOR_PALETTE.length];
+      }
+    });
+
+    const tabContainer = document.getElementById('tab-container');
+    if (tabContainer) {
+      tabContainer.querySelectorAll('.tab-btn:not([data-tab="all"])').forEach(b => b.remove());
+      cats.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'tab-pill tab-btn px-5 py-2 rounded-full text-xs font-bold transition-all text-slate-500 hover:bg-slate-100';
+        btn.dataset.tab = cat.id;
+        btn.dataset.tabLabel = cat.label;
+        btn.textContent = cat.label;
+        tabContainer.appendChild(btn);
+      });
+    }
+
+    const searchCat = document.getElementById('search-category');
+    if (searchCat) {
+      while (searchCat.options.length > 1) searchCat.remove(1);
+      cats.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = cat.label;
+        searchCat.appendChild(opt);
+      });
+    }
+
+    const regCat = document.getElementById('reg-category');
+    if (regCat) {
+      while (regCat.options.length > 1) regCat.remove(1);
+      cats.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = cat.label;
+        regCat.appendChild(opt);
+      });
+    }
+  }
+
   const FALLBACK_IMG = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect fill="#f8fafc" width="600" height="400"/><text fill="#94a3b8" font-family="sans-serif" font-size="18" text-anchor="middle" x="300" y="208">No Image</text></svg>')}`;
 
   // ===================================================
@@ -1760,20 +1826,19 @@
   // ===================================================
   // タブフィルター
   // ===================================================
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.remove('bg-orange-500', 'text-white');
-        b.classList.add('text-slate-500', 'hover:bg-slate-100');
-      });
-      btn.classList.remove('text-slate-500', 'hover:bg-slate-100');
-      btn.classList.add('bg-orange-500', 'text-white');
-      currentFilter = btn.getAttribute('data-tab');
-      // タブ切り替え時はカテゴリ検索セレクトをリセット（二重フィルター防止）
-      const catSel = document.getElementById('search-category');
-      if (catSel) catSel.value = '';
-      renderOrgs();
+  document.getElementById('tab-container').addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('bg-orange-500', 'text-white');
+      b.classList.add('text-slate-500', 'hover:bg-slate-100');
     });
+    btn.classList.remove('text-slate-500', 'hover:bg-slate-100');
+    btn.classList.add('bg-orange-500', 'text-white');
+    currentFilter = btn.getAttribute('data-tab');
+    const catSel = document.getElementById('search-category');
+    if (catSel) catSel.value = '';
+    renderOrgs();
   });
 
   // ===================================================
@@ -1909,11 +1974,12 @@
   // ===================================================
   // 初期化
   // ===================================================
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
+    await loadCategories(); // タブ・セレクトを loadOrgs() より先に構築
     loadOrgs();
     loadStats();
-    initSupportCategoryBtns(); // 修正3: 支援カテゴリボタン初期描画
+    initSupportCategoryBtns();
 
     // メール確認完了後のリダイレクト対応（mypage.html から ?emailverified=1 で飛んでくる）
     if (new URLSearchParams(location.search).get('emailverified') === '1') {
