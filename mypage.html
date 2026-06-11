@@ -497,6 +497,33 @@
     </div>
   </div>
 
+  <!-- 支援完了ポップアップ -->
+  <div id="complete-menu-dialog" class="fixed inset-0 z-[110] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    role="dialog" aria-modal="true" aria-labelledby="cmd-title">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-2xl">🎉</span>
+        <h3 id="cmd-title" class="text-base font-black text-slate-900">マッチング成立！</h3>
+      </div>
+      <p id="cmd-menu-name" class="text-sm font-bold text-slate-700 mb-1 truncate"></p>
+      <p class="text-xs text-slate-500 mb-5">このメニューを今後も表示し続けますか？<br>どちらの選択でもマッチング実績としてカウントされます。</p>
+      <div class="flex flex-col gap-2">
+        <button id="cmd-continue-btn" onclick="completeMatching(true)"
+          class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
+          <i data-lucide="eye" width="14" height="14"></i>継続表示する（募集続ける）
+        </button>
+        <button id="cmd-hide-btn" onclick="completeMatching(false)"
+          class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
+          <i data-lucide="eye-off" width="14" height="14"></i>非表示にする（募集終了）
+        </button>
+        <button onclick="closeCompleteMenuDialog()"
+          class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all">
+          キャンセル
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="fixed bottom-6 left-4 md:left-6 z-[200] hidden">
     <div id="toast-inner" class="px-5 py-3 rounded-xl text-sm font-bold shadow-xl"></div>
@@ -1261,7 +1288,8 @@
                 <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full ${m.status === 'public' ? 'badge-public border border-green-200' : 'bg-slate-100 text-slate-500'}">
                   ${m.status === 'public' ? '公開中' : '非公開'}
                 </span>
-                ${m.is_matched === true ? `<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center gap-1"><i data-lucide="check-circle" width="10" height="10"></i>マッチング済み${(m.matched_count && m.matched_count > 0) ? ` ${m.matched_count}件` : ''}</span>` : ''}
+                ${(m.matchingCount ?? m.matched_count ?? 0) > 0 ? `<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center gap-1"><i data-lucide="trophy" width="10" height="10"></i>実績 ${m.matchingCount ?? m.matched_count}件</span>` : ''}
+                ${m.isVisible === false ? `<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1"><i data-lucide="eye-off" width="10" height="10"></i>非表示中</span>` : ''}
               </div>
               <div class="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span class="flex items-center gap-1"><i data-lucide="tag" width="11" height="11"></i>${esc(m.support_type||'—')}</span>
@@ -1283,6 +1311,11 @@
             class="flex items-center gap-1 px-3 py-1.5 ${m.status === 'public' ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-green-50 hover:bg-green-100 text-green-700'} text-xs font-bold rounded-lg transition-all">
             <i data-lucide="${m.status === 'public' ? 'eye-off' : 'eye'}" width="12" height="12"></i>
             ${m.status === 'public' ? '非公開にする' : '公開する'}
+          </button>
+          <button data-id="${esc(m.id)}" data-title="${esc(m.title)}"
+            onclick="openCompleteMenuDialog(this.dataset.id, this.dataset.title)"
+            class="flex items-center gap-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 text-xs font-bold rounded-lg transition-all">
+            <i data-lucide="trophy" width="12" height="12"></i>支援完了
           </button>
           <button data-id="${esc(m.id)}" data-title="${esc(m.title)}"
             onclick="deleteMenu(this.dataset.id, this.dataset.title)"
@@ -1474,6 +1507,78 @@
         } catch(err) { showToast('エラー: ' + err.message, false); }
       }
     );
+  }
+
+  // ============================================================
+  // 支援完了（マッチング成立）
+  // ============================================================
+  let _completingMenuId    = null;
+  let _completingMenuTitle = null;
+
+  function openCompleteMenuDialog(menuId, menuTitle) {
+    _completingMenuId    = menuId;
+    _completingMenuTitle = menuTitle;
+    document.getElementById('cmd-menu-name').textContent = menuTitle;
+    const d = document.getElementById('complete-menu-dialog');
+    d.classList.remove('hidden'); d.classList.add('flex');
+    lucide.createIcons();
+  }
+
+  function closeCompleteMenuDialog() {
+    const d = document.getElementById('complete-menu-dialog');
+    d.classList.add('hidden'); d.classList.remove('flex');
+    _completingMenuId    = null;
+    _completingMenuTitle = null;
+  }
+
+  document.getElementById('complete-menu-dialog').addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeCompleteMenuDialog();
+  });
+
+  async function completeMatching(continuous) {
+    const menuId    = _completingMenuId;
+    const menuTitle = _completingMenuTitle;
+    closeCompleteMenuDialog();
+    if (!menuId || !db || !currentOrg) return;
+
+    const continueBtn = document.getElementById('cmd-continue-btn');
+    const hideBtn     = document.getElementById('cmd-hide-btn');
+    if (continueBtn) continueBtn.disabled = true;
+    if (hideBtn)     hideBtn.disabled     = true;
+
+    try {
+      const updateData = {
+        matchingCount: firebase.firestore.FieldValue.increment(1),
+        updated_at:    firebase.firestore.FieldValue.serverTimestamp(),
+      };
+      if (!continuous) updateData.isVisible = false;
+
+      await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).update(updateData);
+
+      // Slack通知
+      const slackUrl = getCfg().slackWebhook || '';
+      if (slackUrl) {
+        const lines = [
+          ':trophy: *支援マッチング成立*',
+          `*団体名*：${currentOrg.name || '—'}`,
+          `*メニュー名*：${menuTitle}`,
+          `*継続表示*：${continuous ? 'あり（募集継続）' : 'なし（募集終了）'}`,
+          `*管理画面*：${window.location.origin}/admin.html`,
+        ].join('\n');
+        fetch(slackUrl, {
+          method: 'POST', mode: 'no-cors',
+          body: new URLSearchParams({ payload: JSON.stringify({ text: lines }) }),
+        }).catch(() => {});
+      }
+
+      showToast(continuous ? 'マッチング成立！引き続き募集を継続します' : 'マッチング成立！メニューを非表示にしました');
+      loadMenus();
+    } catch(e) {
+      showToast('エラー: ' + e.message, false);
+    } finally {
+      if (continueBtn) continueBtn.disabled = false;
+      if (hideBtn)     hideBtn.disabled     = false;
+    }
   }
 
   // ============================================================

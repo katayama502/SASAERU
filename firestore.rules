@@ -135,7 +135,8 @@ service cloud.firestore {
                     || (resource.data.owner_uid == request.auth.uid
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                              'title','support_type','target_amount','description',
-                             'return_merit','status','updated_at','sort_order'
+                             'return_merit','status','updated_at','sort_order',
+                             'matchingCount','isVisible'
                            ])
                         && (!('title' in request.resource.data.diff(resource.data).affectedKeys())
                             || (request.resource.data.title is string
@@ -146,7 +147,8 @@ service cloud.firestore {
                     || (isOwnerOf(orgId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                              'title','support_type','target_amount','description',
-                             'return_merit','status','updated_at','sort_order'
+                             'return_merit','status','updated_at','sort_order',
+                             'matchingCount','isVisible'
                            ])
                         && (!('title' in request.resource.data.diff(resource.data).affectedKeys())
                             || (request.resource.data.title is string
