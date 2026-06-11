@@ -160,6 +160,17 @@ service cloud.firestore {
       allow delete: if isAdmin()
                     || resource.data.owner_uid == request.auth.uid
                     || isOwnerOf(orgId);
+
+      // matchings サブコレクション（支援成立記録 — 成立ごとに自動IDで記録）
+      match /matchings/{matchingId} {
+        allow read:   if isAdmin() || isOwnerOf(orgId);
+        allow create: if isAuth() && isOwnerOf(orgId)
+                      && request.resource.data.keys().hasOnly([
+                           'continuous','menuTitle','completedBy','completedAt'
+                         ])
+                      && request.resource.data.completedBy == request.auth.uid;
+        allow delete: if isAdmin();
+      }
     }
 
     // posts（活動日記）

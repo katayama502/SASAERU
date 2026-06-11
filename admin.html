@@ -1371,18 +1371,28 @@
         isContinuous: continuous,
       });
 
-      // menu_idがある場合は対応するメニューをアトミックに更新
+      // menu_idがある場合はメニュー更新 + マッチング記録をバッチで作成
       if (inqData.menu_id && inqData.org_id) {
-        const menuRef = db.collection('organizations').doc(inqData.org_id).collection('menus').doc(inqData.menu_id);
-        const updateData = {
+        const menuRef     = db.collection('organizations').doc(inqData.org_id).collection('menus').doc(inqData.menu_id);
+        const matchingRef = menuRef.collection('matchings').doc(); // 成立ごとに自動ID
+        const batch = db.batch();
+
+        const menuUpdate = {
           matchingCount: firebase.firestore.FieldValue.increment(1),
-          updated_at:   firebase.firestore.FieldValue.serverTimestamp(),
+          updated_at:    firebase.firestore.FieldValue.serverTimestamp(),
         };
-        if (!continuous) {
-          // 継続支援なし → isVisible=false にして新規申請を停止
-          updateData.isVisible = false;
-        }
-        await menuRef.update(updateData);
+        if (!continuous) menuUpdate.isVisible = false;
+        batch.update(menuRef, menuUpdate);
+
+        batch.set(matchingRef, {
+          continuous,
+          menuTitle:   inqData.menu_title || '',
+          inquiryId:   id,
+          completedBy: 'admin',
+          completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+
+        await batch.commit();
       }
 
       showToast(continuous ? 'マッチング成立（継続支援）にしました' : 'マッチング成立（終了）にしました');

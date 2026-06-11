@@ -1550,13 +1550,37 @@
     if (hideBtn)     hideBtn.disabled     = true;
 
     try {
-      const updateData = {
+      const menuRef     = db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId);
+      const matchingRef = menuRef.collection('matchings').doc(); // 成立ごとに自動ID
+
+      // このメニューへの未対応申請を取得（バッチでまとめてクローズ）
+      const pendingSnap = await db.collection('inquiries')
+        .where('menu_id', '==', menuId)
+        .where('org_id',  '==', currentOrg.id)
+        .where('status',  '==', 'new')
+        .get();
+
+      const batch = db.batch();
+
+      const menuUpdateData = {
         matchingCount: firebase.firestore.FieldValue.increment(1),
         updated_at:    firebase.firestore.FieldValue.serverTimestamp(),
       };
-      if (!continuous) updateData.isVisible = false;
+      if (!continuous) menuUpdateData.isVisible = false;
+      batch.update(menuRef, menuUpdateData);
 
-      await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).update(updateData);
+      // マッチング記録（個別ID で管理）
+      batch.set(matchingRef, {
+        continuous,
+        menuTitle:   menuTitle,
+        completedBy: currentUser.uid,
+        completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // 紐づく申請を全て成立済みに変更してリマインドを停止
+      pendingSnap.docs.forEach(doc => batch.update(doc.ref, { status: 'done' }));
+
+      await batch.commit();
 
       // Slack + メール通知
       const slackUrl     = getCfg().slackWebhook || '';

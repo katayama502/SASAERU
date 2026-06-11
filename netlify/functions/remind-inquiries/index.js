@@ -80,8 +80,10 @@ exports.handler = async (event) => {
       orgGroups.get(inq.org_id).push(inq);
     }
 
-    const GMAIL_USER  = process.env.GMAIL_USER;
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || GMAIL_USER;
+    const GMAIL_USER        = process.env.GMAIL_USER;
+    const ADMIN_EMAIL       = process.env.ADMIN_EMAIL       || GMAIL_USER;
+    const EXTRA_ADMIN_EMAIL = process.env.EXTRA_ADMIN_EMAIL || 'sasaeru@scl.or.jp';
+    const bcc = [...new Set([ADMIN_EMAIL, EXTRA_ADMIN_EMAIL].filter(Boolean))].join(', ');
     if (!GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       console.error('GMAIL credentials not configured');
       return { statusCode: 500, body: JSON.stringify({ error: 'email not configured' }) };
@@ -107,18 +109,19 @@ exports.handler = async (event) => {
         await transporter.sendMail({
           from: `"SASAERU 運営事務局" <${GMAIL_USER}>`,
           to: toEmail,
-          bcc: ADMIN_EMAIL,
+          bcc,
           subject: '【SASAERU】未対応の支援申請があります',
           text: [
             `${org.name || '団体'} 様`,
             '',
             '以下の支援申請が未対応のままになっています。',
-            'お早めに対応をお願いいたします。',
+            '対応が完了した場合は、マイページの支援メニューから「支援完了」ボタンを押してください。',
+            '（完了ボタンを押すと申請が自動的にクローズされ、このリマインドも止まります）',
             '',
             list,
             '',
-            '管理画面より対応状況を更新してください。',
-            `https://sasaeru.netlify.app/club.html?id=${orgId}`,
+            '▼ マイページへログインして対応する',
+            'https://sasaeru.netlify.app/',
             '',
             'SASAERU 運営事務局',
           ].join('\n'),
