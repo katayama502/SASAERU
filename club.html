@@ -816,9 +816,10 @@
     document.getElementById('hero-category').innerHTML =
       `<span class="inline-block ${catColor} text-xs font-bold px-3 py-1 rounded-full">${esc(catLabel)}</span>`;
     document.getElementById('hero-name').textContent = org.name || '';
-    if (org.area) {
+    const areaStr = Array.isArray(org.area) ? org.area.join('・') : (org.area || '');
+    if (areaStr) {
       const areaEl = document.getElementById('hero-area');
-      areaEl.querySelector('span').textContent = org.area;
+      areaEl.querySelector('span').textContent = areaStr;
       areaEl.classList.remove('hidden');
     } else {
       document.getElementById('hero-area').classList.add('hidden');
