@@ -325,21 +325,22 @@
 
           <!-- 支援申請タブ -->
           <div id="tab-inquiries" class="hidden fade-in">
-            <!-- モバイル用フィルターバー（md未満で表示） -->
+            <!-- フィルター＋CSVエクスポート（常時表示） -->
+            <div class="flex gap-2 mb-4 flex-wrap items-center">
+              <button onclick="filterInquiries('all')" data-inq-filter="all"
+                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
+              <button onclick="filterInquiries('new')" data-inq-filter="new"
+                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">未対応</button>
+              <button onclick="filterInquiries('done')" data-inq-filter="done"
+                class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">対応済み</button>
+              <span id="inq-count" class="ml-auto text-xs text-slate-400"></span>
+              <button onclick="exportInquiriesCSV()"
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold rounded-lg transition-all border border-green-200">
+                <i data-lucide="download" width="13" height="13"></i>CSVエクスポート
+              </button>
+            </div>
+            <!-- モバイル用リスト（md未満で表示） -->
             <div class="inq-list-view">
-              <div class="flex gap-2 mb-4 flex-wrap items-center">
-                <button onclick="filterInquiries('all')" data-inq-filter="all"
-                  class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-orange-500 text-white">すべて</button>
-                <button onclick="filterInquiries('new')" data-inq-filter="new"
-                  class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">未対応</button>
-                <button onclick="filterInquiries('done')" data-inq-filter="done"
-                  class="inq-filter-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-slate-500 border border-slate-200">対応済み</button>
-                <span id="inq-count" class="ml-auto text-xs text-slate-400"></span>
-                <button onclick="exportInquiriesCSV()"
-                  class="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 text-xs font-bold rounded-lg transition-all border border-green-200">
-                  <i data-lucide="download" width="13" height="13"></i>CSVエクスポート
-                </button>
-              </div>
               <div id="inquiries-list" class="space-y-3">
                 <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
               </div>
