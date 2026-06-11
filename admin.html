@@ -180,12 +180,7 @@
             <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="mail" width="16" height="16"></i>支援申請
             <span id="badge-inquiries" class="ml-auto bg-blue-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
           </button>
-          <button onclick="switchTab('contacts')" data-tab="contacts" draggable="true"
-            ondragstart="sideNavDragStart(event)" ondragover="sideNavDragOver(event)" ondragleave="sideNavDragLeave(event)" ondrop="sideNavDrop(event)" ondragend="sideNavDragEnd(event)"
-            class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
-            <i data-lucide="grip-vertical" width="13" height="13" class="side-drag-handle"></i><i data-lucide="message-square" width="16" height="16"></i>お問い合わせ
-            <span id="badge-contacts" class="ml-auto bg-purple-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
-          </button>
+
           <button onclick="switchTab('menus')" data-tab="menus" draggable="true"
             ondragstart="sideNavDragStart(event)" ondragover="sideNavDragOver(event)" ondragleave="sideNavDragLeave(event)" ondrop="sideNavDrop(event)" ondragend="sideNavDragEnd(event)"
             class="side-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-white/60 hover:bg-white/10">
@@ -268,15 +263,6 @@
                   </div>
                 </div>
                 <p id="ov-inquiries" class="text-3xl font-black text-slate-900">—</p>
-              </div>
-              <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                  <p class="text-xs font-bold text-slate-500">お問い合わせ</p>
-                  <div class="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
-                    <i data-lucide="message-square" class="text-purple-600" width="16" height="16"></i>
-                  </div>
-                </div>
-                <p id="ov-contacts" class="text-3xl font-black text-slate-900">—</p>
               </div>
             </div>
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm">
@@ -379,19 +365,6 @@
             </div>
           </div>
 
-          <!-- お問い合わせタブ -->
-          <div id="tab-contacts" class="hidden fade-in">
-            <div class="flex items-center justify-between mb-4">
-              <p class="text-xs text-slate-500">未読のお問い合わせは紫色で表示されます</p>
-              <button onclick="markAllContactsRead()"
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-lg transition-all">
-                <i data-lucide="check-check" width="13" height="13"></i>全て既読にする
-              </button>
-            </div>
-            <div id="contacts-list" class="space-y-3">
-              <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
-            </div>
-          </div>
 
           <!-- 管理者管理タブ -->
           <div id="tab-admins" class="hidden fade-in">
@@ -760,7 +733,6 @@
     pending:   { title: '審査待ち',         subtitle: '登録申請を審査・承認' },
     orgs:      { title: '団体管理',         subtitle: '全団体の管理・編集' },
     inquiries: { title: '支援申請一覧',     subtitle: '企業からの問い合わせ' },
-    contacts:  { title: 'お問い合わせ',     subtitle: 'お問い合わせ一覧' },
     menus:     { title: '支援メニュー管理', subtitle: '全団体の支援メニューを管理' },
     admins:    { title: '管理者管理',       subtitle: '管理者権限の付与・削除' },
   };
@@ -781,7 +753,7 @@
   function switchTab(name) {
     currentTab = name;
     closeSidebar();
-    ['overview','pending','orgs','inquiries','contacts','menus','admins'].forEach(t => {
+    ['overview','pending','orgs','inquiries','menus','admins'].forEach(t => {
       document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== name);
     });
     document.querySelectorAll('.side-btn').forEach(btn => {
@@ -803,7 +775,6 @@
     if (name === 'pending')   loadPending();
     if (name === 'orgs')      loadOrgs();
     if (name === 'inquiries') loadInquiries();
-    if (name === 'contacts')  loadContacts();
     if (name === 'menus')     loadAdminMenus();
     if (name === 'admins')    loadAdmins();
   }
@@ -905,24 +876,16 @@
   async function loadOverview() {
     if (!db) { renderOverviewDemo(); return; }
     try {
-      // P-1: where フィルタをサーバー側で適用し全件取得を回避
-      // contacts は read_at フィールドが存在しないドキュメントが未読のため
-      // Firestore の where('read_at','==',null) では存在しないフィールドにマッチしない。
-      // 全件取得してクライアント側でフィルタする。
-      const [pendSnap, pubSnap, inqNewSnap, conSnap] = await Promise.all([
+      const [pendSnap, pubSnap, inqNewSnap] = await Promise.all([
         db.collection('organizations').where('status','==','pending').get(),
         db.collection('organizations').where('status','==','public').get(),
         db.collection('inquiries').where('status','==','new').get(),
-        db.collection('contacts').get(),
       ]);
-      const unreadContactCount = conSnap.docs.filter(d => !d.data().read_at).length;
       animateCount('ov-pending',   pendSnap.size);
       animateCount('ov-public',    pubSnap.size);
       animateCount('ov-inquiries', inqNewSnap.size);
-      animateCount('ov-contacts',  unreadContactCount);
       updateBadge('badge-pending',   pendSnap.size);
       updateBadge('badge-inquiries', inqNewSnap.size);
-      updateBadge('badge-contacts',  unreadContactCount);
       const pendingSorted = pendSnap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
       renderRecentPending(pendingSorted.slice(0, 5));
     } catch(e) {
@@ -931,7 +894,7 @@
   }
 
   function renderOverviewDemo() {
-    ['ov-pending','ov-public','ov-inquiries','ov-contacts'].forEach(id => {
+    ['ov-pending','ov-public','ov-inquiries'].forEach(id => {
       document.getElementById(id).textContent = '—';
     });
     document.getElementById('ov-recent-list').innerHTML =
@@ -1443,77 +1406,6 @@
   });
 
   // ============================================================
-  // お問い合わせ（Contacts）- Bug Fix: sort result stored
-  // ============================================================
-  async function loadContacts() {
-    const el = document.getElementById('contacts-list');
-    if (!db) { el.innerHTML = demoMsg(); return; }
-    try {
-      const snap = await db.collection('contacts').get();
-      const sorted = snap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
-      const unreadCount = sorted.filter(d => !d.data().read_at).length;
-      updateBadge('badge-contacts', unreadCount);
-      if (snap.empty) {
-        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">お問い合わせはありません</div>';
-        return;
-      }
-      el.innerHTML = sorted.map(d => {
-        const c  = d.data();
-        const id = d.id;
-        const isRead = !!c.read_at;
-        return `
-          <div class="bg-white rounded-2xl border ${isRead ? 'border-slate-100' : 'border-purple-100'} shadow-sm p-5 ${isRead ? '' : 'ring-1 ring-purple-100'}">
-            <div class="flex items-start justify-between gap-4 mb-2">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                  <p class="text-sm font-black text-slate-900">${esc(c.name||'—')}</p>
-                  ${statusBadge(isRead ? 'read' : 'unread')}
-                </div>
-                <div class="flex flex-wrap gap-3 text-xs text-slate-400">
-                  <span class="flex items-center gap-1"><i data-lucide="mail" width="11" height="11"></i>${esc(c.email||'—')}</span>
-                  <span class="flex items-center gap-1"><i data-lucide="clock" width="11" height="11"></i>${fmtDate(c.created_at)}</span>
-                </div>
-              </div>
-              <div class="flex gap-2 shrink-0">
-                ${!isRead ? `
-                  <button onclick="markContactRead('${id}')"
-                    class="flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-lg transition-all">
-                    <i data-lucide="check" width="12" height="12"></i>既読にする</button>` : ''}
-                <a href="mailto:${esc(c.email)}?subject=${encodeURIComponent('【SASAERU】お問い合わせへのご回答')}"
-                  class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-all">
-                  <i data-lucide="mail" width="12" height="12"></i>返信</a>
-              </div>
-            </div>
-            ${c.message ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 leading-relaxed">${esc(c.message)}</p>` : ''}
-          </div>`;
-      }).join('');
-      lucide.createIcons();
-    } catch(e) { el.innerHTML = errMsg(e); }
-  }
-
-  async function markContactRead(id) {
-    if (!db) return;
-    try {
-      await db.collection('contacts').doc(id).update({ read_at: firebase.firestore.FieldValue.serverTimestamp() });
-      showToast('既読にしました');
-      loadContacts(); loadOverview();
-    } catch(e) { showToast('エラー: ' + e.message, false); }
-  }
-
-  async function markAllContactsRead() {
-    if (!db) { showToast('Firebase未設定です', false); return; }
-    try {
-      const snap = await db.collection('contacts').get();
-      const unread = snap.docs.filter(d => !d.data().read_at);
-      if (unread.length === 0) { showToast('未読のお問い合わせはありません'); return; }
-      const batch = db.batch();
-      const ts = firebase.firestore.FieldValue.serverTimestamp();
-      unread.forEach(d => batch.update(d.ref, { read_at: ts }));
-      await batch.commit();
-      showToast(`${unread.length}件を既読にしました`);
-      loadContacts(); loadOverview();
-    } catch(e) { showToast('エラー: ' + e.message, false); }
-  }
 
   // ============================================================
   // 支援メニュー管理（TASK-05）
