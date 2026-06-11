@@ -206,13 +206,24 @@ service cloud.firestore {
       // 読み取り: 管理者 または 問い合わせ先の団体オーナー
       allow get, list: if isAdmin()
                        || (isAuth() && isOwnerOf(resource.data.org_id));
-      // 更新（対応ステータス変更）: 管理者（continuous_support フラグも更新可）または 問い合わせ先の団体オーナー
+      // 更新（対応ステータス変更）: 管理者（isContinuous・lastReminderSentAt も更新可）または 問い合わせ先の団体オーナー
       allow update: if isAdmin()
                     || (isAuth()
                         && isOwnerOf(resource.data.org_id)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
                         && request.resource.data.status in ['new', 'done']);
       // 削除: 管理者のみ
+      allow delete: if isAdmin();
+    }
+
+    // categories（カテゴリマスター）— 誰でも読み取り可 / 管理者のみ書き込み可（T-16）
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+                            && request.resource.data.keys().hasOnly(['id','label','slug','count','sort_order'])
+                            && request.resource.data.label is string
+                            && request.resource.data.label.size() > 0
+                            && request.resource.data.slug is string;
       allow delete: if isAdmin();
     }
 

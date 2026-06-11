@@ -1386,6 +1386,11 @@
     const id = _csPendingInquiryId;
     closeContinuousSupportDialog();
     if (!id || !db) return;
+    // 二重送信防止
+    const yesBtn = document.getElementById('cs-yes-btn');
+    const noBtn  = document.getElementById('cs-no-btn');
+    if (yesBtn) yesBtn.disabled = true;
+    if (noBtn)  noBtn.disabled  = true;
     try {
       // inquiryドキュメントを取得してmenu_idを取得
       const inqSnap = await db.collection('inquiries').doc(id).get();
@@ -1395,30 +1400,30 @@
       // inquiryをdoneにする（継続支援フラグ付き）
       await db.collection('inquiries').doc(id).update({
         status: 'done',
-        continuous_support: continuous,
+        isContinuous: continuous,
       });
 
-      // menu_idがある場合は対応するメニューを更新
+      // menu_idがある場合は対応するメニューをアトミックに更新
       if (inqData.menu_id && inqData.org_id) {
         const menuRef = db.collection('organizations').doc(inqData.org_id).collection('menus').doc(inqData.menu_id);
-        const menuSnap = await menuRef.get();
-        if (menuSnap.exists) {
-          const currentCount = menuSnap.data().matched_count || 0;
-          const updateData = {
-            matched_count: currentCount + 1,
-            updated_at: firebase.firestore.FieldValue.serverTimestamp(),
-          };
-          if (!continuous) {
-            // 継続支援なし → is_matched=true にして新規申請を停止
-            updateData.is_matched = true;
-          }
-          await menuRef.update(updateData);
+        const updateData = {
+          matchingCount: firebase.firestore.FieldValue.increment(1),
+          updated_at:   firebase.firestore.FieldValue.serverTimestamp(),
+        };
+        if (!continuous) {
+          // 継続支援なし → isVisible=false にして新規申請を停止
+          updateData.isVisible = false;
         }
+        await menuRef.update(updateData);
       }
 
       showToast(continuous ? 'マッチング成立（継続支援）にしました' : 'マッチング成立（終了）にしました');
       loadInquiries();
     } catch(e) { showToast('エラー: ' + e.message, false); }
+    finally {
+      if (yesBtn) yesBtn.disabled = false;
+      if (noBtn)  noBtn.disabled  = false;
+    }
   }
   document.getElementById('cs-yes-btn').addEventListener('click', () => completeContinuousSupportChoice(true));
   document.getElementById('cs-no-btn').addEventListener('click', () => completeContinuousSupportChoice(false));
@@ -1538,6 +1543,7 @@
                 <th class="text-left px-5 py-3 text-xs font-black text-slate-500">支援メニュー名</th>
                 <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">登録日</th>
                 <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">状態</th>
+                <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">実績</th>
                 <th class="px-5 py-3"></th>
               </tr>
             </thead>
@@ -1547,7 +1553,11 @@
                   <td class="px-5 py-3 text-xs font-bold text-slate-700">${esc(m.orgName)}</td>
                   <td class="px-5 py-3 text-xs text-slate-900 font-bold">${esc(m.title||'—')}</td>
                   <td class="px-5 py-3 text-xs text-slate-400 hidden sm:table-cell">${fmtDate(m.created_at)}</td>
-                  <td class="px-5 py-3 hidden sm:table-cell">${statusBadge(m.status||'private')}</td>
+                  <td class="px-5 py-3 hidden sm:table-cell">
+                    ${statusBadge(m.status||'private')}
+                    ${m.isVisible === false || m.is_matched === true ? '<span class="ml-1 text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">非表示</span>' : ''}
+                  </td>
+                  <td class="px-5 py-3 text-xs font-bold text-slate-700 hidden sm:table-cell">${m.matchingCount || m.matched_count || 0}件</td>
                   <td class="px-5 py-3 text-right">
                     <div class="flex items-center gap-2 justify-end">
                       ${m.status !== 'private' ? `

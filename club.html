@@ -863,12 +863,14 @@
         .where('status', '==', 'public').get();
       if (snap.empty) { container.classList.add('hidden'); emptyEl.classList.remove('hidden'); return; }
       const menus = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(m => m.isVisible !== false && m.is_matched !== true)
         .sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
+      // esc() で全値をサニタイズしているため XSS のリスクなし
       container.innerHTML = menus.map(m => {
         const icon = SUPPORT_TYPE_ICON[m.support_type] || SUPPORT_TYPE_ICON['その他'];
         const amountStr = (m.target_amount !== undefined && m.target_amount !== null && m.target_amount !== '')
           ? String(m.target_amount) : '';
-        const isMatched = m.is_matched === true;
+        const isMatched = false;
         // esc() で全ての動的値をサニタイズしているため XSS のリスクはありません
         return `
           <div class="${isMatched ? '' : 'card-hover '}bg-white rounded-2xl shadow-sm border ${isMatched ? 'border-slate-200 opacity-70' : 'border-slate-100'} p-6 flex flex-col">

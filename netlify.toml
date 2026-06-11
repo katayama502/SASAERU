@@ -6,6 +6,10 @@
 [functions]
   directory = "netlify/functions"
 
+# T-04: 週次リマインド — 毎週月曜 9:00 JST (UTC 00:00)
+[functions."remind-inquiries"]
+  schedule = "0 0 * * 1"
+
 # admin.html は直接配信（SPAリダイレクト対象外）
 [[redirects]]
   from = "/admin.html"
