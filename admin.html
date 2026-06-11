@@ -1854,7 +1854,7 @@
   }
 
   // ============================================================
-  // CSVエクスポート（Task 7）
+  // CSVエクスポート
   // ============================================================
   function csvEscape(val) {
     const s = String(val ?? '');
@@ -1873,55 +1873,68 @@
 
   async function exportInquiriesCSV() {
     if (!db) { showToast('Firebase未設定です', false); return; }
+    const btn = document.querySelector('button[onclick="exportInquiriesCSV()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
     showToast('CSVを生成中...');
     try {
       const inqSnap = await db.collection('inquiries').get();
       if (inqSnap.empty) { showToast('エクスポートするデータがありません', false); return; }
 
-      const orgMenuMap = {};
-      for (const doc of inqSnap.docs) {
-        const q = doc.data();
-        if (q.org_id && !orgMenuMap[q.org_id]) orgMenuMap[q.org_id] = {};
-        if (q.org_id && q.menu_id && !orgMenuMap[q.org_id][q.menu_id]) orgMenuMap[q.org_id][q.menu_id] = null;
-      }
-
-      const orgNames   = {};
-      const menuTitles = {};
-      await Promise.all(Object.keys(orgMenuMap).map(async orgId => {
+      // org_id ごとに団体名を一括取得（menu_title は inquiry ドキュメントに格納済みのため不要）
+      const orgIds   = [...new Set(inqSnap.docs.map(d => d.data().org_id).filter(Boolean))];
+      const orgNames = {};
+      await Promise.all(orgIds.map(async orgId => {
         try {
           const orgDoc = await db.collection('organizations').doc(orgId).get();
           if (orgDoc.exists) orgNames[orgId] = orgDoc.data().name || '';
-          await Promise.all(Object.keys(orgMenuMap[orgId]).map(async menuId => {
-            try {
-              const mDoc = await db.collection('organizations').doc(orgId).collection('menus').doc(menuId).get();
-              if (mDoc.exists) menuTitles[orgId + '__' + menuId] = mDoc.data().title || '';
-            } catch(e) { /* skip */ }
-          }));
         } catch(e) { /* skip */ }
       }));
 
-      const headers = ['団体名','支援メニュー','登録日','状況','進捗','支援実施日','支援企業名','支援企業担当者名','支援企業担当者電話番号','支援企業担当者メールアドレス'];
-      const statusMap = { new: '対応中', done: '完了' };
+      const jokyoMap = { new: '未対応', done: '対応済み' };
+
+      const headers = [
+        '団体名', '支援メニュー', '登録日', '状況', '進捗',
+        '支援実施日', '支援企業名', '支援企業担当者名',
+        '支援企業担当者電話番号', '支援企業担当者メールアドレス',
+      ];
 
       const rows = inqSnap.docs
         .slice()
-        .sort((a,b) => (b.data().created_at?.toMillis?.()??0) - (a.data().created_at?.toMillis?.()??0))
+        .sort((a, b) => (b.data().created_at?.toMillis?.() ?? 0) - (a.data().created_at?.toMillis?.() ?? 0))
         .map(doc => {
           const q = doc.data();
-          const orgName   = orgNames[q.org_id]  || q.org_id  || '';
-          const menuTitle = menuTitles[q.org_id + '__' + q.menu_id] || q.menu_id || '';
-          const statusJp  = statusMap[q.status] || q.status || '';
-          const doneDate  = q.done_at ? fmtDateCSV(q.done_at) : (q.status === 'done' ? fmtDateCSV(q.updated_at) : '');
-          return [orgName, menuTitle, fmtDateCSV(q.created_at), statusJp, statusJp, doneDate,
-                  q.company_name||'', q.pic_name||'', q.phone||'', q.sender_email||''].map(csvEscape).join(',');
+
+          const orgName   = orgNames[q.org_id] || '';
+          const menuTitle = q.menu_title || '';
+          const jokyo     = jokyoMap[q.status] || q.status || '';
+
+          // 進捗: isContinuous（新フィールド）または continuous_support（旧フィールド）を参照
+          const isCont = q.isContinuous ?? q.continuous_support;
+          let progress;
+          if (q.status === 'done') {
+            if (isCont === true)       progress = '継続支援中';
+            else if (isCont === false) progress = '終了';
+            else                       progress = '対応済み';
+          } else {
+            progress = '対応中';
+          }
+
+          // 支援実施日: status が done になった日時 = updated_at（done_at フィールドは存在しない）
+          const doneDate = q.status === 'done' ? fmtDateCSV(q.updated_at) : '';
+
+          return [
+            orgName, menuTitle, fmtDateCSV(q.created_at),
+            jokyo, progress, doneDate,
+            q.company_name || '', q.pic_name || '', q.phone || '', q.sender_email || '',
+          ].map(csvEscape).join(',');
         });
 
-      const csvContent = '﻿' + [headers.map(csvEscape).join(','), ...rows].join('\n');
+      const csvContent = '﻿' + [headers.map(csvEscape).join(','), ...rows].join('\r\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       const dateStr = new Date().toISOString().slice(0, 10);
-      a.href = url;
+      a.href     = url;
       a.download = '支援データ_' + dateStr + '.csv';
       document.body.appendChild(a);
       a.click();
@@ -1931,6 +1944,12 @@
     } catch(e) {
       console.error('CSV export error:', e);
       showToast('エクスポートに失敗しました: ' + e.message, false);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        // ボタンテキストを元に戻す（lucide アイコンは次回 createIcons() で復元）
+        btn.textContent = 'CSVエクスポート';
+      }
     }
   }
 
