@@ -3,6 +3,10 @@ const nodemailer = require('nodemailer');
 const GMAIL_USER     = process.env.GMAIL_USER;
 const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || GMAIL_USER;
+const EXTRA_ADMIN_EMAIL = process.env.EXTRA_ADMIN_EMAIL || 'sasaeru@scl.or.jp';
+
+// 重複を除いた管理者宛先リスト（ADMIN_EMAIL と EXTRA_ADMIN_EMAIL が同じ場合は1件）
+const ADMIN_TO = [...new Set([ADMIN_EMAIL, EXTRA_ADMIN_EMAIL].filter(Boolean))].join(', ');
 
 // ============================================================
 // S-3: インメモリ レート制限（送信元IPごとに60秒で最大5回）
@@ -100,7 +104,7 @@ function buildMailOptions(type, rawParams) {
       requireFields(p, ['label', 'origin']);
       return {
         from,
-        to: ADMIN_EMAIL,
+        to: ADMIN_TO,
         subject: `【SASAERU】${p.label}`,
         text: [
           p.label,

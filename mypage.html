@@ -1457,21 +1457,24 @@
         data.owner_uid  = currentUser.uid;
         await menusRef.add(data);
         showToast('メニューを追加しました');
-        // 新規作成時のみ Slack 通知（既存 slackWebhook を使用・エラーは無視）
+        // 新規作成時のみ Slack + メール通知
         const _slackUrl = getCfg().slackWebhook || '';
+        const _menuLines = [
+          `団体名：${currentOrg?.name || '—'}`,
+          `メニュー名：${data.title || '—'}`,
+          data.target_amount ? `希望金額・数量：${data.target_amount}` : null,
+        ].filter(Boolean).join('\n');
         if (_slackUrl) {
-          const _lines = [
-            ':new: *新規支援メニューが登録されました*',
-            `*団体名*：${currentOrg?.name || '—'}`,
-            `*メニュー名*：${data.title || '—'}`,
-            data.target_amount ? `*希望金額・数量*：${data.target_amount}` : null,
-            `*管理画面*：${window.location.origin}/admin.html`,
-          ].filter(Boolean).join('\n');
           fetch(_slackUrl, {
             method: 'POST', mode: 'no-cors',
-            body: new URLSearchParams({ payload: JSON.stringify({ text: _lines }) }),
+            body: new URLSearchParams({ payload: JSON.stringify({ text: `:new: *新規支援メニューが登録されました*\n${_menuLines}\n管理画面：${window.location.origin}/admin.html` }) }),
           }).catch(() => {});
         }
+        fetch('/.netlify/functions/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'admin_notify', params: { label: '🆕 新規支援メニュー登録', lines: _menuLines, origin: window.location.origin } }),
+        }).catch(() => {});
       }
       cancelMenuForm();
       loadMenus();
@@ -1555,21 +1558,24 @@
 
       await db.collection('organizations').doc(currentOrg.id).collection('menus').doc(menuId).update(updateData);
 
-      // Slack通知
-      const slackUrl = getCfg().slackWebhook || '';
+      // Slack + メール通知
+      const slackUrl     = getCfg().slackWebhook || '';
+      const matchingLines = [
+        `団体名：${currentOrg.name || '—'}`,
+        `メニュー名：${menuTitle}`,
+        `継続表示：${continuous ? 'あり（募集継続）' : 'なし（募集終了）'}`,
+      ].join('\n');
       if (slackUrl) {
-        const lines = [
-          ':trophy: *支援マッチング成立*',
-          `*団体名*：${currentOrg.name || '—'}`,
-          `*メニュー名*：${menuTitle}`,
-          `*継続表示*：${continuous ? 'あり（募集継続）' : 'なし（募集終了）'}`,
-          `*管理画面*：${window.location.origin}/admin.html`,
-        ].join('\n');
         fetch(slackUrl, {
           method: 'POST', mode: 'no-cors',
-          body: new URLSearchParams({ payload: JSON.stringify({ text: lines }) }),
+          body: new URLSearchParams({ payload: JSON.stringify({ text: `:trophy: *支援マッチング成立*\n${matchingLines}\n管理画面：${window.location.origin}/admin.html` }) }),
         }).catch(() => {});
       }
+      fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'admin_notify', params: { label: '🏆 支援マッチング成立', lines: matchingLines, origin: window.location.origin } }),
+      }).catch(() => {});
 
       showToast(continuous ? 'マッチング成立！引き続き募集を継続します' : 'マッチング成立！メニューを非表示にしました');
       loadMenus();
