@@ -100,6 +100,9 @@
 
 ## 🔔 通知・メール
 
+> Slack 通知は send-email Function がサーバー側で送信する（環境変数 `SLACK_WEBHOOK_URL`）。
+> ブラウザから Slack Webhook を直接呼び出す方式は廃止（Webhook URL の露出防止）。
+
 | トリガー | 通知先 | 手段 |
 |----------|--------|------|
 | 新規クラブ登録申請 | 運営（ADMIN_EMAIL + sasaeru@scl.or.jp） | Slack + メール |
@@ -141,8 +144,27 @@
 |------|------|
 | 認証 | Firebase Authentication（メール / パスワード） |
 | 権限管理 | Firebase Custom Claims（`admin: true` で管理者判定） |
-| Firestore ルール | 役割ごとに読み書きフィールドを hasOnly で厳密に制限 |
-| メール確認 | 登録後にメール確認リンクを送付し未確認は一部機能制限 |
+| Firestore ルール | 役割ごとに読み書きフィールドを hasOnly / hasAll + 型・サイズ検証で厳密に制限 |
+| メール確認 | 登録後にメール確認リンクを送付し未確認は一部機能制限。Firestore の `emailVerified` 更新は認証トークンの `email_verified` も必須 |
+| 投稿のなりすまし防止 | 活動日記の作成時に `org_id` の所有権（owner_uid 一致）をルールで検証 |
+| 実績件数の改ざん防止 | `matchingCount` は +1 ずつの更新（increment）のみ許可 |
 | レート制限 | Netlify Functions にてインメモリで IP 別 5 回 / 60 秒制限 |
+| CORS | 全 Function で fail-closed（`ALLOWED_ORIGIN` 未設定時は本番オリジンのみ許可） |
+| 管理者ブートストラップ | set-first-admin は admins コレクションが空のときのみ実行可（一度きり） |
+| 週次リマインドの起動保護 | remind-inquiries はスケジュール起動 or `REMIND_SECRET` ヘッダー一致時のみ実行 |
 | XSS 対策 | 全動的値を `esc()` でサニタイズしてから innerHTML に挿入 |
 | ヘッダーインジェクション対策 | メール送信前に改行文字を除去するサニタイズ処理 |
+| CSV インジェクション対策 | エクスポート時に `=` `+` `-` `@` 等で始まるセルへ `'` を前置 |
+| 機密ファイル非公開 | Netlify は `dist/`（公開 HTML・画像のみ）を配信。サービスアカウント鍵は `~/.secrets/sasaeru/` に保管しリポジトリ外 |
+
+### 必要な環境変数（Netlify）
+
+| 変数 | 必須度 | 用途 |
+|------|--------|------|
+| `FIREBASE_SERVICE_ACCOUNT` | 必須 | Admin SDK 認証（既存） |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | 必須 | メール送信（既存） |
+| `SLACK_WEBHOOK_URL` | Slack 通知を使う場合必須 | サーバー側 Slack 通知（クライアント直接送信から移行） |
+| `ADMIN_EMAIL` / `EXTRA_ADMIN_EMAIL` | 任意 | 通知宛先（既存） |
+| `ALLOWED_ORIGIN` | 任意 | CORS 許可オリジン（未設定時は https://sasaeru.netlify.app のみ） |
+| `REMIND_SECRET` | 任意 | remind-inquiries の手動実行用シークレット |
+| `ADMIN_BOOTSTRAP_SECRET` | 初期セットアップ時のみ | set-first-admin 用（運用開始後は削除推奨） |

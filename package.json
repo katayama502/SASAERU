@@ -17,6 +17,10 @@
     "testMatch": [
       "**/tests/**/*.test.js"
     ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/.claude/"
+    ],
     "moduleNameMapper": {
       "^nodemailer$": "<rootDir>/node_modules/nodemailer",
       "^firebase-admin$": "<rootDir>/node_modules/firebase-admin"

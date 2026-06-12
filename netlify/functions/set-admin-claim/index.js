@@ -56,14 +56,10 @@ function normalizeEmail(rawEmail) {
 // ハンドラー
 // ============================================================
 exports.handler = async (event) => {
-  const allowedOrigins = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+  // ALLOWED_ORIGIN 未設定時は本番オリジンのみ許可（fail-closed）
+  const allowedOrigins = (process.env.ALLOWED_ORIGIN || 'https://sasaeru.netlify.app').split(',').map(s => s.trim()).filter(Boolean);
   const reqOrigin      = event.headers.origin || event.headers.Origin || '';
-  let corsOrigin;
-  if (allowedOrigins.length === 0) {
-    corsOrigin = reqOrigin || 'null';
-  } else {
-    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
-  }
+  const corsOrigin     = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
 
   const headers = {
     'Content-Type': 'application/json',
@@ -75,7 +71,8 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-  if (allowedOrigins.length > 0 && reqOrigin && !allowedOrigins.includes(reqOrigin)) {
+  // Origin ヘッダーがあり許可リスト外なら拒否（Origin なしのサーバー間リクエストは許可）
+  if (reqOrigin && !allowedOrigins.includes(reqOrigin)) {
     return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden origin' }) };
   }
 
@@ -109,8 +106,9 @@ exports.handler = async (event) => {
   if (!normalizedTarget) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid targetEmail' }) };
   }
-  if (action !== 'add' && action !== 'remove') {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'action must be "add" or "remove"' }) };
+  // 管理者の追加は invite-admin が担当するため、この関数は remove 専用
+  if (action !== 'remove') {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'action must be "remove"' }) };
   }
 
   try {
@@ -145,23 +143,12 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: '自分自身の管理者権限は変更できません' }) };
     }
 
-    // Custom Claim をセット/削除
-    const newClaims = action === 'add' ? { admin: true } : { admin: false };
-    await auth.setCustomUserClaims(targetUser.uid, newClaims);
+    // admin Custom Claim を削除（remove のみサポート）
+    await auth.setCustomUserClaims(targetUser.uid, { admin: false });
 
-    // Firestore admins コレクションを Custom Claim と同期
-    // add: ドキュメントを upsert / remove: ドキュメントを削除
+    // Firestore admins コレクションを Custom Claim と同期（ドキュメントを削除）
     const db = firebaseAdmin.firestore();
-    if (action === 'add') {
-      await db.collection('admins').doc(targetUser.uid).set({
-        uid:      targetUser.uid,
-        email:    normalizedTarget,
-        added_by: callerClaims.uid,
-        added_at: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
-      });
-    } else {
-      await db.collection('admins').doc(targetUser.uid).delete();
-    }
+    await db.collection('admins').doc(targetUser.uid).delete();
 
     return {
       statusCode: 200,

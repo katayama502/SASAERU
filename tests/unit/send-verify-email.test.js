@@ -446,3 +446,40 @@ describe('origin ホワイトリスト検証', () => {
     expect(callArg.url).toContain('/mypage.html');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════
+// 9. CORS fail-closed（ALLOWED_ORIGIN 未設定時）
+// ════════════════════════════════════════════════════════════════════
+describe('CORS fail-closed（ALLOWED_ORIGIN 未設定時）', () => {
+  let origAllowedOrigin;
+
+  beforeEach(() => {
+    origAllowedOrigin = process.env.ALLOWED_ORIGIN;
+    delete process.env.ALLOWED_ORIGIN;
+  });
+
+  afterEach(() => {
+    process.env.ALLOWED_ORIGIN = origAllowedOrigin;
+  });
+
+  test('未設定時に許可外 Origin → 403 で送信しない', async () => {
+    const res = await handler(makeEvent({
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example.com',
+        'x-nf-client-connection-ip': nextIp(),
+      },
+    }));
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body).error).toBe('Forbidden origin');
+    expect(res.headers['Access-Control-Allow-Origin']).toBe('null');
+    expect(mockGenerateLink).not.toHaveBeenCalled();
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
+
+  test('未設定時にデフォルト本番 Origin → 200', async () => {
+    const res = await handler(makeEvent());
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['Access-Control-Allow-Origin']).toBe('https://sasaeru.netlify.app');
+  });
+});

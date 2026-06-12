@@ -1,6 +1,9 @@
+# 公開ファイルのみ dist/ にコピーして配信
+# （firestore.rules / tests/ / scripts/ / *.md / package*.json 等の内部ファイルを公開しないため）
+# ※ config.js は意図的に dist へコピーしない — Netlify Snippet Injection が window.SASAERU_CONFIG を注入する
 [build]
-  publish = "."
-  command = "npm install && npm --prefix netlify/functions/send-email install && npm --prefix netlify/functions/send-verify-email install"
+  publish = "dist"
+  command = "npm install && npm --prefix netlify/functions/send-email install && npm --prefix netlify/functions/send-verify-email install && rm -rf dist && mkdir dist && cp index.html club.html mypage.html admin.html privacy.html terms.html robots.txt hero.png ogp.png dist/"
 
 # H-4: functions ディレクトリを明示（Netlify の自動検出に頼らない）
 [functions]
@@ -9,12 +12,6 @@
 # T-04: 週次リマインド — 毎週月曜 9:00 JST (UTC 00:00)
 [functions."remind-inquiries"]
   schedule = "0 0 * * 1"
-
-# admin.html は直接配信（SPAリダイレクト対象外）
-[[redirects]]
-  from = "/admin.html"
-  to = "/admin.html"
-  status = 200
 
 # それ以外はSPAルーティング
 [[redirects]]
@@ -32,7 +29,7 @@
     # S-4: HSTS（HTTPS強制）
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
     # S-4: CSP（外部スクリプトを許可リスト制限）
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://api.cloudinary.com https://hooks.slack.com; frame-src https://sasaeru-7f375.firebaseapp.com;"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://api.cloudinary.com; frame-src https://sasaeru-7f375.firebaseapp.com;"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
 # P-3: 静的アセットのキャッシュ（HTML以外）
