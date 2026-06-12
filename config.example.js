@@ -10,7 +10,7 @@ window.SASAERU_CONFIG = {
   cloudinaryCloudName: '',
   cloudinaryPreset:    '',
 
-  // Slack 通知（空欄で無効）
-  // https://api.slack.com/messaging/webhooks で取得
-  slackWebhook: '',
+  // Slack 通知はサーバー側に移行済み:
+  // Netlify Functions（send-email）の環境変数 SLACK_WEBHOOK_URL に設定してください。
+  // （以前ここにあった slackWebhook はクライアント露出のため廃止）
 };

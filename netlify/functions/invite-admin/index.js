@@ -90,14 +90,10 @@ function createTransporter() {
 // ============================================================
 exports.handler = async (event) => {
   // CORS 設定
-  const allowedOrigins = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+  // ALLOWED_ORIGIN 未設定時は本番オリジンのみ許可（fail-closed）
+  const allowedOrigins = (process.env.ALLOWED_ORIGIN || 'https://sasaeru.netlify.app').split(',').map(s => s.trim()).filter(Boolean);
   const reqOrigin      = event.headers.origin || event.headers.Origin || '';
-  let corsOrigin;
-  if (allowedOrigins.length === 0) {
-    corsOrigin = reqOrigin || 'null';
-  } else {
-    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
-  }
+  const corsOrigin     = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
 
   const headers = {
     'Content-Type': 'application/json',
@@ -109,7 +105,8 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-  if (allowedOrigins.length > 0 && reqOrigin && !allowedOrigins.includes(reqOrigin)) {
+  // Origin ヘッダーがあり許可リスト外なら拒否（Origin なしのサーバー間リクエストは許可）
+  if (reqOrigin && !allowedOrigins.includes(reqOrigin)) {
     return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden origin' }) };
   }
 

@@ -56,14 +56,10 @@ function normalizeEmail(rawEmail) {
 // ハンドラー
 // ============================================================
 exports.handler = async (event) => {
-  const allowedOrigins = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+  // ALLOWED_ORIGIN 未設定時は本番オリジンのみ許可（fail-closed）
+  const allowedOrigins = (process.env.ALLOWED_ORIGIN || 'https://sasaeru.netlify.app').split(',').map(s => s.trim()).filter(Boolean);
   const reqOrigin      = event.headers.origin || event.headers.Origin || '';
-  let corsOrigin;
-  if (allowedOrigins.length === 0) {
-    corsOrigin = reqOrigin || 'null';
-  } else {
-    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
-  }
+  const corsOrigin     = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
 
   const headers = {
     'Content-Type': 'application/json',
@@ -75,7 +71,8 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-  if (allowedOrigins.length > 0 && reqOrigin && !allowedOrigins.includes(reqOrigin)) {
+  // Origin ヘッダーがあり許可リスト外なら拒否（Origin なしのサーバー間リクエストは許可）
+  if (reqOrigin && !allowedOrigins.includes(reqOrigin)) {
     return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden origin' }) };
   }
 
@@ -118,6 +115,13 @@ exports.handler = async (event) => {
     const firebaseAdmin = getFirebaseAdmin();
     const auth = firebaseAdmin.auth();
     const db   = firebaseAdmin.firestore();
+
+    // 一度きりのブートストラップガード:
+    // admins コレクションに既にドキュメントが存在する場合は実行不可
+    const existingAdmins = await db.collection('admins').limit(1).get();
+    if (!existingAdmins.empty) {
+      return { statusCode: 410, headers, body: JSON.stringify({ error: '既に管理者が初期化されています' }) };
+    }
 
     // 対象ユーザーを email で検索
     let targetUser;

@@ -14,3 +14,9 @@ netlify/functions/*/package-lock.json
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+
+# Netlify デプロイ用の生成物（build command が生成）
+dist/
+
+# Claude Code ローカル作業ディレクトリ
+.claude/

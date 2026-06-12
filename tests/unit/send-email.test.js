@@ -131,7 +131,8 @@ describe('メールタイプ別 正常送信 (200)', () => {
     expect(JSON.parse(res.body).ok).toBe(true);
     expect(mockSendMail).toHaveBeenCalledTimes(1);
     const mail = mockSendMail.mock.calls[0][0];
-    expect(mail.to).toBe('admin@example.com');
+    // ADMIN_EMAIL + EXTRA_ADMIN_EMAIL（デフォルト sasaeru@scl.or.jp）の同時送信
+    expect(mail.to).toBe('admin@example.com, sasaeru@scl.or.jp');
     expect(mail.subject).toContain('🏃 新規クラブ申請');
   });
 
@@ -510,5 +511,141 @@ describe('メール本文の内容検証', () => {
     }));
     const mail = mockSendMail.mock.calls[0][0];
     expect(mail.text).toContain(`${origin}/admin.html`);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
+// 9. Slack 通知（admin_notify・サーバーサイド）
+// ════════════════════════════════════════════════════════════════════
+describe('Slack 通知（admin_notify）', () => {
+  const origin = 'https://sasaeru.netlify.app';
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    delete process.env.SLACK_WEBHOOK_URL;
+  });
+
+  test('SLACK_WEBHOOK_URL 設定時に Slack へ POST される', async () => {
+    process.env.SLACK_WEBHOOK_URL = 'https://hooks.slack.com/services/TEST/WEBHOOK';
+    const mockFetch = jest.fn().mockResolvedValue({ ok: true });
+    global.fetch = mockFetch;
+
+    const res = await handler(makeEvent({
+      body: JSON.stringify({
+        type: 'admin_notify',
+        params: { label: '新規申請', lines: '団体名: テスト団体\n地域: 松江市', origin },
+      }),
+    }));
+
+    expect(res.statusCode).toBe(200);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, options] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://hooks.slack.com/services/TEST/WEBHOOK');
+    expect(options.method).toBe('POST');
+    const payload = JSON.parse(options.body);
+    expect(payload.text).toContain('📨 新規申請');
+    expect(payload.text).toContain('団体名: テスト団体');
+  });
+
+  test('Slack 送信が失敗してもレスポンスは 200', async () => {
+    process.env.SLACK_WEBHOOK_URL = 'https://hooks.slack.com/services/TEST/WEBHOOK';
+    global.fetch = jest.fn().mockRejectedValue(new Error('network error'));
+    const logSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const res = await handler(makeEvent({
+      body: JSON.stringify({
+        type: 'admin_notify',
+        params: { label: '新規申請', lines: 'line', origin },
+      }),
+    }));
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).ok).toBe(true);
+    expect(mockSendMail).toHaveBeenCalledTimes(1);
+    logSpy.mockRestore();
+  });
+
+  test('SLACK_WEBHOOK_URL 未設定時は fetch を呼ばない', async () => {
+    const mockFetch = jest.fn();
+    global.fetch = mockFetch;
+
+    const res = await handler(makeEvent({
+      body: JSON.stringify({
+        type: 'admin_notify',
+        params: { label: '新規申請', lines: 'line', origin },
+      }),
+    }));
+
+    expect(res.statusCode).toBe(200);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  test('admin_notify 以外のタイプでは Slack 通知しない', async () => {
+    process.env.SLACK_WEBHOOK_URL = 'https://hooks.slack.com/services/TEST/WEBHOOK';
+    const mockFetch = jest.fn().mockResolvedValue({ ok: true });
+    global.fetch = mockFetch;
+
+    const res = await handler(makeEvent({
+      body: JSON.stringify({
+        type: 'applicant',
+        params: {
+          toEmail: 'club@example.com',
+          clubName: '松江FC',
+          categoryJp: 'スポーツ',
+          registeredAt: '2026-05-15',
+          origin,
+        },
+      }),
+    }));
+
+    expect(res.statusCode).toBe(200);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
+// 10. CORS fail-closed（ALLOWED_ORIGIN 未設定時）
+// ════════════════════════════════════════════════════════════════════
+describe('CORS fail-closed（ALLOWED_ORIGIN 未設定時）', () => {
+  let origAllowedOrigin;
+
+  beforeEach(() => {
+    origAllowedOrigin = process.env.ALLOWED_ORIGIN;
+    delete process.env.ALLOWED_ORIGIN;
+  });
+
+  afterEach(() => {
+    process.env.ALLOWED_ORIGIN = origAllowedOrigin;
+  });
+
+  test('未設定時に許可外 Origin → 403 で送信しない', async () => {
+    const res = await handler(makeEvent({
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example.com',
+        'x-nf-client-connection-ip': nextIp(),
+      },
+    }));
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body).error).toBe('Forbidden origin');
+    expect(res.headers['Access-Control-Allow-Origin']).toBe('null');
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
+
+  test('未設定時にデフォルト本番 Origin → 200', async () => {
+    const res = await handler(makeEvent());
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['Access-Control-Allow-Origin']).toBe('https://sasaeru.netlify.app');
+  });
+
+  test('未設定時に Origin ヘッダーなし（サーバー間） → 通過する', async () => {
+    const res = await handler(makeEvent({
+      headers: {
+        'content-type': 'application/json',
+        'x-nf-client-connection-ip': nextIp(),
+      },
+    }));
+    expect(res.statusCode).toBe(200);
   });
 });

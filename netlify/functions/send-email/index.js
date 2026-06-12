@@ -84,6 +84,31 @@ function createTransporter() {
 }
 
 // ============================================================
+// Slack 通知（admin_notify 用・非致命的）
+// SLACK_WEBHOOK_URL が設定されている場合のみ送信。
+// 失敗してもメール送信レスポンスには影響させない。
+// ============================================================
+async function notifySlack(label, lines) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  const text = [`📨 ${label}`, lines].filter(Boolean).join('\n');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    console.error('Slack notify error:', e.name || 'unknown');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ============================================================
 // メールオプション生成
 // ============================================================
 function buildMailOptions(type, rawParams) {
@@ -277,16 +302,10 @@ function buildMailOptions(type, rawParams) {
 // ============================================================
 exports.handler = async (event) => {
   // S-4 / H-6: CORS を許可オリジンに限定
-  // ALLOWED_ORIGIN 未設定時は null を返してすべてのクロスオリジンリクエストを拒否（fail-closed）
-  const allowedOrigins = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+  // ALLOWED_ORIGIN 未設定時は本番オリジンのみ許可（fail-closed）
+  const allowedOrigins = (process.env.ALLOWED_ORIGIN || 'https://sasaeru.netlify.app').split(',').map(s => s.trim()).filter(Boolean);
   const reqOrigin = event.headers.origin || event.headers.Origin || '';
-  let corsOrigin;
-  if (allowedOrigins.length === 0) {
-    // 未設定の場合は同オリジン（Netlify 内部）からのみ許可
-    corsOrigin = reqOrigin || 'null';
-  } else {
-    corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
-  }
+  const corsOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : 'null';
 
   const headers = {
     'Content-Type': 'application/json',
@@ -302,7 +321,8 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
-  if (allowedOrigins.length > 0 && reqOrigin && !allowedOrigins.includes(reqOrigin)) {
+  // Origin ヘッダーがあり許可リスト外なら拒否（Origin なしのサーバー間リクエストは許可）
+  if (reqOrigin && !allowedOrigins.includes(reqOrigin)) {
     return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden origin' }) };
   }
 
@@ -336,6 +356,15 @@ exports.handler = async (event) => {
     const transporter = createTransporter();
     const mailOptions = buildMailOptions(type, params);
     await transporter.sendMail(mailOptions);
+
+    // 管理者通知はメール送信成功後に Slack へも通知（失敗しても 200 を返す）
+    if (type === 'admin_notify') {
+      await notifySlack(
+        sanitize(params.label, 500),
+        sanitize(params.lines, 2000, true),
+      );
+    }
+
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (e) {
     if (e.code === 'validation/client') {

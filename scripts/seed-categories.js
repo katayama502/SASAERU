@@ -1,5 +1,11 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('../sasaeru-7f375-firebase-adminsdk-fbsvc-e9de1ccb52.json');
+const path = require('path');
+
+// サービスアカウントキーはプロジェクト外（~/.secrets/sasaeru/）に保管する。
+// GOOGLE_APPLICATION_CREDENTIALS 環境変数があればそちらを優先。
+const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
+  || path.join(require('os').homedir(), '.secrets/sasaeru/serviceAccountKey.json');
+const serviceAccount = require(credentialsPath);
 
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();

@@ -1592,7 +1592,14 @@
     _rejectCallback = null;
   }
   document.getElementById('reject-ok').addEventListener('click', async () => {
-    if (_rejectCallback) await _rejectCallback();
+    // ダブルクリックによる二重実行防止 — 呼び出し前に null に設定（confirm-ok と同パターン）
+    const cb = _rejectCallback;
+    _rejectCallback = null;
+    if (cb) {
+      const okBtn = document.getElementById('reject-ok');
+      okBtn.disabled = true;
+      try { await cb(); } finally { okBtn.disabled = false; }
+    }
     closeRejectDialog();
   });
   document.getElementById('reject-dialog').addEventListener('keydown', e => {
@@ -1760,7 +1767,9 @@
   // CSVエクスポート
   // ============================================================
   function csvEscape(val) {
-    const s = String(val ?? '');
+    let s = String(val ?? '');
+    // CSVインジェクション対策: 数式として解釈されうる先頭文字にシングルクォートを付与
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
       return '"' + s.replace(/"/g, '""') + '"';
     }

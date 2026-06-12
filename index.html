@@ -646,7 +646,7 @@
           <input type="url" id="reg-image" name="main_image" maxlength="500" placeholder="https://... またはURLを直接入力"
             oninput="previewImage(this.value,'reg-img-preview')"
             class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm">
-          <p class="text-[10px] text-slate-400 mt-1.5">推奨：横 1200px × 縦 630px（16:9）／JPG・PNG／5MB以下</p>
+          <p class="text-[10px] text-slate-400 mt-1.5">推奨：横 1200px × 縦 630px（16:9）／JPG・PNG・WebP・GIF／5MB以下</p>
           <div id="reg-img-preview" class="hidden mt-2">
             <img src="" alt="プレビュー" class="h-24 rounded-xl object-cover border border-slate-200 w-full" onerror="this.parentElement.classList.add('hidden')">
           </div>
@@ -692,56 +692,6 @@
           登録申請する
         </button>
         <p id="register-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
-      </form>
-    </div>
-  </div>
-
-  <!-- ===== 支援申請モーダル ===== -->
-  <div id="inquiry-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true" aria-labelledby="inquiry-modal-title">
-    <div class="modal-inner bg-white rounded-2xl max-w-lg w-full p-5 sm:p-8 relative max-h-[90vh] overflow-y-auto shadow-2xl">
-      <button onclick="closeInquiryModal()" aria-label="モーダルを閉じる"
-        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
-        <i data-lucide="x" width="16" height="16"></i>
-      </button>
-      <h3 id="inquiry-modal-title" class="text-2xl font-black text-slate-900 mb-1">支援申請・問い合わせ</h3>
-      <p id="inquiry-target" class="text-xs text-slate-500 mb-6"></p>
-      <form id="inquiry-form" class="space-y-4">
-        <input type="hidden" id="inquiry-org-id">
-        <div>
-          <label for="inq-company" class="block text-xs font-bold text-slate-600 mb-1.5">企業名・団体名 <span class="text-red-500">*</span></label>
-          <input type="text" id="inq-company" name="company_name" required maxlength="100"
-            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
-        </div>
-        <div>
-          <label for="inq-pic" class="block text-xs font-bold text-slate-600 mb-1.5">ご担当者名 <span class="text-red-500">*</span></label>
-          <input type="text" id="inq-pic" name="pic_name" required maxlength="50"
-            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
-        </div>
-        <div>
-          <label for="inq-email" class="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス <span class="text-red-500">*</span></label>
-          <input type="email" id="inq-email" name="sender_email" required maxlength="200"
-            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
-        </div>
-        <div>
-          <label for="inq-phone" class="block text-xs font-bold text-slate-600 mb-1.5">電話番号</label>
-          <input type="tel" id="inq-phone" name="phone" maxlength="20" placeholder="090-0000-0000"
-            pattern="^[\d\-\+\(\)\s]{7,20}$" title="半角数字・ハイフンで入力してください"
-            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm">
-        </div>
-        <div>
-          <label for="inq-message" class="block text-xs font-bold text-slate-600 mb-1.5">支援内容・メッセージ <span class="text-red-500">*</span></label>
-          <textarea id="inq-message" name="message" rows="4" required maxlength="2000"
-            oninput="updateCounter(this,'inq-msg-counter',2000)"
-            placeholder="支援の内容や規模についてご相談ください"
-            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm resize-none"></textarea>
-          <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="inq-msg-counter">0</span>/2000</p>
-        </div>
-        <button type="submit" id="inquiry-submit-btn"
-          class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-4 rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2">
-          申請する
-        </button>
-        <p id="inquiry-result" class="text-xs text-center min-h-[1rem]" aria-live="polite"></p>
       </form>
     </div>
   </div>
@@ -858,7 +808,7 @@
     const file = fileInput.files[0];
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
-      showToast('JPG・PNG形式のファイルを選択してください', false);
+      showToast('JPG・PNG・WebP・GIF形式のファイルを選択してください', false);
       fileInput.value = '';
       return;
     }
@@ -883,29 +833,16 @@
   }
 
   // ===================================================
-  // 管理者通知（Slack + Nodemailer/Netlify Function）
+  // 管理者通知（Nodemailer/Netlify Function 経由。Slack 投稿はサーバー側 send-email で実施）
   // ===================================================
   async function sendAdminNotification(type, params) {
-    const cfg = getCfg();
-    const slackWebhook = cfg.slackWebhook || '';
-
     const labels = {
       club_apply: '🏃 新規クラブ申請',
-      inquiry:    '📩 支援申請',
       contact:    '✉️ お問い合わせ',
     };
     const label = labels[type] || type;
     const lines = Object.entries(params).map(([k,v]) => `${k}: ${v}`).join('\n');
-    const text  = `${label}\n\n${lines}\n\n🔗 管理画面: ${location.origin}/admin.html`;
 
-    if (slackWebhook) {
-      try {
-        await fetch(slackWebhook, {
-          method: 'POST', mode: 'no-cors',
-          body: new URLSearchParams({ payload: JSON.stringify({ text }) }),
-        });
-      } catch(e) { console.warn('Slack通知失敗:', e); }
-    }
     try {
       const res = await fetch('/.netlify/functions/send-email', {
         method: 'POST',
@@ -950,7 +887,7 @@
     const dd = document.getElementById('area-dropdown');
     if (!dd) return;
     const q = query.trim().toLowerCase();
-    const filtered = SHIMANE_AREAS.filter(a => !_selectedAreas.includes(a) && (!q || a.includes(query.trim())));
+    const filtered = SHIMANE_AREAS.filter(a => !_selectedAreas.includes(a) && (!q || a.includes(q)));
     if (filtered.length === 0) { dd.classList.add('hidden'); return; }
     _areaDropdownIndex = -1;
     dd.innerHTML = filtered.map((a, i) =>
@@ -1035,10 +972,6 @@
     else if (_selectedSupportCats.includes('その他')) tags.push('その他');
     hidden.value = tags.join(',');
   }
-  // 後方互換: 旧コードが参照する _regTags
-  const _regTags = { get length() { return _selectedSupportCats.length; } };
-  function renderRegTags() { /* 新UIでは不要 */ }
-
   // ===================================================
   // 申請者へのメール送信（TASK-02 / Nodemailer + Netlify Function）
   // ===================================================
@@ -1102,7 +1035,7 @@
   let _unsubStats    = null;
   let _unsubOrgs     = null;
   let _searchTimer   = null;
-  // _regTags / _selectedAreas / _selectedSupportCats は上部で定義済み
+  // _selectedAreas / _selectedSupportCats は上部で定義済み
 
   // ===================================================
   // 3軸検索ヘルパー
@@ -1334,11 +1267,13 @@
   // ===================================================
   // 団体一覧
   // ===================================================
-  function loadOrgs() {
+  function loadOrgs(useFallbackQuery) {
     if (!db) { allOrgs = []; renderOrgs(); return; }
     if (_unsubOrgs) { _unsubOrgs(); _unsubOrgs = null; }
-    _unsubOrgs = db.collection('organizations')
-      .where('status', '==', 'public')
+    // 複合インデックス（status ASC, created_at DESC）を利用。未デプロイ時は orderBy なしの旧クエリにフォールバック
+    let q = db.collection('organizations').where('status', '==', 'public');
+    if (!useFallbackQuery) q = q.orderBy('created_at', 'desc');
+    _unsubOrgs = q
       .limit(50)
       .onSnapshot(
         snap => {
@@ -1348,6 +1283,12 @@
           renderOrgs();
         },
         err => {
+          // インデックス未作成（failed-precondition）の場合は旧クエリ（orderByなし）で1回だけ再試行
+          if (!useFallbackQuery && err.code === 'failed-precondition') {
+            console.warn('複合インデックス未作成のため orderBy なしで再試行:', err);
+            loadOrgs(true);
+            return;
+          }
           console.warn('Firestore fetch failed:', err);
           const container = document.getElementById('clubs-container');
           if (container) {
@@ -1355,7 +1296,7 @@
               <div class="col-span-3 text-center py-20 text-slate-400">
                 <i data-lucide="wifi-off" width="40" height="40" class="mx-auto mb-3 text-slate-300"></i>
                 <p class="text-sm font-medium">データの取得に失敗しました</p>
-                <p class="text-xs mt-1 text-red-400">${err.code || err.message || '不明なエラー'}</p>
+                <p class="text-xs mt-1 text-red-400">${esc(err.code || err.message || '不明なエラー')}</p>
                 <button onclick="loadOrgs()" class="mt-4 px-4 py-2 bg-orange-500 text-white text-xs font-bold rounded-xl hover:bg-orange-600 transition-all">再試行</button>
               </div>`;
             lucide.createIcons();
@@ -1637,6 +1578,7 @@
           registeredAt,
           origin:      window.location.origin,
         });
+        setBtnLoading('register-submit-btn', false);
         result.textContent = '✓ 登録申請を受け付けました！確認メールをご確認ください。';
         result.className = 'text-xs text-center text-green-600 font-bold';
         e.target.reset();
@@ -1664,122 +1606,6 @@
     result.className = 'text-xs text-center text-amber-600';
     setBtnLoading('register-submit-btn', false);
     setTimeout(() => { e.target.reset(); closeRegisterModal(); }, 2000);
-  });
-
-  // ===================================================
-  // モーダル: 支援申請
-  // ===================================================
-  let _inquiryContactEmail = '';
-  let _inquiryMenuTitle    = '';
-  let _inquiryOrgName      = '';
-  let _inquiryMenuId       = '';
-  function openInquiryModal(orgId, orgName, contactEmail, menuTitle, menuId) {
-    _inquiryContactEmail = contactEmail || '';
-    _inquiryMenuTitle    = menuTitle    || '';
-    _inquiryOrgName      = orgName      || '';
-    _inquiryMenuId       = menuId       || '';
-    document.getElementById('inquiry-target').textContent = menuTitle
-      ? `支援先: ${orgName}（${menuTitle}）`
-      : `支援先: ${orgName}`;
-    document.getElementById('inquiry-result').textContent = '';
-    document.getElementById('inquiry-form').reset();
-    document.getElementById('inquiry-org-id').value = orgId;
-    document.getElementById('inq-msg-counter').textContent = '0';
-    setBtnLoading('inquiry-submit-btn', false);
-    const m = document.getElementById('inquiry-modal');
-    m.classList.remove('hidden'); m.classList.add('flex');
-    document.body.style.overflow = 'hidden';
-    setTimeout(() => { document.getElementById('inq-company')?.focus(); _trapFocus(m); }, 50);
-  }
-  function closeInquiryModal() {
-    // B-2: モーダルを閉じる際にグローバル変数をリセット（次の団体で古い値が使われないよう）
-    _inquiryContactEmail = '';
-    _inquiryMenuTitle    = '';
-    _inquiryOrgName      = '';
-    _inquiryMenuId       = '';
-    const m = document.getElementById('inquiry-modal');
-    m.classList.add('hidden'); m.classList.remove('flex');
-    document.body.style.overflow = '';
-    _releaseFocus();
-  }
-  document.getElementById('inquiry-modal').addEventListener('click', e => {
-    if (e.target.id === 'inquiry-modal') closeInquiryModal();
-  });
-
-  document.getElementById('inquiry-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd);
-    const orgId = document.getElementById('inquiry-org-id').value;
-    const result = document.getElementById('inquiry-result');
-    result.textContent = '';
-    setBtnLoading('inquiry-submit-btn', true);
-
-    const payload = {
-      org_id: orgId, company_name: data.company_name, pic_name: data.pic_name,
-      sender_email: data.sender_email, phone: data.phone || null,
-      message: data.message, status: 'new',
-      ...(_inquiryMenuId ? { menu_id: _inquiryMenuId, menu_title: _inquiryMenuTitle } : {}),
-    };
-
-    if (db) {
-      try {
-        await db.collection('inquiries').add({ ...payload, created_at: firebase.firestore.FieldValue.serverTimestamp() });
-        // 管理者通知（Slack + 管理者メール）
-        sendAdminNotification('inquiry', {
-          クラブID: orgId, 企業名: data.company_name, 担当者: data.pic_name,
-          メール: data.sender_email, 内容: (data.message || '').slice(0, 100),
-        });
-        // オーナー向け問い合わせ通知メール（基本設計書 4.1）
-        if (_inquiryContactEmail) {
-          // B-4: res.ok チェックを追加（4xx/5xx を成功扱いにしない）
-          fetch('/.netlify/functions/send-email', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'inquiry_owner', params: {
-              toEmail:     _inquiryContactEmail,
-              orgName:     _inquiryOrgName,
-              menuTitle:   _inquiryMenuTitle,
-              companyName: data.company_name,
-              picName:     data.pic_name,
-              senderEmail: data.sender_email,
-              phone:       data.phone || '',
-              message:     data.message || '',
-            }}),
-          }).then(res => { if (!res.ok) console.warn('オーナー通知メール失敗:', res.status); })
-            .catch(e => console.warn('オーナー通知メール失敗:', e));
-        }
-        // 申請企業向け自動返信メール（基本設計書 4.2）
-        fetch('/.netlify/functions/send-email', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'inquiry_reply', params: {
-            toEmail:     data.sender_email,
-            companyName: data.company_name,
-            picName:     data.pic_name,
-            orgName:     _inquiryOrgName,
-            menuTitle:   _inquiryMenuTitle,
-          }}),
-        }).then(res => { if (!res.ok) console.warn('申請者自動返信メール失敗:', res.status); })
-          .catch(e => console.warn('申請者自動返信メール失敗:', e));
-        result.textContent = '申請を受け付けました。担当者よりご連絡いたします。';
-        result.className = 'text-xs text-center text-green-600 font-bold';
-        e.target.reset();
-        // H-3: 成功時もボタンをリセット（ESCでモーダルを早期に閉じた場合の対策）
-        setBtnLoading('inquiry-submit-btn', false);
-        setTimeout(closeInquiryModal, 2500);
-        showToast('支援申請を受け付けました');
-        return;
-      } catch(err) {
-        console.error(err);
-        result.textContent = '送信に失敗しました。しばらく経ってからお試しください。';
-        result.className = 'text-xs text-center text-red-500';
-        setBtnLoading('inquiry-submit-btn', false);
-        return;
-      }
-    }
-    result.textContent = '※ Firebase未設定のため保存できません（デモモード）';
-    result.className = 'text-xs text-center text-amber-600 font-bold';
-    setBtnLoading('inquiry-submit-btn', false);
-    setTimeout(() => { e.target.reset(); closeInquiryModal(); }, 2500);
   });
 
   // ===================================================
@@ -1948,7 +1774,6 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       closeRegisterModal();
-      closeInquiryModal();
       closeLoginModal();
     }
     if (e.key === 'Tab' && _activeModal) {

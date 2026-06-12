@@ -229,7 +229,7 @@
                   </div>
                   <div>
                     <label for="f-category" class="block text-xs font-bold text-slate-600 mb-1.5">カテゴリ</label>
-                    <select id="f-category" onchange="markUnsaved()"
+                    <select id="f-category" required onchange="markUnsaved()"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all bg-white">
                       <option value="">選択してください</option>
                       <option value="sports">スポーツ</option>
@@ -242,7 +242,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label for="f-area" class="block text-xs font-bold text-slate-600 mb-1.5">エリア</label>
-                    <input type="text" id="f-area" maxlength="100" oninput="markUnsaved()"
+                    <input type="text" id="f-area" required maxlength="100" oninput="markUnsaved()"
                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 outline-none text-sm transition-all"
                       placeholder="例: 島根県松江市">
                   </div>
@@ -663,6 +663,8 @@
             currentUser = fresh;
             if (db) {
               try {
+                // セキュリティルールが email_verified=true のトークンを要求するため先にリフレッシュ
+                await fresh.getIdToken(true);
                 const snap = await db.collection('organizations')
                   .where('owner_uid', '==', fresh.uid).limit(1).get();
                 if (!snap.empty) await snap.docs[0].ref.update({ emailVerified: true });
@@ -777,6 +779,8 @@
         // Firestore の emailVerified を true に更新（セキュリティルールで許可済み）
         if (db) {
           try {
+            // セキュリティルールが email_verified=true のトークンを要求するため先にリフレッシュ
+            await currentUser.getIdToken(true);
             const snap = await db.collection('organizations')
               .where('owner_uid', '==', currentUser.uid).limit(1).get();
             if (!snap.empty) await snap.docs[0].ref.update({ emailVerified: true });
@@ -865,6 +869,8 @@
       // if(!user.emailVerified) ブロックを通らず Firestore が更新されないことがある。
       if (currentUser && currentUser.emailVerified && !currentOrg.emailVerified) {
         try {
+          // セキュリティルールが email_verified=true のトークンを要求するため先にリフレッシュ
+          await currentUser.getIdToken(true);
           await snap.docs[0].ref.update({ emailVerified: true });
           currentOrg.emailVerified = true;
         } catch(e) { console.warn('emailVerified同期失敗:', e); }
@@ -1073,7 +1079,7 @@
             <span class="text-[10px] font-bold px-2 py-1 rounded-full ${isDone ? 'bg-slate-100 text-slate-400' : 'bg-red-50 text-red-500 border border-red-200'}">
               ${isDone ? '対応済み' : '未対応'}
             </span>
-            ${d.continuous_support === true ? `<span class="text-[10px] font-bold px-2 py-1 rounded-full bg-green-50 text-green-600 border border-green-200">継続支援</span>` : ''}
+            ${(d.isContinuous ?? d.continuous_support) === true ? `<span class="text-[10px] font-bold px-2 py-1 rounded-full bg-green-50 text-green-600 border border-green-200">継続支援</span>` : ''}
           </div>
         </div>
         ${d.message ? `<p class="text-sm text-slate-600 leading-relaxed mb-3 bg-slate-50 rounded-xl px-4 py-3">${esc(d.message).replace(/\n/g,'<br>')}</p>` : ''}
@@ -1186,11 +1192,21 @@
     btn.innerHTML = '<span class="animate-spin inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full"></span> 保存中...';
 
     const tags = [..._profileTags];
+    // area は登録時と同じく配列で保存する（ルール上 最大20件）
+    const areaList = document.getElementById('f-area').value
+      .split(/[・、,\s]+/).map(s => s.trim()).filter(Boolean).slice(0, 20);
+    const category = document.getElementById('f-category').value;
+    if (!category || areaList.length === 0) {
+      showToast('カテゴリと活動地域は必須です', false);
+      btn.disabled = false; btn.innerHTML = '<i data-lucide="save" width="14" height="14"></i> 変更を保存';
+      lucide.createIcons();
+      return;
+    }
     const data    = {
       name:          document.getElementById('f-name').value.trim(),
-      category:      document.getElementById('f-category').value,
+      category:      category,
       contact_email: document.getElementById('f-contact-email').value.trim(),
-      area:          document.getElementById('f-area').value.trim(),
+      area:          areaList,
       main_image:    document.getElementById('f-main-image').value.trim() || null,
       tags,
       activity_how:  document.getElementById('f-activity-how').value.trim(),
@@ -1457,19 +1473,12 @@
         data.owner_uid  = currentUser.uid;
         await menusRef.add(data);
         showToast('メニューを追加しました');
-        // 新規作成時のみ Slack + メール通知
-        const _slackUrl = getCfg().slackWebhook || '';
+        // 新規作成時のみ通知（Slack はサーバー側 admin_notify が送信）
         const _menuLines = [
           `団体名：${currentOrg?.name || '—'}`,
           `メニュー名：${data.title || '—'}`,
           data.target_amount ? `希望金額・数量：${data.target_amount}` : null,
         ].filter(Boolean).join('\n');
-        if (_slackUrl) {
-          fetch(_slackUrl, {
-            method: 'POST', mode: 'no-cors',
-            body: new URLSearchParams({ payload: JSON.stringify({ text: `:new: *新規支援メニューが登録されました*\n${_menuLines}\n管理画面：${window.location.origin}/admin.html` }) }),
-          }).catch(() => {});
-        }
         fetch('/.netlify/functions/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1582,19 +1591,12 @@
 
       await batch.commit();
 
-      // Slack + メール通知
-      const slackUrl     = getCfg().slackWebhook || '';
+      // 通知（Slack はサーバー側 admin_notify が送信）
       const matchingLines = [
         `団体名：${currentOrg.name || '—'}`,
         `メニュー名：${menuTitle}`,
         `継続表示：${continuous ? 'あり（募集継続）' : 'なし（募集終了）'}`,
       ].join('\n');
-      if (slackUrl) {
-        fetch(slackUrl, {
-          method: 'POST', mode: 'no-cors',
-          body: new URLSearchParams({ payload: JSON.stringify({ text: `:trophy: *支援マッチング成立*\n${matchingLines}\n管理画面：${window.location.origin}/admin.html` }) }),
-        }).catch(() => {});
-      }
       fetch('/.netlify/functions/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
