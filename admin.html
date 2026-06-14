@@ -947,23 +947,37 @@
   // ============================================================
   async function loadOverview() {
     if (!db) { renderOverviewDemo(); return; }
+    // 主要3カードは独立 try/catch — matchings が失敗しても他をブロックしない
     try {
-      const [pendSnap, pubSnap, inqNewSnap, matchSnap] = await Promise.all([
+      const [pendSnap, pubSnap, inqNewSnap] = await Promise.all([
         db.collection('organizations').where('status','==','pending').get(),
         db.collection('organizations').where('status','==','public').get(),
         db.collection('inquiries').where('status','==','new').get(),
-        db.collectionGroup('matchings').get(),
       ]);
       animateCount('ov-pending',   pendSnap.size);
       animateCount('ov-public',    pubSnap.size);
       animateCount('ov-inquiries', inqNewSnap.size);
-      animateCount('ov-matching',  matchSnap.size);
       updateBadge('badge-pending',   pendSnap.size);
       updateBadge('badge-inquiries', inqNewSnap.size);
       const pendingSorted = pendSnap.docs.slice().sort((a,b) => (b.data().created_at?.toMillis?.()??0)-(a.data().created_at?.toMillis?.()??0));
       renderRecentPending(pendingSorted.slice(0, 5));
     } catch(e) {
-      console.error(e); renderOverviewDemo();
+      console.error('loadOverview error:', e); renderOverviewDemo();
+    }
+    // マッチング実績: 独立クエリ（失敗しても他カードに影響しない）
+    try {
+      const matchSnap = await db.collectionGroup('matchings').get();
+      animateCount('ov-matching', matchSnap.size);
+    } catch(e) {
+      console.warn('matchings count failed, trying matchingCount sum:', e);
+      // フォールバック: menus の matchingCount フィールドを合計
+      try {
+        const menusSnap = await db.collectionGroup('menus').get();
+        const total = menusSnap.docs.reduce((s, d) => s + (d.data().matchingCount || 0), 0);
+        animateCount('ov-matching', total);
+      } catch(e2) {
+        console.warn('matchingCount sum also failed:', e2);
+      }
     }
   }
 
@@ -996,19 +1010,17 @@
           continuous:  !!data.continuous,
         };
       }).filter(m => m.completedAt !== null);
-
-      renderAnalyticsSummary();
-      renderAnalyticsYearBtns();
-      renderAnalyticsChart(_analyticsYear);
-      renderAnalyticsTable(_analyticsYear);
-      lucide.createIcons();
     } catch(e) {
-      console.error('Analytics load error:', e);
-      ['an-total','an-continuous','an-ended'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = '—';
-      });
+      console.warn('matchings collectionGroup failed, using empty data:', e);
+      // matchings ドキュメントが存在しない場合は matchingCount フィールドの合計のみ ov-matching に反映済み
+      // 分析データは空として継続（エラー非表示）
+      _analyticsData = [];
     }
+    renderAnalyticsSummary();
+    renderAnalyticsYearBtns();
+    renderAnalyticsChart(_analyticsYear);
+    renderAnalyticsTable(_analyticsYear);
+    lucide.createIcons();
   }
 
   function renderAnalyticsSummary() {
