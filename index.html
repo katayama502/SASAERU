@@ -668,22 +668,18 @@
         </div>
         <div>
           <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
-            <label for="reg-activity" class="text-xs font-bold text-slate-600">クラブ紹介（テンプレートはこちら） <span class="text-red-500">*</span></label>
-            <div class="flex items-center gap-2">
-              <a id="template-link" href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub" target="_blank" rel="noopener noreferrer"
-                class="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-bold rounded-lg transition-all">
-                📄 ダウンロード
-              </a>
-              <button type="button" onclick="applyClubIntroTemplate()"
-                class="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 hover:bg-orange-100 text-orange-600 text-[11px] font-bold rounded-lg transition-all border border-orange-200">
-                ✏️ 反映する
-              </button>
-            </div>
+            <label for="reg-activity" class="text-xs font-bold text-slate-600">
+              クラブ紹介（<a href="https://docs.google.com/document/d/e/2PACX-1vSTeuZFpsXtlHMgvSQ-REA1KmvLL5dYa624uliITojiwl1CwBKGwI7_uTI7myoMQ3Zt-klLuMRSxmIK/pub?output=pdf" target="_blank" rel="noopener noreferrer" class="text-orange-500 hover:text-orange-600 underline underline-offset-2">テンプレートはこちら</a>）<span class="text-red-500">*</span>
+            </label>
+            <button type="button" onclick="applyClubIntroTemplate()"
+              class="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 hover:bg-orange-100 text-orange-600 text-[11px] font-bold rounded-lg transition-all border border-orange-200">
+              ✏️ テンプレートを反映
+            </button>
           </div>
-          <textarea id="reg-activity" name="activity_how" rows="8" required maxlength="2000"
+          <textarea id="reg-activity" name="activity_how" required maxlength="2000"
             placeholder="クラブの活動内容、現在直面している課題、必要な支援内容などをご記入ください。"
-            oninput="updateCounter(this,'reg-activity-counter',2000)"
-            style="min-height:200px"
+            oninput="updateCounter(this,'reg-activity-counter',2000); autoResizeTextarea(this)"
+            style="min-height:200px; overflow:hidden"
             class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none text-sm resize-none"></textarea>
           <p class="text-right text-[10px] text-slate-400 mt-0.5"><span id="reg-activity-counter">0</span>/2000</p>
         </div>
@@ -762,6 +758,7 @@
     }
     ta.value = CLUB_INTRO_TEMPLATE;
     updateCounter(ta, 'reg-activity-counter', 2000);
+    autoResizeTextarea(ta);
     ta.focus();
     showToast('テンプレートを挿入しました。内容を参考に編集してください。');
   }
@@ -1115,6 +1112,11 @@
   }
 
   // M-10: max を活用して上限近くで文字色を赤に変更
+  function autoResizeTextarea(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
   function updateCounter(el, counterId, max) {
     const counter = document.getElementById(counterId);
     if (!counter) return;
