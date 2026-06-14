@@ -327,5 +327,15 @@ service cloud.firestore {
                     && request.resource.data.message.size() <= 5000;
       allow read, update, delete: if isAdmin();
     }
+
+    // コレクショングループクエリ用ルール（{path=**} ワイルドカードが collectionGroup().get() に必要）
+    // 管理者は全 matchings を横断読み取り可（分析・ダッシュボード用）
+    match /{path=**}/matchings/{matchingId} {
+      allow read: if isAdmin();
+    }
+    // 管理者は全 menus を横断読み取り可（matchingCount 合計フォールバック用）
+    match /{path=**}/menus/{menuId} {
+      allow read: if isAdmin();
+    }
   }
 }
