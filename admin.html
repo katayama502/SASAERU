@@ -480,9 +480,58 @@
 
           <!-- 支援メニュー管理タブ（TASK-05） -->
           <div id="tab-menus" class="hidden fade-in">
-            <div class="flex items-center justify-between mb-4">
-              <p class="text-xs text-slate-500">全団体の支援メニューを管理します</p>
-              <span id="menus-count" class="text-xs text-slate-400"></span>
+            <!-- フィルターパネル -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <!-- 登録期間 -->
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 mb-1.5 block">登録期間</label>
+                  <div class="flex items-center gap-1">
+                    <input type="date" id="mf-from" oninput="filterMenus()"
+                      class="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <span class="text-xs text-slate-400 shrink-0">〜</span>
+                    <input type="date" id="mf-to" oninput="filterMenus()"
+                      class="flex-1 min-w-0 text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                  </div>
+                </div>
+                <!-- 支援団体 -->
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 mb-1.5 block">支援団体</label>
+                  <input type="text" id="mf-org" placeholder="団体名で検索…" oninput="filterMenus()"
+                    class="w-full text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                </div>
+                <!-- 支援メニュー -->
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 mb-1.5 block">支援メニュー</label>
+                  <input type="text" id="mf-title" placeholder="メニュー名で検索…" oninput="filterMenus()"
+                    class="w-full text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                </div>
+                <!-- 状態 -->
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 mb-1.5 block">状態</label>
+                  <select id="mf-status" onchange="filterMenus()"
+                    class="w-full text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white">
+                    <option value="">すべて</option>
+                    <option value="public">公開中</option>
+                    <option value="private">非公開</option>
+                    <option value="hidden">非表示中</option>
+                  </select>
+                </div>
+              </div>
+              <!-- アクション行 -->
+              <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                <span id="menus-count" class="text-xs text-slate-400"></span>
+                <div class="flex items-center gap-2">
+                  <button onclick="resetMenuFilters()"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all">
+                    <i data-lucide="rotate-ccw" width="12" height="12"></i>リセット
+                  </button>
+                  <button onclick="exportMenusCSV()"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-all">
+                    <i data-lucide="download" width="12" height="12"></i>CSVエクスポート
+                  </button>
+                </div>
+              </div>
             </div>
             <div id="admin-menus-list" class="space-y-2">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
@@ -1643,72 +1692,187 @@
   // ============================================================
   // 支援メニュー管理（TASK-05）
   // ============================================================
+  let _allMenusCache = [];
+
   async function loadAdminMenus() {
     const el = document.getElementById('admin-menus-list');
     if (!db) { el.innerHTML = demoMsg(); return; }
     el.innerHTML = '<div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>';
     try {
       const orgsSnap = await db.collection('organizations').get();
-      const allMenus = [];
+      _allMenusCache = [];
       await Promise.all(orgsSnap.docs.map(async orgDoc => {
         const org = orgDoc.data();
         const menusSnap = await db.collection('organizations').doc(orgDoc.id).collection('menus').get();
         menusSnap.docs.forEach(m => {
-          allMenus.push({ orgId: orgDoc.id, orgName: org.name || '—', menuId: m.id, ...m.data() });
+          _allMenusCache.push({ orgId: orgDoc.id, orgName: org.name || '—', menuId: m.id, ...m.data() });
         });
       }));
-      allMenus.sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
-      const countEl = document.getElementById('menus-count');
-      if (countEl) countEl.textContent = `全 ${allMenus.length} 件`;
-      if (allMenus.length === 0) {
-        el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">支援メニューはありません</div>';
-        return;
-      }
-      el.innerHTML = `
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <table class="w-full text-sm">
-            <thead class="bg-slate-50 border-b border-slate-100">
-              <tr>
-                <th class="text-left px-5 py-3 text-xs font-black text-slate-500">団体名</th>
-                <th class="text-left px-5 py-3 text-xs font-black text-slate-500">支援メニュー名</th>
-                <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">登録日</th>
-                <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">状態</th>
-                <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">実績</th>
-                <th class="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-50">
-              ${allMenus.map(m => `
-                <tr class="hover:bg-slate-50 transition-colors">
-                  <td class="px-5 py-3 text-xs font-bold text-slate-700">${esc(m.orgName)}</td>
-                  <td class="px-5 py-3 text-xs text-slate-900 font-bold">${esc(m.title||'—')}</td>
-                  <td class="px-5 py-3 text-xs text-slate-400 hidden sm:table-cell">${fmtDate(m.created_at)}</td>
-                  <td class="px-5 py-3 hidden sm:table-cell">
-                    ${statusBadge(m.status||'private')}
-                    ${m.isVisible === false || m.is_matched === true ? '<span class="ml-1 text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">非表示</span>' : ''}
-                  </td>
-                  <td class="px-5 py-3 text-xs font-bold text-slate-700 hidden sm:table-cell">${m.matchingCount || m.matched_count || 0}件</td>
-                  <td class="px-5 py-3 text-right">
-                    <div class="flex items-center gap-2 justify-end">
-                      ${m.status !== 'private' ? `
-                      <button data-org="${esc(m.orgId)}" data-menu="${esc(m.menuId)}" data-title="${esc(m.title||'メニュー')}"
-                        onclick="forceHideMenu(this.dataset.org, this.dataset.menu, this.dataset.title)"
-                        class="flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 text-xs font-bold rounded-lg transition-all">
-                        <i data-lucide="eye-off" width="12" height="12"></i>非公開
-                      </button>` : ''}
-                      <button data-org="${esc(m.orgId)}" data-menu="${esc(m.menuId)}" data-title="${esc(m.title||'メニュー')}"
-                        onclick="deleteAdminMenu(this.dataset.org, this.dataset.menu, this.dataset.title)"
-                        class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all">
-                        <i data-lucide="trash-2" width="12" height="12"></i>削除
-                      </button>
-                    </div>
-                  </td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`;
-      lucide.createIcons();
+      _allMenusCache.sort((a,b) => (b.created_at?.toMillis?.()??0) - (a.created_at?.toMillis?.()??0));
+      filterMenus();
     } catch(e) { el.innerHTML = errMsg(e); }
+  }
+
+  function filterMenus() {
+    const fromVal  = document.getElementById('mf-from')?.value  || '';
+    const toVal    = document.getElementById('mf-to')?.value    || '';
+    const orgVal   = (document.getElementById('mf-org')?.value  || '').trim().toLowerCase();
+    const titleVal = (document.getElementById('mf-title')?.value|| '').trim().toLowerCase();
+    const statusVal= document.getElementById('mf-status')?.value|| '';
+
+    const fromTs = fromVal ? new Date(fromVal + 'T00:00:00').getTime() : null;
+    const toTs   = toVal   ? new Date(toVal   + 'T23:59:59').getTime() : null;
+
+    const filtered = _allMenusCache.filter(m => {
+      const createdMs = m.created_at?.toMillis?.() ?? 0;
+      if (fromTs && createdMs < fromTs) return false;
+      if (toTs   && createdMs > toTs)   return false;
+      if (orgVal   && !m.orgName.toLowerCase().includes(orgVal))   return false;
+      if (titleVal && !(m.title||'').toLowerCase().includes(titleVal)) return false;
+      if (statusVal === 'public')  return m.status === 'public'  && m.isVisible !== false;
+      if (statusVal === 'private') return m.status === 'private';
+      if (statusVal === 'hidden')  return m.isVisible === false;
+      return true;
+    });
+
+    const countEl = document.getElementById('menus-count');
+    if (countEl) {
+      const total = _allMenusCache.length;
+      countEl.textContent = filtered.length === total
+        ? `全 ${total} 件`
+        : `${filtered.length} 件（全 ${total} 件中）`;
+    }
+    renderMenusTable(filtered);
+  }
+
+  function resetMenuFilters() {
+    ['mf-from','mf-to','mf-org','mf-title'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const sel = document.getElementById('mf-status');
+    if (sel) sel.value = '';
+    filterMenus();
+  }
+
+  function renderMenusTable(menus) {
+    const el = document.getElementById('admin-menus-list');
+    if (!el) return;
+    if (menus.length === 0) {
+      el.innerHTML = '<div class="text-xs text-slate-400 text-center py-10">該当する支援メニューはありません</div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 border-b border-slate-100">
+            <tr>
+              <th class="text-left px-5 py-3 text-xs font-black text-slate-500">団体名</th>
+              <th class="text-left px-5 py-3 text-xs font-black text-slate-500">支援メニュー名</th>
+              <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">登録日</th>
+              <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">状態</th>
+              <th class="text-left px-5 py-3 text-xs font-black text-slate-500 hidden sm:table-cell">実績</th>
+              <th class="px-5 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            ${menus.map(m => `
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-5 py-3 text-xs font-bold text-slate-700">${esc(m.orgName)}</td>
+                <td class="px-5 py-3 text-xs text-slate-900 font-bold">${esc(m.title||'—')}</td>
+                <td class="px-5 py-3 text-xs text-slate-400 hidden sm:table-cell">${fmtDate(m.created_at)}</td>
+                <td class="px-5 py-3 hidden sm:table-cell">
+                  ${statusBadge(m.status||'private')}
+                  ${m.isVisible === false ? '<span class="ml-1 text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">非表示</span>' : ''}
+                </td>
+                <td class="px-5 py-3 text-xs font-bold text-slate-700 hidden sm:table-cell">${m.matchingCount || m.matched_count || 0}件</td>
+                <td class="px-5 py-3 text-right">
+                  <div class="flex items-center gap-2 justify-end">
+                    ${m.status !== 'private' ? `
+                    <button data-org="${esc(m.orgId)}" data-menu="${esc(m.menuId)}" data-title="${esc(m.title||'メニュー')}"
+                      onclick="forceHideMenu(this.dataset.org, this.dataset.menu, this.dataset.title)"
+                      class="flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 text-xs font-bold rounded-lg transition-all">
+                      <i data-lucide="eye-off" width="12" height="12"></i>非公開
+                    </button>` : ''}
+                    <button data-org="${esc(m.orgId)}" data-menu="${esc(m.menuId)}" data-title="${esc(m.title||'メニュー')}"
+                      onclick="deleteAdminMenu(this.dataset.org, this.dataset.menu, this.dataset.title)"
+                      class="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 text-xs font-bold rounded-lg transition-all">
+                      <i data-lucide="trash-2" width="12" height="12"></i>削除
+                    </button>
+                  </div>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    lucide.createIcons();
+  }
+
+  function exportMenusCSV() {
+    // 現在フィルター済みのメニューを取得
+    const fromVal  = document.getElementById('mf-from')?.value  || '';
+    const toVal    = document.getElementById('mf-to')?.value    || '';
+    const orgVal   = (document.getElementById('mf-org')?.value  || '').trim().toLowerCase();
+    const titleVal = (document.getElementById('mf-title')?.value|| '').trim().toLowerCase();
+    const statusVal= document.getElementById('mf-status')?.value|| '';
+
+    const fromTs = fromVal ? new Date(fromVal + 'T00:00:00').getTime() : null;
+    const toTs   = toVal   ? new Date(toVal   + 'T23:59:59').getTime() : null;
+
+    const menus = _allMenusCache.filter(m => {
+      const createdMs = m.created_at?.toMillis?.() ?? 0;
+      if (fromTs && createdMs < fromTs) return false;
+      if (toTs   && createdMs > toTs)   return false;
+      if (orgVal   && !m.orgName.toLowerCase().includes(orgVal))   return false;
+      if (titleVal && !(m.title||'').toLowerCase().includes(titleVal)) return false;
+      if (statusVal === 'public')  return m.status === 'public'  && m.isVisible !== false;
+      if (statusVal === 'private') return m.status === 'private';
+      if (statusVal === 'hidden')  return m.isVisible === false;
+      return true;
+    });
+
+    if (menus.length === 0) { showToast('エクスポートするデータがありません', false); return; }
+
+    const csvEsc = v => {
+      const s = String(v ?? '');
+      // CSV インジェクション対策
+      const safe = /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+      return '"' + safe.replace(/"/g, '""') + '"';
+    };
+    const fmtDateStr = ts => {
+      if (!ts?.toDate) return '';
+      const d = ts.toDate();
+      return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+    };
+    const statusLabel = m => {
+      if (m.isVisible === false) return '非表示中';
+      return m.status === 'public' ? '公開中' : '非公開';
+    };
+
+    const header = ['団体名','支援メニュー名','支援種別','希望金額','マッチング実績','状態','登録日','更新日'];
+    const rows = menus.map(m => [
+      m.orgName,
+      m.title     || '',
+      m.support_type   || '',
+      m.target_amount  || '',
+      m.matchingCount  || m.matched_count || 0,
+      statusLabel(m),
+      fmtDateStr(m.created_at),
+      fmtDateStr(m.updated_at),
+    ].map(csvEsc).join(','));
+
+    const bom  = '﻿';
+    const csv  = bom + [header.map(csvEsc).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const now  = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    a.href     = url;
+    a.download = `support_menus_${stamp}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${menus.length} 件をエクスポートしました`);
   }
 
   function deleteAdminMenu(orgId, menuId, menuTitle) {
