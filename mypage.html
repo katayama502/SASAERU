@@ -1473,12 +1473,19 @@
         data.owner_uid  = currentUser.uid;
         await menusRef.add(data);
         showToast('メニューを追加しました');
-        // 新規作成時のみ通知（Slack はサーバー側 admin_notify が送信）
+        // 新規作成時のみ Slack + メール通知
         const _menuLines = [
           `団体名：${currentOrg?.name || '—'}`,
           `メニュー名：${data.title || '—'}`,
           data.target_amount ? `希望金額・数量：${data.target_amount}` : null,
         ].filter(Boolean).join('\n');
+        const _slackUrl = getCfg().slackWebhook || '';
+        if (_slackUrl) {
+          fetch(_slackUrl, {
+            method: 'POST', mode: 'no-cors',
+            body: new URLSearchParams({ payload: JSON.stringify({ text: `:new: *新規支援メニューが登録されました*\n${_menuLines}\n管理画面：${window.location.origin}/admin.html` }) }),
+          }).catch(() => {});
+        }
         fetch('/.netlify/functions/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1591,12 +1598,19 @@
 
       await batch.commit();
 
-      // 通知（Slack はサーバー側 admin_notify が送信）
+      // Slack + メール通知
       const matchingLines = [
         `団体名：${currentOrg.name || '—'}`,
         `メニュー名：${menuTitle}`,
         `継続表示：${continuous ? 'あり（募集継続）' : 'なし（募集終了）'}`,
       ].join('\n');
+      const _matchSlackUrl = getCfg().slackWebhook || '';
+      if (_matchSlackUrl) {
+        fetch(_matchSlackUrl, {
+          method: 'POST', mode: 'no-cors',
+          body: new URLSearchParams({ payload: JSON.stringify({ text: `:trophy: *支援マッチング成立*\n${matchingLines}\n管理画面：${window.location.origin}/admin.html` }) }),
+        }).catch(() => {});
+      }
       fetch('/.netlify/functions/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
