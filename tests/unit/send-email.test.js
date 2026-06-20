@@ -144,7 +144,7 @@ describe('メールタイプ別 正常送信 (200)', () => {
           toEmail: 'club@example.com',
           clubName: '松江FC',
           categoryJp: 'スポーツ',
-          registeredAt: '2026-05-15',
+          areaJp: '松江市・出雲市',
           origin,
         },
       }),
@@ -152,9 +152,11 @@ describe('メールタイプ別 正常送信 (200)', () => {
     expect(res.statusCode).toBe(200);
     const mail = mockSendMail.mock.calls[0][0];
     expect(mail.to).toBe('club@example.com');
-    expect(mail.subject).toBe('【SASAERU】団体登録を受け付けました');
+    expect(mail.cc).toBe('sasaeru@scl.or.jp');
+    expect(mail.subject).toBe('【SASAERU】 新規クラブ申請受付メール');
     expect(mail.text).toContain('松江FC');
     expect(mail.text).toContain('スポーツ');
+    expect(mail.text).toContain('松江市・出雲市');
   });
 
   test('approve → 200 (承認メール)', async () => {
@@ -464,15 +466,17 @@ describe('入力サニタイズ（ヘッダーインジェクション防止）'
 describe('メール本文の内容検証', () => {
   const origin = 'https://sasaeru.netlify.app';
 
-  test('applicant メールに重要事項（メール確認の案内）が含まれる', async () => {
+  test('applicant メールに署名・審査案内が含まれる', async () => {
     await handler(makeEvent({
       body: JSON.stringify({
         type: 'applicant',
-        params: { toEmail: 'club@example.com', clubName: '出雲SC', categoryJp: '文化', registeredAt: '2026-05-15', origin },
+        params: { toEmail: 'club@example.com', clubName: '出雲SC', categoryJp: '文化', areaJp: '出雲市', origin },
       }),
     }));
     const mail = mockSendMail.mock.calls[0][0];
-    expect(mail.text).toContain('メールアドレスの確認');
+    expect(mail.text).toContain('藤田');
+    expect(mail.text).toContain('審査');
+    expect(mail.text).toContain('sasaeru@scl.or.jp');
   });
 
   test('approve メールに団体ページURLが含まれる', async () => {
@@ -593,7 +597,7 @@ describe('Slack 通知（admin_notify）', () => {
           toEmail: 'club@example.com',
           clubName: '松江FC',
           categoryJp: 'スポーツ',
-          registeredAt: '2026-05-15',
+          areaJp: '松江市',
           origin,
         },
       }),

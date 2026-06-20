@@ -1577,7 +1577,7 @@
           toEmail:     data.contact_email,
           clubName:    data.name,
           categoryJp:  CATEGORY_LABEL[data.category] ?? data.category,
-          registeredAt,
+          areaJp:      Array.isArray(areaValue) ? areaValue.join('・') : (areaValue || ''),
           origin:      window.location.origin,
         });
         setBtnLoading('register-submit-btn', false);
