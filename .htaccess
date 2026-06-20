@@ -1,4 +1,6 @@
 # SASAERU root .htaccess (XServer compatible)
+# 注意: このファイルはローカル Apache（MAMP）/ XServer 用です。
+#       本番の Netlify では .htaccess は無効（netlify.toml が配信設定を担当）。
 
 # PHPバージョン指定が必要な場合は XServer のサーバーパネル → PHP Ver.切替 で 8.x を選択
 # Apache mod_rewrite が有効な場合: index.html を優先表示
@@ -10,6 +12,11 @@ AddDefaultCharset UTF-8
 
 # 機密ファイルへのアクセス禁止
 <FilesMatch "(^\.|composer\.|README|db_config\.php|\.sqlite$|\.log$)">
+    Require all denied
+</FilesMatch>
+
+# 内部ファイル（設定・ルール・ドキュメント類）への Web アクセス禁止
+<FilesMatch "\.(json|rules|toml|md|lock)$">
     Require all denied
 </FilesMatch>
 

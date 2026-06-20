@@ -447,27 +447,13 @@
   const _postCache = new Map();
 
   // ===================================================
-  // 管理者通知（config.js から lazy 読み込み）
+  // 管理者通知（Nodemailer/Netlify Function 経由。Slack 投稿はサーバー側 send-email で実施）
   // ===================================================
-  function getCfg() { return window.SASAERU_CONFIG || {}; }
-
   async function sendAdminNotification(type, params) {
-    const cfg = getCfg();
-    const slackWebhook = cfg.slackWebhook || '';
-
     const labels = { club_apply: '🏃 新規クラブ申請', inquiry: '📩 支援申請', contact: '✉️ お問い合わせ' };
     const label = labels[type] || type;
     const lines = Object.entries(params).map(([k,v]) => `${k}: ${v}`).join('\n');
-    const text  = `${label}\n\n${lines}\n\n🔗 管理画面: ${location.origin}/admin.html`;
 
-    if (slackWebhook) {
-      try {
-        await fetch(slackWebhook, {
-          method: 'POST', mode: 'no-cors',
-          body: new URLSearchParams({ payload: JSON.stringify({ text }) }),
-        });
-      } catch(e) { console.warn('Slack通知失敗:', e); }
-    }
     try {
       const res = await fetch('/.netlify/functions/send-email', {
         method: 'POST',
@@ -519,6 +505,8 @@
     return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
   }
 
+  // カテゴリ表示名・色。Firestore の categories コレクションから動的に上書きされる
+  // （loadCategories 参照）。取得失敗・オフライン時は以下のハードコード値がフォールバック。
   const CAT = { sports:'スポーツ', culture:'文化・芸術', welfare:'福祉', other:'その他' };
   const CAT_COLOR = {
     sports:  'bg-blue-100 text-blue-700',
@@ -526,7 +514,33 @@
     welfare: 'bg-green-100 text-green-700',
     other:   'bg-slate-100 text-slate-600'
   };
+  const CAT_COLOR_PALETTE = [
+    'bg-blue-100 text-blue-700',
+    'bg-purple-100 text-purple-700',
+    'bg-green-100 text-green-700',
+    'bg-amber-100 text-amber-700',
+    'bg-rose-100 text-rose-700',
+    'bg-slate-100 text-slate-600',
+  ];
   const SUPPORT_TYPE_ICON = { '資金':'💰','物品':'📦','人材':'👤','場所':'🏠','その他':'🤝' };
+
+  // Firestore の categories コレクション（index.html と同じ id/label/sort_order）を取得して
+  // CAT / CAT_COLOR にマージする。失敗時は上記ハードコード値のまま動作する。
+  async function loadCategories() {
+    if (!db) return;
+    try {
+      const snap = await db.collection('categories').orderBy('sort_order').get();
+      snap.docs.forEach((d, i) => {
+        const cat = { id: d.id, ...d.data() };
+        if (cat.label) CAT[cat.id] = cat.label;
+        if (!CAT_COLOR[cat.id]) {
+          CAT_COLOR[cat.id] = CAT_COLOR_PALETTE[i % CAT_COLOR_PALETTE.length];
+        }
+      });
+    } catch (e) {
+      console.warn('categories 取得失敗、デフォルト値を使用:', e);
+    }
+  }
 
   // ===================================================
   // HTML ユーティリティ（投稿コンテンツ用）
@@ -568,7 +582,7 @@
     const ALLOWED_ATTRS = {
       a:   ['href', 'target', 'rel'],
       img: ['src', 'alt', 'width', 'height'],
-      span: ['class', 'style'],
+      span: ['class'],
       div:  ['class'],
       p:    ['class'],
       pre:  ['class'],
@@ -767,6 +781,8 @@
       if (ogImg && org.main_image) ogImg.content = org.main_image;
       if (ogUrl)   ogUrl.content   = window.location.href;
 
+      // カテゴリチップを正しく表示するため描画前に取得（失敗時は内部でフォールバック）
+      await loadCategories();
       renderHero(org);
       renderAbout(org);
       await Promise.all([ loadMenus(orgId), loadPosts(orgId) ]);
@@ -802,7 +818,8 @@
   function renderHero(org) {
     if (org.main_image) {
       const img = document.getElementById('hero-img');
-      img.src = esc(org.main_image); img.alt = esc(org.name || '');
+      // DOMプロパティへの代入は esc() 不要（& を含むURLが壊れるため生値を代入）
+      img.src = org.main_image; img.alt = org.name || '';
       document.getElementById('hero-bg').classList.remove('hidden');
       document.getElementById('hero-gradient').classList.add('hidden');
     } else {
@@ -865,19 +882,19 @@
       const menus = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .filter(m => m.isVisible !== false && m.is_matched !== true)
         .sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
+      // フィルター後に全件除外（非表示・マッチング済みのみ）の場合も空状態を表示
+      if (menus.length === 0) { container.classList.add('hidden'); emptyEl.classList.remove('hidden'); return; }
       // esc() で全値をサニタイズしているため XSS のリスクなし
       container.innerHTML = menus.map(m => {
         const icon = SUPPORT_TYPE_ICON[m.support_type] || SUPPORT_TYPE_ICON['その他'];
         const amountStr = (m.target_amount !== undefined && m.target_amount !== null && m.target_amount !== '')
           ? String(m.target_amount) : '';
-        const isMatched = false;
         // esc() で全ての動的値をサニタイズしているため XSS のリスクはありません
         return `
-          <div class="${isMatched ? '' : 'card-hover '}bg-white rounded-2xl shadow-sm border ${isMatched ? 'border-slate-200 opacity-70' : 'border-slate-100'} p-6 flex flex-col">
+          <div class="card-hover bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col">
             <div class="flex items-center gap-3 mb-4">
               <span class="text-2xl">${icon}</span>
               <span class="text-xs font-bold bg-orange-50 text-orange-600 px-3 py-1 rounded-full border border-orange-100">${esc(m.support_type||'その他')}</span>
-              ${isMatched ? `<span class="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full ml-auto">マッチング済み</span>` : ''}
             </div>
             <h3 class="text-lg font-black text-[#0f0e2e] mb-2">${esc(m.title||'')}</h3>
             ${amountStr ? `<p class="text-orange-500 font-black text-xl mb-3">${esc(amountStr)}</p>` : ''}
@@ -889,15 +906,11 @@
                 </p>
                 <p class="leading-relaxed">${esc(m.return_merit).replace(/\n/g,'<br>')}</p>
               </div>` : ''}
-            ${isMatched
-              ? `<div class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 mt-auto cursor-not-allowed">
-                  <i data-lucide="check-circle" width="15" height="15"></i>このメニューはマッチング済みです
-                </div>`
-              : `<button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}" data-menu-id="${esc(m.id)}" data-menu-title="${esc(m.title||'')}"
-                  onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName, this.dataset.menuTitle, this.dataset.menuId)"
-                  class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 mt-auto">
-                  <i data-lucide="mail" width="15" height="15"></i>支援・問い合わせ
-                </button>`}
+            <button data-org-id="${esc(currentOrgId)}" data-org-name="${esc(currentOrgName)}" data-menu-id="${esc(m.id)}" data-menu-title="${esc(m.title||'')}"
+              onclick="openInquiryModal(this.dataset.orgId, this.dataset.orgName, this.dataset.menuTitle, this.dataset.menuId)"
+              class="w-full bg-[#0f0e2e] hover:bg-indigo-900 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 mt-auto">
+              <i data-lucide="mail" width="15" height="15"></i>支援・問い合わせ
+            </button>
           </div>`;
       }).join('');
       emptyEl.classList.add('hidden');
@@ -1052,7 +1065,8 @@
   // ===================================================
   let currentMenuId = '';
   function openInquiryModal(orgId, orgName, menuTitle, menuId) {
-    currentMenuTitle = menuTitle || orgName;
+    // メニュー経由でない一般問い合わせでは menu_title を空にする（クラブ名を誤送信しない）
+    currentMenuTitle = menuTitle || '';
     currentMenuId    = menuId    || '';
     document.getElementById('inquiry-target').textContent = menuTitle
       ? `支援先: ${orgName}（${menuTitle}）`

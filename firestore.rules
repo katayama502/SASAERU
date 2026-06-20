@@ -95,7 +95,10 @@ service cloud.firestore {
                         && resource.data.owner_uid == request.auth.uid
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailVerified'])
                         && request.resource.data.emailVerified == true
-                        && resource.data.emailVerified == false);
+                        && resource.data.emailVerified == false
+                        // 認証トークン側でもメール確認済みであることを必須にする
+                        // （クライアントは getIdToken(true) でトークンをリフレッシュしてから書き込む）
+                        && request.auth.token.email_verified == true);
       // 削除: 管理者のみ
       //       例外: status=pending（未審査）のオーナーは申請取り下げ・タイムアウト削除が可能
       allow delete: if isAdmin()
@@ -120,6 +123,11 @@ service cloud.firestore {
       // owner_uid をメニュードキュメントに保持することで、update/delete で get() 呼び出し不要にする
       allow create: if isAdmin()
                     || (isOwnerOf(orgId)
+                        // mypage.html のメニュー作成は常に下記9フィールドを送信する
+                        && request.resource.data.keys().hasAll([
+                             'title','support_type','target_amount','description',
+                             'return_merit','status','created_at','updated_at','owner_uid'
+                           ])
                         && request.resource.data.keys().hasOnly([
                              'title','support_type','target_amount','description',
                              'return_merit','status','created_at','updated_at','owner_uid'
@@ -128,6 +136,15 @@ service cloud.firestore {
                         && request.resource.data.title is string
                         && request.resource.data.title.size() > 0
                         && request.resource.data.title.size() <= 100
+                        && request.resource.data.support_type is string
+                        && request.resource.data.support_type.size() <= 50
+                        && request.resource.data.target_amount is string
+                        && request.resource.data.target_amount.size() <= 200
+                        && request.resource.data.description is string
+                        && request.resource.data.description.size() <= 2000
+                        && request.resource.data.return_merit is string
+                        && request.resource.data.return_merit.size() <= 2000
+                        && request.resource.data.created_at is timestamp
                         && request.resource.data.status in ['public', 'private']);
       // update/delete: resource.data.owner_uid が一致すれば get() 不要で判定
       //                owner_uid なし（旧メニュー）は isOwnerOf フォールバック
@@ -143,7 +160,10 @@ service cloud.firestore {
                                 && request.resource.data.title.size() > 0
                                 && request.resource.data.title.size() <= 100))
                         && (!('status' in request.resource.data.diff(resource.data).affectedKeys())
-                            || request.resource.data.status in ['public', 'private']))
+                            || request.resource.data.status in ['public', 'private'])
+                        // matchingCount は +1 ずつのみ更新可（FieldValue.increment(1) を想定 / 改ざん防止）
+                        && (!('matchingCount' in request.resource.data.diff(resource.data).affectedKeys())
+                            || request.resource.data.matchingCount == resource.data.get('matchingCount', 0) + 1))
                     || (isOwnerOf(orgId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                              'title','support_type','target_amount','description',
@@ -155,7 +175,10 @@ service cloud.firestore {
                                 && request.resource.data.title.size() > 0
                                 && request.resource.data.title.size() <= 100))
                         && (!('status' in request.resource.data.diff(resource.data).affectedKeys())
-                            || request.resource.data.status in ['public', 'private']));
+                            || request.resource.data.status in ['public', 'private'])
+                        // matchingCount は +1 ずつのみ更新可（FieldValue.increment(1) を想定 / 改ざん防止）
+                        && (!('matchingCount' in request.resource.data.diff(resource.data).affectedKeys())
+                            || request.resource.data.matchingCount == resource.data.get('matchingCount', 0) + 1));
       // 削除: resource.data.owner_uid が一致、または旧メニューは isOwnerOf フォールバック
       allow delete: if isAdmin()
                     || resource.data.owner_uid == request.auth.uid
@@ -164,11 +187,18 @@ service cloud.firestore {
       // matchings サブコレクション（支援成立記録 — 成立ごとに自動IDで記録）
       match /matchings/{matchingId} {
         allow read:   if isAdmin() || isOwnerOf(orgId);
-        allow create: if isAuth() && isOwnerOf(orgId)
-                      && request.resource.data.keys().hasOnly([
-                           'continuous','menuTitle','completedBy','completedAt'
-                         ])
-                      && request.resource.data.completedBy == request.auth.uid;
+        // 管理者: admin.html がマッチング成立時に inquiryId 付き・completedBy:'admin' で記録
+        // オーナー: mypage.html が支援完了ボタンから completedBy:uid で記録
+        allow create: if (isAdmin()
+                          && request.resource.data.keys().hasOnly([
+                               'continuous','menuTitle','inquiryId','completedBy','completedAt'
+                             ])
+                          && request.resource.data.completedBy == 'admin')
+                      || (isAuth() && isOwnerOf(orgId)
+                          && request.resource.data.keys().hasOnly([
+                               'continuous','menuTitle','completedBy','completedAt'
+                             ])
+                          && request.resource.data.completedBy == request.auth.uid);
         allow delete: if isAdmin();
       }
     }
@@ -178,12 +208,31 @@ service cloud.firestore {
       // 誰でも読める（公開コンテンツ）
       allow read:         if true;
       // 作成: 認証済みユーザーが自分のowner_uidで / 許可フィールドのみ
+      // org_id の所有権を organizations ドキュメントと照合（他団体IDのなりすまし投稿を防止）
+      // ※ content の上限: クライアントはプレーンテキスト 10,000 文字制限だが、
+      //    Quill が画像を base64 で content 内に埋め込むため HTML サイズは大きくなり得る。
+      //    Firestore のドキュメント上限（約1MB）内に収まる緩い上限のみ設定。
       allow create:       if isAuth()
                           && request.resource.data.owner_uid == request.auth.uid
+                          && request.resource.data.keys().hasAll([
+                               'title','content','image_url',
+                               'org_id','owner_uid','created_at'
+                             ])
                           && request.resource.data.keys().hasOnly([
                                'title','content','image_url',
                                'org_id','owner_uid','created_at'
-                             ]);
+                             ])
+                          && get(/databases/$(database)/documents/organizations/$(request.resource.data.org_id)).data.owner_uid == request.auth.uid
+                          && request.resource.data.title is string
+                          && request.resource.data.title.size() > 0
+                          && request.resource.data.title.size() <= 300
+                          && request.resource.data.content is string
+                          && request.resource.data.content.size() > 0
+                          && request.resource.data.content.size() <= 1000000
+                          && (request.resource.data.image_url == null
+                              || (request.resource.data.image_url is string
+                                  && request.resource.data.image_url.size() <= 1000))
+                          && request.resource.data.created_at is timestamp;
       // 更新: 自分の投稿のみ / owner_uidは変更不可（乗っ取り防止）/ 許可フィールドのみ
       // S-4: owner_uid の不変チェックを追加
       allow update:       if isAuth()
@@ -192,9 +241,9 @@ service cloud.firestore {
                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                                'title','content','image_url','updated_at'
                              ]);
-      // 削除: 自分の投稿のみ
-      allow delete:       if isAuth()
-                          && resource.data.owner_uid == request.auth.uid;
+      // 削除: 自分の投稿、または管理者
+      allow delete:       if isAdmin()
+                          || (isAuth() && resource.data.owner_uid == request.auth.uid);
     }
 
     // inquiries（支援申請）
@@ -215,7 +264,14 @@ service cloud.firestore {
                     && request.resource.data.sender_email.size() <= 254
                     && request.resource.data.sender_email.matches('.*@.*\\..*')
                     && (!('menu_id'    in request.resource.data) || request.resource.data.menu_id    is string)
-                    && (!('menu_title' in request.resource.data) || (request.resource.data.menu_title is string && request.resource.data.menu_title.size() <= 100));
+                    && (!('menu_title' in request.resource.data) || (request.resource.data.menu_title is string && request.resource.data.menu_title.size() <= 100))
+                    // 任意フィールドの型・サイズ検証（club.html は phone を null で送ることがある）
+                    && (!('pic_name'   in request.resource.data) || (request.resource.data.pic_name is string && request.resource.data.pic_name.size() <= 100))
+                    && (!('phone'      in request.resource.data)
+                        || request.resource.data.phone == null
+                        || (request.resource.data.phone is string && request.resource.data.phone.size() <= 50))
+                    && (!('message'    in request.resource.data) || (request.resource.data.message is string && request.resource.data.message.size() <= 10000))
+                    && (!('created_at' in request.resource.data) || request.resource.data.created_at is timestamp);
       // 読み取り: 管理者 または 問い合わせ先の団体オーナー
       allow get, list: if isAdmin()
                        || (isAuth() && isOwnerOf(resource.data.org_id));
@@ -270,6 +326,16 @@ service cloud.firestore {
                     && request.resource.data.message.size() > 0
                     && request.resource.data.message.size() <= 5000;
       allow read, update, delete: if isAdmin();
+    }
+
+    // コレクショングループクエリ用ルール（{path=**} ワイルドカードが collectionGroup().get() に必要）
+    // 管理者は全 matchings を横断読み取り可（分析・ダッシュボード用）
+    match /{path=**}/matchings/{matchingId} {
+      allow read: if isAdmin();
+    }
+    // 管理者は全 menus を横断読み取り可（matchingCount 合計フォールバック用）
+    match /{path=**}/menus/{menuId} {
+      allow read: if isAdmin();
     }
   }
 }

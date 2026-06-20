@@ -42,7 +42,26 @@ function createTransporter() {
 // netlify.toml: [functions."remind-inquiries"] schedule = "0 0 * * 1"
 // ============================================================
 exports.handler = async (event) => {
-  // 手動テスト時（GET/POST）も同じロジックで実行可
+  // ============================================================
+  // 実行ガード:
+  // (a) Netlify スケジュール実行（body に next_run を含む）
+  // (b) x-remind-secret ヘッダーが REMIND_SECRET と一致（手動テスト用）
+  // のいずれかを満たさない場合は 403 を返す
+  // ============================================================
+  let parsedBody = {};
+  try {
+    parsedBody = JSON.parse(event.body || '{}');
+  } catch (e) {
+    parsedBody = {};
+  }
+  const isScheduled = parsedBody && typeof parsedBody === 'object' && 'next_run' in parsedBody;
+  const remindSecret = process.env.REMIND_SECRET;
+  const headerSecret = event.headers?.['x-remind-secret'] || event.headers?.['X-Remind-Secret'] || '';
+  const hasValidSecret = !!remindSecret && headerSecret === remindSecret;
+  if (!isScheduled && !hasValidSecret) {
+    return { statusCode: 403, body: JSON.stringify({ error: 'Forbidden' }) };
+  }
+
   try {
     const firebaseAdmin = getFirebaseAdmin();
     const db = firebaseAdmin.firestore();
