@@ -241,9 +241,9 @@ service cloud.firestore {
                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                                'title','content','image_url','updated_at'
                              ]);
-      // 削除: 自分の投稿のみ
-      allow delete:       if isAuth()
-                          && resource.data.owner_uid == request.auth.uid;
+      // 削除: 自分の投稿、または管理者
+      allow delete:       if isAdmin()
+                          || (isAuth() && resource.data.owner_uid == request.auth.uid);
     }
 
     // inquiries（支援申請）
