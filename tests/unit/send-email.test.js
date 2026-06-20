@@ -207,6 +207,29 @@ describe('メールタイプ別 正常送信 (200)', () => {
     expect(mail.text).not.toContain('否認理由');
   });
 
+  test('menu_created → 200 (支援メニュー登録完了メール)', async () => {
+    const res = await handler(makeEvent({
+      body: JSON.stringify({
+        type: 'menu_created',
+        params: {
+          toEmail: 'club@example.com',
+          orgName: '松江FC',
+          menuTitle: 'スポンサー募集',
+          targetAmount: '10万円',
+        },
+      }),
+    }));
+    expect(res.statusCode).toBe(200);
+    const mail = mockSendMail.mock.calls[0][0];
+    expect(mail.to).toBe('club@example.com');
+    expect(mail.cc).toBe('sasaeru@scl.or.jp');
+    expect(mail.subject).toBe('【SASAERU】 新規支援メニュー登録完了メール');
+    expect(mail.text).toContain('松江FC');
+    expect(mail.text).toContain('スポンサー募集');
+    expect(mail.text).toContain('10万円');
+    expect(mail.text).toContain('藤田');
+  });
+
   test('inquiry_owner → 200 (オーナー通知)', async () => {
     const res = await handler(makeEvent({
       body: JSON.stringify({

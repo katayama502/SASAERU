@@ -1473,7 +1473,7 @@
         data.owner_uid  = currentUser.uid;
         await menusRef.add(data);
         showToast('メニューを追加しました');
-        // 新規作成時のみ通知（SLACK_WEBHOOK_URL は send-email Function 側で使用）
+        // 管理者通知（Slack + 管理者メール）
         const _menuLines = [
           `団体名：${currentOrg?.name || '—'}`,
           `メニュー名：${data.title || '—'}`,
@@ -1484,6 +1484,19 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'admin_notify', params: { label: '🆕 新規支援メニュー登録', lines: _menuLines, origin: window.location.origin } }),
         }).catch(() => {});
+        // クラブへの登録完了メール（status が public の場合のみ）
+        if (data.status === 'public' && currentOrg?.contact_email) {
+          fetch('/.netlify/functions/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'menu_created', params: {
+              toEmail:      currentOrg.contact_email,
+              orgName:      currentOrg.name || '',
+              menuTitle:    data.title || '',
+              targetAmount: data.target_amount || '',
+            }}),
+          }).catch(() => {});
+        }
       }
       cancelMenuForm();
       loadMenus();

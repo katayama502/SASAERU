@@ -235,6 +235,43 @@ function buildMailOptions(type, rawParams) {
       };
     }
 
+    // 新規支援メニュー登録完了メール（クラブ向け）
+    case 'menu_created':
+      requireFields(p, ['orgName', 'menuTitle', 'targetAmount']);
+      requireEmail(p, 'toEmail');
+      return {
+        from,
+        to: p.toEmail,
+        cc: 'sasaeru@scl.or.jp',
+        subject: '【SASAERU】 新規支援メニュー登録完了メール',
+        text: [
+          `${p.orgName} 様`,
+          'こんにちは！',
+          'SASAERUの運営会社である一般社団法人しまね創生ラボの藤田です。',
+          'この度は支援メニューを登録いただきありがとうございます。',
+          '',
+          '以下の内容にて公式サイトにて公開しております。',
+          '=================',
+          `団体名：${p.orgName}`,
+          `メニュー名：${p.menuTitle}`,
+          `希望金額・数量：${p.targetAmount || ''}`,
+          '=================',
+          '公式サイト：https://sasaeru.scl.or.jp/',
+          '',
+          '積極的に広報して、支援を呼びかけましょう！',
+          '----------------------------------------',
+          '～未来をつくろう～',
+          '一般社団法人しまね創生ラボ',
+          '代表理事　藤田　優太朗',
+          '',
+          'MAIL: sasaeru@scl.or.jp',
+          'TEL: 080-9332-9255',
+          'ADD: 〒690-0842',
+          '　島根県松江市東本町２丁目２５－１',
+          '　東本町ビル４階',
+        ].join('\n'),
+      };
+
     // 問い合わせ通知（オーナー向け）
     case 'inquiry_owner':
       requireFields(p, ['orgName', 'companyName', 'picName']);
