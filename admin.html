@@ -1379,7 +1379,7 @@
   function deleteOrg(id, name) {
     showConfirm(
       `「${name}」を削除しますか？`,
-      'この操作は取り消せません。支援メニュー・問い合わせ履歴・活動日記もすべて削除されます。\n⚠️ ログインアカウント（メール）は別途 Firebase Console から削除してください。',
+      'この操作は取り消せません。支援メニュー・問い合わせ履歴・活動日記・ログインアカウントをすべて削除します。',
       '削除する', 'bg-red-500 hover:bg-red-600',
       async () => {
         if (!db) { showToast('Firebase未設定です', false); return; }
@@ -1389,15 +1389,15 @@
           const ownerUid = orgDoc.exists ? orgDoc.data().owner_uid : null;
           const batch = db.batch();
 
-          // B-1: menus サブコレクション削除
+          // menus サブコレクション削除
           const menusSnap = await orgRef.collection('menus').get();
           menusSnap.docs.forEach(d => batch.delete(d.ref));
 
-          // B-1: inquiries（この団体宛）削除
+          // inquiries（この団体宛）削除
           const inqSnap = await db.collection('inquiries').where('org_id', '==', id).get();
           inqSnap.docs.forEach(d => batch.delete(d.ref));
 
-          // B-1: posts（このオーナーの投稿）削除
+          // posts（このオーナーの投稿）削除
           if (ownerUid) {
             const postsSnap = await db.collection('posts').where('owner_uid', '==', ownerUid).get();
             postsSnap.docs.forEach(d => batch.delete(d.ref));
@@ -1406,6 +1406,31 @@
           // 団体ドキュメント本体を削除
           batch.delete(orgRef);
           await batch.commit();
+
+          // Firebase Auth アカウントを削除（Admin SDK 経由）
+          if (ownerUid) {
+            try {
+              const idToken = await auth.currentUser.getIdToken(true);
+              const res = await fetch('/.netlify/functions/delete-org-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ uid: ownerUid }),
+              });
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                console.warn('Auth削除失敗:', err.error || res.status);
+                showToast('Firestoreは削除しましたが、ログインアカウントの削除に失敗しました', false);
+                loadTab(currentTab); loadOverview();
+                return;
+              }
+            } catch(e) {
+              console.warn('Auth削除失敗:', e);
+              showToast('Firestoreは削除しましたが、ログインアカウントの削除に失敗しました', false);
+              loadTab(currentTab); loadOverview();
+              return;
+            }
+          }
+
           showToast('削除しました'); loadTab(currentTab); loadOverview();
         } catch(e) { showToast('エラー: ' + e.message, false); }
       }
