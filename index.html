@@ -972,14 +972,14 @@
   // ===================================================
   // 申請者へのメール送信（TASK-02 / Nodemailer + Netlify Function）
   // ===================================================
-  async function sendApplicantEmail({ toEmail, clubName, categoryJp, registeredAt, origin }) {
+  async function sendApplicantEmail({ toEmail, clubName, categoryJp, areaJp, registeredAt, origin }) {
     try {
       const res = await fetch('/.netlify/functions/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'applicant',
-          params: { toEmail, clubName, categoryJp, registeredAt, origin },
+          params: { toEmail, clubName, categoryJp, areaJp, registeredAt, origin },
         }),
       });
       if (!res.ok) console.warn('申請者メール送信失敗:', res.status);
