@@ -134,6 +134,9 @@ describe('メールタイプ別 正常送信 (200)', () => {
     // ADMIN_EMAIL + EXTRA_ADMIN_EMAIL（デフォルト sasaeru@scl.or.jp）の同時送信
     expect(mail.to).toBe('admin@example.com, sasaeru@scl.or.jp');
     expect(mail.subject).toContain('🏃 新規クラブ申請');
+    // 差出人・返信先は運営事務局アドレス（Gmail送信アカウントとは別に固定）
+    expect(mail.from).toBe('"SASAERU 運営事務局" <sasaeru@scl.or.jp>');
+    expect(mail.replyTo).toBe('sasaeru@scl.or.jp');
   });
 
   test('applicant → 200 (登録受付メール)', async () => {

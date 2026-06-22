@@ -133,7 +133,8 @@ exports.handler = async (event) => {
     // Gmail で送信
     const transporter = createTransporter();
     await transporter.sendMail({
-      from:    `"SASAERU 運営事務局" <${GMAIL_USER}>`,
+      from:    `"SASAERU 運営事務局" <${process.env.MAIL_FROM || 'sasaeru@scl.or.jp'}>`,
+      replyTo: process.env.MAIL_FROM || 'sasaeru@scl.or.jp',
       to:      normalizedEmail,
       subject: '【SASAERU】メールアドレスの確認をお願いします',
       text: [

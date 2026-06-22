@@ -102,6 +102,9 @@
 
 > Slack 通知は send-email Function がサーバー側で送信する（環境変数 `SLACK_WEBHOOK_URL`）。
 > ブラウザから Slack Webhook を直接呼び出す方式は廃止（Webhook URL の露出防止）。
+>
+> メールの差出人表示・返信先（Reply-To）は `sasaeru@scl.or.jp`（環境変数 `MAIL_FROM` で変更可。Gmail 送信アカウント `GMAIL_USER` とは独立）。返信は必ず運営事務局アドレスに届く。
+> ※ From 表示を確実に `sasaeru@scl.or.jp` にするには、Gmail 送信アカウント側で当該アドレスを「名前を指定してメールを送信（Send mail as）」エイリアスとして認証しておく必要がある（未設定の場合 Gmail が From を送信アカウントに書き換えるが、Reply-To は維持される）。
 
 | トリガー | 通知先 | 手段 |
 |----------|--------|------|
@@ -165,6 +168,7 @@
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | 必須 | メール送信（既存） |
 | `SLACK_WEBHOOK_URL` | Slack 通知を使う場合必須 | サーバー側 Slack 通知（クライアント直接送信から移行） |
 | `ADMIN_EMAIL` / `EXTRA_ADMIN_EMAIL` | 任意 | 通知宛先（既存） |
+| `MAIL_FROM` | 任意 | メールの差出人表示・返信先アドレス（未設定時は `sasaeru@scl.or.jp`） |
 | `ALLOWED_ORIGIN` | 任意 | CORS 許可オリジン（未設定時は https://sasaeru.netlify.app のみ） |
 | `REMIND_SECRET` | 任意 | remind-inquiries の手動実行用シークレット |
 | `ADMIN_BOOTSTRAP_SECRET` | 初期セットアップ時のみ | set-first-admin 用（運用開始後は削除推奨） |

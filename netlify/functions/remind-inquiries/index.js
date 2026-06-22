@@ -126,7 +126,8 @@ exports.handler = async (event) => {
 
       try {
         await transporter.sendMail({
-          from: `"SASAERU 運営事務局" <${GMAIL_USER}>`,
+          from: `"SASAERU 運営事務局" <${process.env.MAIL_FROM || 'sasaeru@scl.or.jp'}>`,
+          replyTo: process.env.MAIL_FROM || 'sasaeru@scl.or.jp',
           to: toEmail,
           bcc,
           subject: '【SASAERU】未対応の支援申請があります',

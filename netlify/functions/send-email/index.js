@@ -4,6 +4,8 @@ const GMAIL_USER     = process.env.GMAIL_USER;
 const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || GMAIL_USER;
 const EXTRA_ADMIN_EMAIL = process.env.EXTRA_ADMIN_EMAIL || 'sasaeru@scl.or.jp';
+// 差出人・返信先として表示するアドレス（Gmail送信アカウントとは別に固定）
+const MAIL_FROM_EMAIL = process.env.MAIL_FROM || 'sasaeru@scl.or.jp';
 
 // 重複を除いた管理者宛先リスト（ADMIN_EMAIL と EXTRA_ADMIN_EMAIL が同じ場合は1件）
 const ADMIN_TO = [...new Set([ADMIN_EMAIL, EXTRA_ADMIN_EMAIL].filter(Boolean))].join(', ');
@@ -120,7 +122,7 @@ function buildMailOptions(type, rawParams) {
     p[k] = sanitize(v, k === 'message' || k === 'lines' ? 2000 : 500, keepNl);
   }
 
-  const from = `"SASAERU 運営事務局" <${GMAIL_USER}>`;
+  const from = `"SASAERU 運営事務局" <${MAIL_FROM_EMAIL}>`;
 
   switch (type) {
 
@@ -393,6 +395,8 @@ exports.handler = async (event) => {
   try {
     const transporter = createTransporter();
     const mailOptions = buildMailOptions(type, params);
+    // 返信先を運営事務局アドレスに固定（Gmail が From を書き換えても返信は届く）
+    if (!mailOptions.replyTo) mailOptions.replyTo = MAIL_FROM_EMAIL;
     await transporter.sendMail(mailOptions);
 
     // 管理者通知はメール送信成功後に Slack へも通知（失敗しても 200 を返す）
