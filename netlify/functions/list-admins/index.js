@@ -103,7 +103,8 @@ exports.handler = async (event) => {
     }
 
     // Firestore admins コレクションを Admin SDK（ルールバイパス）で取得
-    const snap = await db.collection('admins').orderBy('added_at', 'desc').get();
+    // orderBy を使わず全件取得してJS側でソート（added_atなしドキュメントも含める）
+    const snap = await db.collection('admins').get();
 
     const admins = snap.docs.map(doc => {
       const d = doc.data();
@@ -112,9 +113,13 @@ exports.handler = async (event) => {
         uid:      d.uid      || '',
         email:    d.email    || '',
         added_by: d.added_by || '',
-        // Timestamp → ISO文字列に変換（クライアントで扱いやすくする）
         added_at: d.added_at ? d.added_at.toDate().toISOString() : null,
       };
+    }).sort((a, b) => {
+      if (!a.added_at && !b.added_at) return 0;
+      if (!a.added_at) return 1;
+      if (!b.added_at) return -1;
+      return b.added_at.localeCompare(a.added_at);
     });
 
     return {
