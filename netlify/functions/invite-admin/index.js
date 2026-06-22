@@ -201,7 +201,8 @@ exports.handler = async (event) => {
     const callerEmail = callerClaims.email || '管理者';
     const transporter = createTransporter();
     await transporter.sendMail({
-      from:    `"SASAERU 運営事務局" <${process.env.GMAIL_USER}>`,
+      from:    `"SASAERU 運営事務局" <${process.env.MAIL_FROM || 'sasaeru@scl.or.jp'}>`,
+      replyTo: process.env.MAIL_FROM || 'sasaeru@scl.or.jp',
       to:      normalizedTarget,
       subject: '【SASAERU】管理者アカウントの招待',
       text: [
