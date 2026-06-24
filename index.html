@@ -1113,8 +1113,14 @@
 
   // M-10: max を活用して上限近くで文字色を赤に変更
   function autoResizeTextarea(el) {
-    el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
+    // height を 'auto' にするとブラウザがスクロール位置を再計算し
+    // カーソルが先頭に飛ぶ問題を防ぐため、一時的に縮小して scrollHeight を取得する
+    const prev = el.style.height;
+    el.style.height = '0';
+    const next = Math.max(el.scrollHeight, 200) + 'px';
+    el.style.height = prev;
+    // rAF でワンフレーム後に適用することでスクロール位置を保持する
+    requestAnimationFrame(() => { el.style.height = next; });
   }
 
   function updateCounter(el, counterId, max) {
