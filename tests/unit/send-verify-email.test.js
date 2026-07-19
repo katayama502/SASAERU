@@ -114,10 +114,19 @@ describe('正常系: メール確認リンク送信', () => {
     expect(mail.subject).toBe('【SASAERU】メールアドレスの確認をお願いします');
   });
 
-  test('メール本文に確認リンクが含まれる', async () => {
+  test('メール本文に自サイト直行の確認リンク（日本語UI）が含まれる', async () => {
     await handler(makeEvent());
     const mail = mockSendMail.mock.calls[0][0];
-    expect(mail.text).toContain('https://firebase.example.com/verify?oobCode=abc123');
+    // Firebase ホストの英語ページを経由せず mypage.html?mode=verifyEmail&oobCode=... へ直接誘導する
+    expect(mail.text).toContain('https://sasaeru.netlify.app/mypage.html?mode=verifyEmail&oobCode=abc123');
+    expect(mail.text).not.toContain('https://firebase.example.com/verify');
+  });
+
+  test('生成リンクに oobCode が無い場合は元リンクにフォールバックする', async () => {
+    mockGenerateLink.mockResolvedValue('https://firebase.example.com/verify-no-code');
+    await handler(makeEvent());
+    const mail = mockSendMail.mock.calls[0][0];
+    expect(mail.text).toContain('https://firebase.example.com/verify-no-code');
   });
 
   test('メール本文に24時間有効の案内が含まれる', async () => {

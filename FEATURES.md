@@ -103,6 +103,9 @@
 > Slack 通知は send-email Function がサーバー側で送信する（環境変数 `SLACK_WEBHOOK_URL`）。
 > ブラウザから Slack Webhook を直接呼び出す方式は廃止（Webhook URL の露出防止）。
 >
+> 全メールの差出人・返信先は `"SASAERU 運営事務局" <sasaeru@scl.or.jp>`（環境変数 `MAIL_FROM` で変更可）。
+> 送信は Gmail SMTP（GMAIL_USER）経由のため、**Gmail 側で sasaeru@scl.or.jp を「他のメールアドレスから送信」に登録していないと From が Gmail アドレスに書き換えられる**点に注意。
+>
 > メールの差出人表示・返信先（Reply-To）は `sasaeru@scl.or.jp`（環境変数 `MAIL_FROM` で変更可。Gmail 送信アカウント `GMAIL_USER` とは独立）。返信は必ず運営事務局アドレスに届く。
 > ※ From 表示を確実に `sasaeru@scl.or.jp` にするには、Gmail 送信アカウント側で当該アドレスを「名前を指定してメールを送信（Send mail as）」エイリアスとして認証しておく必要がある（未設定の場合 Gmail が From を送信アカウントに書き換えるが、Reply-To は維持される）。
 
@@ -114,7 +117,7 @@
 | 支援マッチング成立 | 運営（ADMIN_EMAIL + sasaeru@scl.or.jp） | Slack + メール |
 | 登録申請受付 | 申請した団体 | メール |
 | 審査完了（公開 / 却下） | 申請した団体 | メール |
-| メール確認 | 申請した団体 | メール（確認リンク） |
+| メール確認 | 申請した団体 | メール（確認リンク — Firebase の英語ページを経由せず mypage.html の日本語UIで完結） |
 | 週次リマインド（毎週月曜 9 時） | 未対応申請のある団体（contact_email） | メール（BCC: 運営） |
 
 ---

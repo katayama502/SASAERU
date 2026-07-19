@@ -130,6 +130,16 @@ exports.handler = async (event) => {
       { url: `${safeOrigin}/mypage.html` },
     );
 
+    // Firebase ホストの確認ページ（英語表記）を経由させず、
+    // 自サイトの mypage.html（日本語UI・applyActionCode 処理あり）へ直接誘導する
+    let mailLink = verifyLink;
+    try {
+      const oobCode = new URL(verifyLink).searchParams.get('oobCode');
+      if (oobCode) {
+        mailLink = `${safeOrigin}/mypage.html?mode=verifyEmail&oobCode=${encodeURIComponent(oobCode)}`;
+      }
+    } catch (_) { /* パース失敗時は Firebase 生成リンクをそのまま使用 */ }
+
     // Gmail で送信
     const transporter = createTransporter();
     await transporter.sendMail({
@@ -143,7 +153,7 @@ exports.handler = async (event) => {
         '以下のリンクをクリックして、メールアドレスの確認を完了してください。',
         '（リンクの有効期限は24時間です）',
         '',
-        verifyLink,
+        mailLink,
         '',
         '─────────────────────────',
         'このメールに心当たりがない場合は、このメールを無視してください。',
