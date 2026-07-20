@@ -178,6 +178,7 @@ describe('メールタイプ別 正常送信 (200)', () => {
     expect(res.statusCode).toBe(200);
     const mail = mockSendMail.mock.calls[0][0];
     expect(mail.to).toBe('club@example.com');
+    expect(mail.cc).toBe('sasaeru@scl.or.jp');
     expect(mail.subject).toBe('【SASAERU】団体登録が承認されました');
     expect(mail.text).toContain('田中太郎');
   });
@@ -195,6 +196,7 @@ describe('メールタイプ別 正常送信 (200)', () => {
     }));
     expect(res.statusCode).toBe(200);
     const mail = mockSendMail.mock.calls[0][0];
+    expect(mail.cc).toBe('sasaeru@scl.or.jp');
     expect(mail.text).toContain('活動実績が確認できませんでした');
   });
 
@@ -292,6 +294,7 @@ describe('メールタイプ別 正常送信 (200)', () => {
     expect(res.statusCode).toBe(200);
     const mail = mockSendMail.mock.calls[0][0];
     expect(mail.to).toBe('company@example.com');
+    expect(mail.cc).toBe('sasaeru@scl.or.jp');
     expect(mail.subject).toBe('【SASAERU】お問い合わせを受け付けました');
   });
 

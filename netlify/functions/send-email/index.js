@@ -187,6 +187,7 @@ function buildMailOptions(type, rawParams) {
       return {
         from,
         to: p.toEmail,
+        cc: 'sasaeru@scl.or.jp',
         subject: '【SASAERU】団体登録が承認されました',
         text: [
           `${p.toName} 様`,
@@ -220,6 +221,7 @@ function buildMailOptions(type, rawParams) {
       return {
         from,
         to: p.toEmail,
+        cc: 'sasaeru@scl.or.jp',
         subject: '【SASAERU】団体登録について',
         text: [
           `${p.toName} 様`,
@@ -314,6 +316,7 @@ function buildMailOptions(type, rawParams) {
       return {
         from,
         to: p.toEmail,
+        cc: 'sasaeru@scl.or.jp',
         subject: '【SASAERU】お問い合わせを受け付けました',
         text: [
           `${p.companyName}`,
