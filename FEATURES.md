@@ -161,6 +161,7 @@
 | XSS 対策 | 全動的値を `esc()` でサニタイズしてから innerHTML に挿入 |
 | ヘッダーインジェクション対策 | メール送信前に改行文字を除去するサニタイズ処理 |
 | CSV インジェクション対策 | エクスポート時に `=` `+` `-` `@` 等で始まるセルへ `'` を前置 |
+| CSP（外部リソース許可リスト） | netlify.toml で script-src / style-src を許可制に。許可元: tailwindcss / unpkg / gstatic / apis.google / **cdn.jsdelivr.net（活動日記エディタ Quill）**。新しい CDN を追加する際は必ず CSP にも追加すること。**CSP はリダイレクト先も検査する**ため、CDN の URL はリダイレクト元ではなく実体のホストを直接指定する（`cdn.quilljs.com` は jsdelivr へ 301 する） |
 | 機密ファイル非公開 | Netlify は `dist/`（公開 HTML・画像のみ）を配信。サービスアカウント鍵は `~/.secrets/sasaeru/` に保管しリポジトリ外 |
 
 ### 必要な環境変数（Netlify）
