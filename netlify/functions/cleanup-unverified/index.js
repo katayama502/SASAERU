@@ -113,8 +113,42 @@ exports.handler = async (event) => {
       }
     }
 
-    console.log(`cleanup-unverified: ${dryRun ? '[dryRun] ' : ''}deleted=${deleted.length} skipped=${skipped.length}`);
-    return { statusCode: 200, body: JSON.stringify({ deleted: deleted.length, skipped: skipped.length, dryRun, ids: deleted }) };
+    // ── 団体データの無い未確認ログインアカウント（孤立アカウント）の削除 ──────
+    // 団体だけ先に消えて Auth が残ると、同じメールで「既に登録されています」になるため
+    const orphans = [];
+    let pageToken;
+    let pages = 0;
+    do {
+      const list = await auth.listUsers(1000, pageToken);
+      for (const u of list.users) {
+        if (orphans.length >= MAX_DELETE_PER_RUN) break;
+        if (u.emailVerified) continue;
+        if (u.customClaims && u.customClaims.admin === true) continue; // 招待中の管理者（未確認）を守る
+        const createdAt = new Date(u.metadata?.creationTime || 0).getTime();
+        if (!createdAt || createdAt >= cutoff) continue;
+        const owned = await db.collection('organizations').where('owner_uid', '==', u.uid).limit(1).get();
+        if (!owned.empty) continue;
+        const adminDoc = await db.collection('admins').doc(u.uid).get();
+        if (adminDoc.exists) continue;
+        if (!dryRun) {
+          try {
+            await auth.deleteUser(u.uid);
+          } catch (e) {
+            if (e.code !== 'auth/user-not-found') {
+              console.error(`cleanup-unverified: orphan delete failed uid=${u.uid}:`, e.code || e.message);
+              continue;
+            }
+          }
+          console.log(`cleanup-unverified: deleted orphan auth uid=${u.uid} created_at=${new Date(createdAt).toISOString()}`);
+        }
+        orphans.push(u.uid);
+      }
+      pageToken = list.pageToken;
+      pages += 1;
+    } while (pageToken && pages < 10 && orphans.length < MAX_DELETE_PER_RUN);
+
+    console.log(`cleanup-unverified: ${dryRun ? '[dryRun] ' : ''}deleted=${deleted.length} skipped=${skipped.length} orphans=${orphans.length}`);
+    return { statusCode: 200, body: JSON.stringify({ deleted: deleted.length, skipped: skipped.length, orphansDeleted: orphans.length, dryRun, ids: deleted, orphanUids: orphans }) };
   } catch (e) {
     console.error('cleanup-unverified error:', e.code || e.message);
     return { statusCode: 500, body: JSON.stringify({ error: 'cleanup failed' }) };

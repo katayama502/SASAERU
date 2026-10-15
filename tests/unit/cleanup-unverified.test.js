@@ -16,10 +16,18 @@ const mockGetUser     = jest.fn();
 const mockDeleteUser  = jest.fn();
 const mockBatchDelete = jest.fn();
 const mockBatchCommit = jest.fn();
+const mockListUsers   = jest.fn();
+const mockOwnedGet    = jest.fn(); // organizations.where(owner_uid).limit(1).get
+const mockAdminDocGet = jest.fn(); // admins/{uid}.get
 
 jest.mock('firebase-admin', () => {
   const firestore = jest.fn(() => ({
-    collection: jest.fn(() => ({ where: jest.fn(() => ({ get: mockOrgsGet })) })),
+    collection: jest.fn((name) => ({
+      where: jest.fn((field) => (field === 'owner_uid'
+        ? { limit: jest.fn(() => ({ get: mockOwnedGet })) }
+        : { get: mockOrgsGet })),
+      doc: jest.fn(() => ({ get: mockAdminDocGet })),
+    })),
     batch: jest.fn(() => ({ delete: mockBatchDelete, commit: mockBatchCommit })),
   }));
   return {
@@ -27,7 +35,7 @@ jest.mock('firebase-admin', () => {
     initializeApp: jest.fn(),
     credential: { cert: jest.fn() },
     firestore,
-    auth: jest.fn(() => ({ getUser: mockGetUser, deleteUser: mockDeleteUser })),
+    auth: jest.fn(() => ({ getUser: mockGetUser, deleteUser: mockDeleteUser, listUsers: mockListUsers })),
   };
 });
 
@@ -62,6 +70,9 @@ beforeEach(() => {
   mockDeleteUser.mockReset().mockResolvedValue();
   mockBatchDelete.mockReset();
   mockBatchCommit.mockReset().mockResolvedValue();
+  mockListUsers.mockReset().mockResolvedValue({ users: [] });
+  mockOwnedGet.mockReset().mockResolvedValue({ empty: true });
+  mockAdminDocGet.mockReset().mockResolvedValue({ exists: false });
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -209,7 +220,64 @@ describe('dryRun', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════
-// 4. エラー
+// 4. 孤立アカウント（団体データの無い未確認ログインアカウント）
+// ════════════════════════════════════════════════════════════════════
+describe('孤立アカウントの削除', () => {
+  const user = (uid, { ageDays = 30, emailVerified = false, admin = false } = {}) => ({
+    uid, emailVerified,
+    customClaims: admin ? { admin: true } : undefined,
+    metadata: { creationTime: new Date(Date.now() - ageDays * DAY).toUTCString() },
+  });
+
+  test('7日超・未確認・団体なし → Auth を削除', async () => {
+    mockListUsers.mockResolvedValue({ users: [user('o1')] });
+    const res = await handler(scheduled());
+    const body = JSON.parse(res.body);
+    expect(body.orphansDeleted).toBe(1);
+    expect(mockDeleteUser).toHaveBeenCalledWith('o1');
+  });
+
+  test('確認済み・7日未満・管理者 claim は削除しない', async () => {
+    mockListUsers.mockResolvedValue({ users: [
+      user('v', { emailVerified: true }), user('new', { ageDays: 2 }), user('adm', { admin: true }),
+    ] });
+    const res = await handler(scheduled());
+    expect(JSON.parse(res.body).orphansDeleted).toBe(0);
+    expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
+
+  test('団体を持っている / admins に登録済みなら削除しない', async () => {
+    mockListUsers.mockResolvedValue({ users: [user('owner'), user('invited')] });
+    mockOwnedGet.mockResolvedValueOnce({ empty: false }).mockResolvedValue({ empty: true });
+    mockAdminDocGet.mockResolvedValue({ exists: true });
+    const res = await handler(scheduled());
+    expect(JSON.parse(res.body).orphansDeleted).toBe(0);
+    expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
+
+  test('dryRun では孤立アカウントも削除しない', async () => {
+    mockListUsers.mockResolvedValue({ users: [user('o2')] });
+    const res = await handler({
+      httpMethod: 'POST',
+      headers: { 'x-cleanup-secret': 'cleanup-secret-789' },
+      body: JSON.stringify({ dryRun: true }),
+    });
+    expect(JSON.parse(res.body).orphanUids).toEqual(['o2']);
+    expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
+
+  test('複数ページを順にたどる', async () => {
+    mockListUsers
+      .mockResolvedValueOnce({ users: [user('p1')], pageToken: 'next' })
+      .mockResolvedValueOnce({ users: [user('p2')] });
+    const res = await handler(scheduled());
+    expect(JSON.parse(res.body).orphansDeleted).toBe(2);
+    expect(mockListUsers).toHaveBeenCalledWith(1000, 'next');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
+// 5. エラー
 // ════════════════════════════════════════════════════════════════════
 test('Firestore 取得失敗 → 500（内部メッセージは返さない）', async () => {
   mockOrgsGet.mockRejectedValue(new Error('secret internal detail'));
