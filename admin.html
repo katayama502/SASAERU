@@ -1312,7 +1312,11 @@
                   class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
                   <i data-lucide="check" width="12" height="12"></i>承認・公開</button>`
               : `<span class="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-500 border border-amber-200 text-xs font-bold rounded-lg cursor-not-allowed select-none" title="メールアドレスが未確認のため承認できません">
-                  <i data-lucide="lock" width="12" height="12"></i>承認不可</span>`}
+                  <i data-lucide="lock" width="12" height="12"></i>承認不可</span>
+                ${o.contact_email ? `<button data-email="${esc(o.contact_email)}"
+                  onclick="event.stopPropagation();resendVerifyEmail(this, this.dataset.email)"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-bold rounded-lg transition-all">
+                  <i data-lucide="mail" width="12" height="12"></i>確認メール再送</button>` : ''}`}
             <button data-id="${esc(id)}" data-name="${esc(o.name)}"
               onclick="event.stopPropagation();rejectOrg(this.dataset.id, this.dataset.name)"
               class="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-all">
@@ -1359,6 +1363,42 @@
         }
       );
     } catch(e) { showToast('エラー: ' + e.message, false); }
+  }
+
+  // ============================================================
+  // 確認メール再送（メール未確認の申請向け）
+  // 期限切れ・代行申請などで申請者がリンクを押せなかった場合に、
+  // 申請を削除せず確認メールだけ送り直す。宛先は申請時の contact_email（= ログインID）。
+  // ============================================================
+  async function resendVerifyEmail(btn, email) {
+    if (!email) { showToast('送信先メールアドレスがありません', false); return; }
+    showConfirm('確認メールを再送しますか？', `${email} 宛に、メールアドレス確認用のリンクを送り直します。`, '再送する', 'bg-indigo-500 hover:bg-indigo-600',
+      async () => {
+        if (btn) btn.disabled = true;
+        try {
+          const res = await fetch('/.netlify/functions/send-verify-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, origin: window.location.origin }),
+          });
+          if (res.ok) {
+            showToast('確認メールを再送しました');
+          } else if (res.status === 409) {
+            showToast('このアドレスは確認済みです。申請者がマイページを開くと「確認済み」に反映されます。', false);
+          } else if (res.status === 404) {
+            showToast('ログインアカウントが見つかりません（削除済みの可能性）。再申請を依頼してください。', false);
+          } else if (res.status === 429) {
+            showToast('送信回数の上限に達しました。1分ほど待ってから再試行してください。', false);
+          } else {
+            showToast(`確認メールの再送に失敗しました（HTTP ${res.status}）`, false);
+          }
+        } catch(e) {
+          showToast('確認メールの再送に失敗しました: ' + e.message, false);
+        } finally {
+          if (btn) setTimeout(() => { btn.disabled = false; }, 60 * 1000);
+        }
+      }
+    );
   }
 
   function rejectOrg(id, name) {
@@ -2328,6 +2368,13 @@
         btn.className = 'flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all';
         btn.innerHTML = '<i data-lucide="check" width="12" height="12"></i>承認する';
         btn.onclick = () => approveOrg(orgId);
+        actionsEl.appendChild(btn);
+      }
+      if (o.status === 'pending' && !o.emailVerified && o.contact_email) {
+        const btn = document.createElement('button');
+        btn.className = 'flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-bold rounded-lg transition-all';
+        btn.innerHTML = '<i data-lucide="mail" width="12" height="12"></i>確認メール再送';
+        btn.onclick = () => resendVerifyEmail(btn, o.contact_email);
         actionsEl.appendChild(btn);
       }
       if (o.status === 'pending') {

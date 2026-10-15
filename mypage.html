@@ -702,64 +702,33 @@
   }
 
   // ============================================================
-  // 確認期限カウントダウン（10分）
+  // 確認期限の表示（登録から7日）
+  // ※ 期限切れ申請の削除はサーバー側の定期処理（cleanup-unverified）が行う。
+  //   ブラウザ側では削除しない（開いた瞬間に申請が消える事故を防ぐため）。
+  //   期限は netlify/functions/cleanup-unverified の UNVERIFIED_TTL_MS と揃えること。
   // ============================================================
-  const VERIFY_TIMEOUT_MS = 10 * 60 * 1000; // 10分
+  const VERIFY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7日
   let _verifyTimer = null;
 
   function startVerifyCountdown() {
     if (_verifyTimer) { clearInterval(_verifyTimer); _verifyTimer = null; }
+    const el = document.getElementById('verify-countdown');
+    if (!el) return;
     const createdAt = currentUser && currentUser.metadata && currentUser.metadata.creationTime
       ? new Date(currentUser.metadata.creationTime).getTime()
       : Date.now();
-    const expiresAt = createdAt + VERIFY_TIMEOUT_MS;
-
-    function tick() {
-      const remaining = expiresAt - Date.now();
-      if (remaining <= 0) {
-        clearInterval(_verifyTimer); _verifyTimer = null;
-        handleVerificationExpired();
-        return;
-      }
-      const mins = Math.floor(remaining / 60000);
-      const secs = Math.floor((remaining % 60000) / 1000);
-      const el = document.getElementById('verify-countdown');
-      if (el) {
-        el.textContent = `確認期限まで ${mins}分 ${String(secs).padStart(2,'0')}秒`;
-        el.className = `text-xs text-center font-bold mb-4 ${remaining < 2 * 60 * 1000 ? 'text-red-500' : 'text-slate-400'}`;
-      }
+    const remaining = createdAt + VERIFY_TTL_MS - Date.now();
+    if (remaining <= 0) {
+      el.textContent = '確認期限（登録から7日）を過ぎています。確認メールを再送して、お早めに確認を完了してください。';
+      el.className = 'text-xs text-center font-bold mb-4 text-red-500';
+      return;
     }
-    tick();
-    _verifyTimer = setInterval(tick, 1000);
-  }
-
-  async function handleVerificationExpired() {
-    if (_verifyTimer) { clearInterval(_verifyTimer); _verifyTimer = null; }
-    const countEl = document.getElementById('verify-countdown');
-    if (countEl) { countEl.textContent = '確認期限が切れました'; countEl.className = 'text-xs text-center font-bold mb-4 text-red-500'; }
-    const statusEl = document.getElementById('verify-status');
-    statusEl.textContent = '登録から10分が経過したため、登録情報を削除します。再度お申し込みください。';
-    statusEl.className = 'text-xs text-center min-h-[1.2rem] mb-4 text-red-500';
-    document.getElementById('verify-check-btn').disabled = true;
-    document.getElementById('resend-btn').disabled = true;
-
-    // Firestoreの申請データを削除（status=pending のもののみ）
-    try {
-      if (db && currentUser) {
-        const snap = await db.collection('organizations')
-          .where('owner_uid', '==', currentUser.uid)
-          .where('status', '==', 'pending')
-          .limit(1).get();
-        if (!snap.empty) await snap.docs[0].ref.delete();
-      }
-    } catch(e) { console.warn('期限切れorg削除失敗:', e); }
-
-    // Firebase Authアカウントを削除（登録直後のため recent login 条件を満たす）
-    try {
-      if (currentUser) await currentUser.delete();
-    } catch(e) { console.warn('期限切れアカウント削除失敗:', e); }
-
-    setTimeout(() => { window.location.replace('index.html'); }, 3000);
+    const days  = Math.floor(remaining / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    el.textContent = days > 0
+      ? `確認期限まで あと${days}日${hours}時間（期限を過ぎた申請は自動で削除されます）`
+      : `確認期限まで あと${hours}時間（期限を過ぎた申請は自動で削除されます）`;
+    el.className = `text-xs text-center font-bold mb-4 ${remaining < 24 * 60 * 60 * 1000 ? 'text-red-500' : 'text-slate-400'}`;
   }
 
   async function checkEmailVerified() {
