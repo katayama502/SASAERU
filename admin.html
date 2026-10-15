@@ -322,6 +322,24 @@
             <div id="orgs-list" class="space-y-3">
               <div class="text-xs text-slate-400 text-center py-8">読み込み中...</div>
             </div>
+            <!-- 孤立アカウント削除（団体データは無いのに「既に登録されています」と出る場合の救済） -->
+            <details class="mt-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <summary class="px-5 py-3 text-xs font-bold text-slate-600 cursor-pointer select-none">
+                団体が一覧に無いのに「このメールアドレスは既に登録されています」と出る場合
+              </summary>
+              <form id="orphan-form" class="px-5 pb-5 flex flex-col gap-3" onsubmit="event.preventDefault();deleteOrphanAccount()">
+                <p class="text-xs text-slate-500 leading-relaxed">
+                  団体データが無く、ログインアカウントだけが残っているメールアドレスを入力してください。
+                  団体を持っているアカウントや管理者アカウントは削除されません。
+                </p>
+                <div class="flex gap-2 flex-wrap">
+                  <input type="email" id="orphan-email" required maxlength="254" placeholder="example@club.jp"
+                    class="flex-1 min-w-[220px] px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-orange-400 outline-none">
+                  <button type="submit" id="orphan-submit"
+                    class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-all">ログインアカウントを削除</button>
+                </div>
+              </form>
+            </details>
           </div>
 
           <!-- 支援申請タブ -->
@@ -1312,7 +1330,11 @@
                   class="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all">
                   <i data-lucide="check" width="12" height="12"></i>承認・公開</button>`
               : `<span class="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-500 border border-amber-200 text-xs font-bold rounded-lg cursor-not-allowed select-none" title="メールアドレスが未確認のため承認できません">
-                  <i data-lucide="lock" width="12" height="12"></i>承認不可</span>`}
+                  <i data-lucide="lock" width="12" height="12"></i>承認不可</span>
+                ${o.contact_email ? `<button data-email="${esc(o.contact_email)}"
+                  onclick="event.stopPropagation();resendVerifyEmail(this, this.dataset.email)"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-bold rounded-lg transition-all">
+                  <i data-lucide="mail" width="12" height="12"></i>確認メール再送</button>` : ''}`}
             <button data-id="${esc(id)}" data-name="${esc(o.name)}"
               onclick="event.stopPropagation();rejectOrg(this.dataset.id, this.dataset.name)"
               class="flex items-center gap-1 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-all">
@@ -1361,6 +1383,42 @@
     } catch(e) { showToast('エラー: ' + e.message, false); }
   }
 
+  // ============================================================
+  // 確認メール再送（メール未確認の申請向け）
+  // 期限切れ・代行申請などで申請者がリンクを押せなかった場合に、
+  // 申請を削除せず確認メールだけ送り直す。宛先は申請時の contact_email（= ログインID）。
+  // ============================================================
+  async function resendVerifyEmail(btn, email) {
+    if (!email) { showToast('送信先メールアドレスがありません', false); return; }
+    showConfirm('確認メールを再送しますか？', `${email} 宛に、メールアドレス確認用のリンクを送り直します。`, '再送する', 'bg-indigo-500 hover:bg-indigo-600',
+      async () => {
+        if (btn) btn.disabled = true;
+        try {
+          const res = await fetch('/.netlify/functions/send-verify-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, origin: window.location.origin }),
+          });
+          if (res.ok) {
+            showToast('確認メールを再送しました');
+          } else if (res.status === 409) {
+            showToast('このアドレスは確認済みです。申請者がマイページを開くと「確認済み」に反映されます。', false);
+          } else if (res.status === 404) {
+            showToast('ログインアカウントが見つかりません（削除済みの可能性）。再申請を依頼してください。', false);
+          } else if (res.status === 429) {
+            showToast('送信回数の上限に達しました。1分ほど待ってから再試行してください。', false);
+          } else {
+            showToast(`確認メールの再送に失敗しました（HTTP ${res.status}）`, false);
+          }
+        } catch(e) {
+          showToast('確認メールの再送に失敗しました: ' + e.message, false);
+        } finally {
+          if (btn) setTimeout(() => { btn.disabled = false; }, 60 * 1000);
+        }
+      }
+    );
+  }
+
   function rejectOrg(id, name) {
     // 否認理由入力ダイアログを使用（TASK-03）
     showRejectDialog(id, name);
@@ -1376,63 +1434,79 @@
     });
   }
 
+  // 削除系 Function の呼び出し（管理者の ID トークン付き）
+  async function callDeleteFunction(payload) {
+    const idToken = await auth.currentUser.getIdToken(true);
+    const res = await fetch('/.netlify/functions/delete-org-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  }
+
   function deleteOrg(id, name) {
     showConfirm(
       `「${name}」を削除しますか？`,
       'この操作は取り消せません。支援メニュー・問い合わせ履歴・活動日記・ログインアカウントをすべて削除します。',
       '削除する', 'bg-red-500 hover:bg-red-600',
       async () => {
-        if (!db) { showToast('Firebase未設定です', false); return; }
+        if (!db || !auth) { showToast('Firebase未設定です', false); return; }
+        // 削除はサーバー側でまとめて行う（ログインアカウント → 団体データの順）。
+        // 途中で失敗しても団体は一覧に残るので、もう一度「削除」を押せば続きから消える
         try {
-          const orgRef = db.collection('organizations').doc(id);
-          const orgDoc = await orgRef.get();
-          const ownerUid = orgDoc.exists ? orgDoc.data().owner_uid : null;
-          const batch = db.batch();
-
-          // menus サブコレクション削除
-          const menusSnap = await orgRef.collection('menus').get();
-          menusSnap.docs.forEach(d => batch.delete(d.ref));
-
-          // inquiries（この団体宛）削除
-          const inqSnap = await db.collection('inquiries').where('org_id', '==', id).get();
-          inqSnap.docs.forEach(d => batch.delete(d.ref));
-
-          // posts（このオーナーの投稿）削除
-          if (ownerUid) {
-            const postsSnap = await db.collection('posts').where('owner_uid', '==', ownerUid).get();
-            postsSnap.docs.forEach(d => batch.delete(d.ref));
-          }
-
-          // 団体ドキュメント本体を削除
-          batch.delete(orgRef);
-          await batch.commit();
-
-          // Firebase Auth アカウントを削除（Admin SDK 経由）
-          if (ownerUid) {
-            try {
-              const idToken = await auth.currentUser.getIdToken(true);
-              const res = await fetch('/.netlify/functions/delete-org-user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-                body: JSON.stringify({ uid: ownerUid }),
-              });
-              if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                console.warn('Auth削除失敗:', err.error || res.status);
-                showToast('Firestoreは削除しましたが、ログインアカウントの削除に失敗しました', false);
-                loadTab(currentTab); loadOverview();
-                return;
-              }
-            } catch(e) {
-              console.warn('Auth削除失敗:', e);
-              showToast('Firestoreは削除しましたが、ログインアカウントの削除に失敗しました', false);
-              loadTab(currentTab); loadOverview();
-              return;
+          const { res, data } = await callDeleteFunction({ orgId: id });
+          if (res.ok) {
+            if (data.authKept && data.authKept.length) {
+              showToast('団体データを削除しました（管理者・他団体のアカウントのため、ログインアカウントは残しています）');
+            } else {
+              showToast('削除しました');
             }
+          } else if (res.status === 404 && data.error === 'org-not-found') {
+            showToast('既に削除されています');
+          } else {
+            showToast(`削除に失敗しました（${data.error || 'HTTP ' + res.status}）。団体は残っているので、もう一度お試しください。`, false);
           }
+        } catch(e) {
+          showToast('削除に失敗しました: ' + e.message, false);
+        }
+        loadTab(currentTab); loadOverview();
+      }
+    );
+  }
 
-          showToast('削除しました'); loadTab(currentTab); loadOverview();
-        } catch(e) { showToast('エラー: ' + e.message, false); }
+  // 団体データの無い孤立ログインアカウントをメールアドレスで削除
+  function deleteOrphanAccount() {
+    const input = document.getElementById('orphan-email');
+    const email = (input.value || '').trim();
+    if (!email) return;
+    showConfirm(
+      'ログインアカウントを削除しますか？',
+      `${email} のログインアカウントを削除します。削除後は同じメールアドレスで新規登録できます。`,
+      '削除する', 'bg-red-500 hover:bg-red-600',
+      async () => {
+        const btn = document.getElementById('orphan-submit');
+        btn.disabled = true;
+        try {
+          const { res, data } = await callDeleteFunction({ action: 'orphan', email });
+          const msgs = {
+            'user-not-found':   'このメールアドレスのログインアカウントはありません。そのまま新規登録できます。',
+            'has-organization': 'このアカウントは団体を持っています。団体一覧から団体ごと削除してください。',
+            'admin-account':    '管理者アカウントは削除できません。',
+            'Invalid email':    'メールアドレスの形式が正しくありません。',
+          };
+          if (res.ok) {
+            showToast('ログインアカウントを削除しました');
+            input.value = '';
+          } else {
+            showToast(msgs[data.error] || `削除に失敗しました（${data.error || 'HTTP ' + res.status}）`, false);
+          }
+        } catch(e) {
+          showToast('削除に失敗しました: ' + e.message, false);
+        } finally {
+          btn.disabled = false;
+        }
       }
     );
   }
@@ -2328,6 +2402,13 @@
         btn.className = 'flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-all';
         btn.innerHTML = '<i data-lucide="check" width="12" height="12"></i>承認する';
         btn.onclick = () => approveOrg(orgId);
+        actionsEl.appendChild(btn);
+      }
+      if (o.status === 'pending' && !o.emailVerified && o.contact_email) {
+        const btn = document.createElement('button');
+        btn.className = 'flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-bold rounded-lg transition-all';
+        btn.innerHTML = '<i data-lucide="mail" width="12" height="12"></i>確認メール再送';
+        btn.onclick = () => resendVerifyEmail(btn, o.contact_email);
         actionsEl.appendChild(btn);
       }
       if (o.status === 'pending') {

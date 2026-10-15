@@ -13,6 +13,10 @@
 [functions."remind-inquiries"]
   schedule = "0 0 * * 1"
 
+# メール未確認のまま7日を過ぎた登録申請を削除 — 毎日 3:00 JST (UTC 18:00)
+[functions."cleanup-unverified"]
+  schedule = "0 18 * * *"
+
 # それ以外はSPAルーティング
 [[redirects]]
   from = "/*"
