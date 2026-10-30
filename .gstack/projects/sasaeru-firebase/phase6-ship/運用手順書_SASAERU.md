@@ -304,7 +304,7 @@ window.SASAERU_CONFIG = {
 window.SASAERU_CONFIG = {
   cloudinaryCloudName: 'dzfcj3rvc',
   cloudinaryPreset: 'SASAERU',
-  slackWebhook: 'https://hooks.slack.com/services/T09PV2HMWJ1/B0AUL3R0VG9/xxxx',
+  // Slack 通知はサーバー側に移行済み（Netlify の環境変数 SLACK_WEBHOOK_URL に設定する）
   emailjsPublicKey: 'V50wijLKFvClfEkmy',
   emailjsServiceId: 'service_sddzr7a',
   emailjsTemplateId: 'template_jot6ake'
